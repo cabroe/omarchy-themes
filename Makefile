@@ -11,7 +11,7 @@ help:
 check: lint test
 
 lint:
-	node --check plugin/desktop/plugin.js
+	node --check desktop/plugin.js
 	python3 -m py_compile scripts/generate-themes.py
 	shellcheck hooks/hermes-skin-sync.sh scripts/deploy.sh tests/hook.sh
 

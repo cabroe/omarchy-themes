@@ -19,7 +19,7 @@
 
 | Komponente | Datei | Was sie tut |
 |---|---|---|
-| **Desktop-Plugin** | `plugin/desktop/plugin.js` | Registriert 25 Themes (22 Omarchy-Stock-Themes + 3 eigene mit vollständiger Palette) im Hermes-Theme-Picker, als ⌘K-Befehle und auf einer eigenen Settings-Seite. Rein lokal, kein Backend, kein Netzwerk. |
+| **Desktop-Plugin** | `desktop/plugin.js` | Registriert 25 Themes (22 Omarchy-Stock-Themes + 3 eigene mit vollständiger Palette) im Hermes-Theme-Picker, als ⌘K-Befehle und auf einer eigenen Settings-Seite. Rein lokal, kein Backend, kein Netzwerk. |
 | **Theme-Sync-Hook** | `hooks/hermes-skin-sync.sh` | Läuft bei `omarchy theme set <slug>`, schreibt `~/.hermes/skins/<slug>.yaml` und aktiviert den Hermes-Skin. CLI und TUI folgen dem Desktop-Theme automatisch. |
 | **Generator** | `scripts/generate-themes.py` | Liest `colors.toml`-Dateien vom Host und schreibt die Theme-Tabelle im Plugin neu — nach Omarchy-Updates oder für eigene Themes. |
 | **Deploy-Script** | `scripts/deploy.sh` | Kopiert Plugin + Hook per `scp` auf den Zielhost und vergleicht Byte für Byte. |
@@ -86,7 +86,7 @@ make lint     # node --check + py_compile + shellcheck
 Gleiches Ergebnis ohne `make`:
 
 ```bash
-node --check plugin/desktop/plugin.js
+node --check desktop/plugin.js
 python3 -m py_compile scripts/generate-themes.py
 shellcheck hooks/hermes-skin-sync.sh scripts/deploy.sh tests/hook.sh
 node tests/smoke.mjs
@@ -99,24 +99,30 @@ sh tests/hook.sh
 
 ```
 omarchy-themes/
-├── plugin/desktop/plugin.js     # Hermes-Desktop-Plugin (plain ESM, kein Build)
-├── hooks/hermes-skin-sync.sh    # Omarchy-theme-set-Hook → Hermes CLI/TUI-Skin
+├── desktop/plugin.js         # Hermes-Desktop-Plugin (plain ESM, kein Build)
+├── hooks/hermes-skin-sync.sh # Omarchy-theme-set-Hook → Hermes CLI/TUI-Skin
 ├── scripts/
-│   ├── generate-themes.py       # colors.toml → Theme-Tabelle in plugin.js
-│   └── deploy.sh                # scp + Byte-Vergleich auf dem Zielhost
+│   ├── generate-themes.py    # colors.toml → Theme-Tabelle in plugin.js
+│   └── deploy.sh             # scp + Byte-Vergleich auf dem Zielhost
 ├── tests/
-│   ├── smoke.mjs                # Plugin in Node mit SDK-Stubs
-│   ├── hook.sh                  # Hook gegen Fixture in Sandbox-$HOME
-│   └── stubs/                   # @hermes/plugin-sdk, react, react/jsx-runtime
+│   ├── smoke.mjs             # Plugin in Node mit SDK-Stubs
+│   ├── hook.sh               # Hook gegen Fixture in Sandbox-$HOME
+│   └── stubs/                # @hermes/plugin-sdk, react, react/jsx-runtime
 ├── Makefile
 └── README.md
 ```
 
-Zielpfade auf dem Host:
+Der Desktop-Plugin-Pfad (`desktop/plugin.js`) entspricht dem, was der Hermes-Plugin-Loader beim
+`hermes plugins install <url>` sucht (siehe `findDesktopEntry` in
+`desktop-plugin-install.ts`). Früher lag das Plugin unter `plugin/desktop/plugin.js` — der
+Loader hat dort nichts erkannt und brach mit „No agent or desktop plugin artifacts found"
+ab.
+
+Zielpfade auf dem Host (per `make deploy`):
 
 | Datei | Ziel |
 |---|---|
-| `plugin/desktop/plugin.js` | `~/.hermes/plugins/omarchy-themes/desktop/plugin.js` |
+| `desktop/plugin.js` | `~/.hermes/plugins/omarchy-themes/desktop/plugin.js` |
 | `hooks/hermes-skin-sync.sh` | `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh` |
 
 ---

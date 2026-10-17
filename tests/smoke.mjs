@@ -10,7 +10,7 @@ import { resolve } from './stubs/loader.mjs'
 if (nodeModule.registerHooks) nodeModule.registerHooks({ resolve })
 else nodeModule.register('./stubs/loader.mjs', import.meta.url)
 
-const { default: plugin } = await import('../plugin/desktop/plugin.js')
+const { default: plugin } = await import('../desktop/plugin.js')
 
 const contributions = []
 const settingsPages = []

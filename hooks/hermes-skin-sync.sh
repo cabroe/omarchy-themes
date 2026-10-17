@@ -116,7 +116,7 @@ read_key() {
 
 # --- Color extraction with sensible fallbacks ----------------------------
 # Pull the core palette. Fallback chains for missing keys so partial
-# palettes still yield a usable skin (cf. buildTheme() in plugin/desktop/plugin.js).
+# palettes still yield a usable skin (cf. buildTheme() in desktop/plugin.js).
 
 background=""
 foreground=""

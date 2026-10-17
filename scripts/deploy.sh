@@ -27,7 +27,7 @@ HOOK_DIR='.config/omarchy/hooks/theme-set.d'
 
 echo "→ plugin.js  → $HOST:~/$PLUGIN_DIR/plugin.js"
 ssh "$HOST" "mkdir -p ~/$PLUGIN_DIR"
-scp -q plugin/desktop/plugin.js "$HOST:$PLUGIN_DIR/plugin.js"
+scp -q desktop/plugin.js "$HOST:$PLUGIN_DIR/plugin.js"
 
 if [ "$WITH_HOOK" = 1 ]; then
     echo "→ hook       → $HOST:~/$HOOK_DIR/"
@@ -45,7 +45,7 @@ verify() {
         exit 1
     fi
 }
-verify plugin/desktop/plugin.js "$PLUGIN_DIR/plugin.js"
+verify desktop/plugin.js "$PLUGIN_DIR/plugin.js"
 [ "$WITH_HOOK" = 1 ] && verify hooks/hermes-skin-sync.sh "$HOOK_DIR/hermes-skin-sync.sh"
 
 echo 'Done. Hermes Desktop: ⌘K → "Reload desktop plugins"'

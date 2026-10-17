@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerate the baked-in theme table in plugin/desktop/plugin.js.
+"""Regenerate the baked-in theme table in desktop/plugin.js.
 
 Reads every ``<theme>/colors.toml`` from the Omarchy theme directories and
 rewrites the block between the ``BEGIN/END GENERATED THEMES`` markers in
@@ -31,7 +31,7 @@ import tomllib
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-PLUGIN_JS = REPO / "plugin" / "desktop" / "plugin.js"
+PLUGIN_JS = REPO / "desktop" / "plugin.js"
 
 SYSTEM_DIR = "/usr/share/omarchy/themes"
 USER_DIR = "~/.config/omarchy/themes"
