@@ -144,21 +144,19 @@ Then on omarchy:
    contributions and the Settings ▸ Plugins ▸ Omarchy Themes page
    appear.
 
-## Known issues (deployment result, 2026-10-17)
+## Architecture note (verified 2026-10-17)
 
-- **REST-Endpoint not reachable from omarchy's Hermes-Desktop.** Omarchy's
-  Hermes-Gateway runs as a messaging-only IPC daemon over Unix-Socket
-  (`/home/cabroe/.hermes/gateway.sock`) — there is no HTTP listener on the
-  gateway host. The plugin's `/api/plugins/omarchy-themes/themes` route is
-  therefore only reachable on hosts that run the Hermes web server (vnic /
-  vps-oracle does, on port 8644). On omarchy, the desktop plugin will reach
-  the Apply button and see an empty theme list. Workarounds:
-  - Use the same plugin on the vps-oracle desktop (vnic) — backend works there.
-  - Or: hard-mount a remote `/usr/share/omarchy/themes` into vnic via SSHFS
-    and re-scan.
-  - Future v2: the plugin's `plugin_api.py` could read its `colors.toml`
-    files via `subprocess.run(['ssh', 'omarchy', 'cat', ...])` instead of
-    local FS, so a single backend on the bot server can serve any host.
+**The backend is reachable from omarchy's Hermes-Desktop.** The Desktop
+app maintains an SSH tunnel to the vps-oracle (vnic) Hermes web server
+(port 8644), forwarding it to a local port. All `/api/plugins/...` calls
+go through this tunnel — so even though omarchy's own Hermes-Gateway has
+no HTTP listener, the plugin backend on vnic is fully reachable from the
+omarchy Desktop.
+
+> **Earlier docs stated this was an "Architectural Limit" — that was
+> incorrect.** Live inspection of omarchy's Desktop log confirmed the SSH
+> tunnel and that `omarchy-themes` already appears in `/api/dashboard/plugins`.
+> The plugin will work as soon as the renderer loads it (see below).
 
 - **Hermes-Desktop renderer did not hot-reload** after the scp deploy
   (Electron-Main has been running since before the plugin existed, and
