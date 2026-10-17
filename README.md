@@ -76,3 +76,7 @@ Im Hermes-Desktop: ⌘K → "Reload desktop plugins" → Theme-Picker sollte die
 ## Status
 
 In Entwicklung — Implementierung durch coder-Bot, Review durch reviewer-Bot, Deploy durch ops-Bot (siehe Kanban-Board).
+
+## Privatheit
+
+Repo bleibt so lange **privat**, bis der User eine Veröffentlichung explizit genehmigt. Gilt auch für jeden GitHub-Mirror.
