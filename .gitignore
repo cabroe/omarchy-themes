@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+*.egg
+build/
+dist/
+
+# Node (disk plugins don't need node_modules, but keep safe)
+node_modules/
+
+# Logs
+*.log
+logs/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Backups / scratch
+*.bak
+*.tmp
+*~
+.scratch/
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+auth.json

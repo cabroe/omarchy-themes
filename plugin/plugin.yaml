@@ -1,0 +1,5 @@
+name: omarchy-themes
+version: 1.0.0
+description: "Imports Omarchy theme directories (e.g. /usr/share/omarchy/themes, ~/.config/omarchy/themes) as selectable Hermes-Desktop skins. Ships a FastAPI endpoint and a desktop plugin that registers each theme in the picker."
+author: cabroe
+kind: backend
