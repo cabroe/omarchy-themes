@@ -1,0 +1,49 @@
+name: CI
+
+# Badge: https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml/badge.svg
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs for the same ref on new commits.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least-privilege defaults; jobs/Steps erweitern nur, was sie brauchen.
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: make check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Externe Actions auf Commit-SHA gepinnt — Tags/Branches sind mutable
+      # und ein einziger Compromised-Tag würde jedes CI-Lauf kompromittieren.
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+
+      - name: Install shellcheck
+        # Auf GitHub-hosted ubuntu-latest läuft alles als root — sudo entfällt.
+        # linuxbrew/shellcheck wäre eine Alternative, apt-get ist auf Ubuntu schneller.
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Run make check
+        # = lint (node --check, py_compile, shellcheck) + test (smoke.mjs, hook.sh)
+        # Kein Netz, keine Secrets — rein lokale Checks.
+        run: make check
