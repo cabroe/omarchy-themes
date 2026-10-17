@@ -42,4 +42,4 @@ Thumbs.db
 !.env.example
 *.pem
 *.key
-auth.json
+auth.jsondocs/

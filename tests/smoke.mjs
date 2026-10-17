@@ -15,10 +15,12 @@ const { default: plugin } = await import('../plugin/desktop/plugin.js')
 const contributions = []
 const settingsPages = []
 const disposers = []
+const eventListeners = []
 const ctx = {
   register: c => { contributions.push(c); return () => {} },
   registerSettingsPage: p => settingsPages.push(p),
   onDispose: fn => disposers.push(fn),
+  onEvent: (type, listener) => { eventListeners.push({ type, listener }); return () => {} },
   os: { writeClipboard: () => true },
 }
 
@@ -46,7 +48,13 @@ for (const { data: t } of themes) {
   assert.ok(t.colors.background && t.colors.foreground && t.colors.accent)
 }
 
-// Built-in Hermes names must be suffixed, never shadowed.
-assert.ok(names.has('catppuccin-omarchy') || !names.has('catppuccin'))
+// Hermes built-in collisions are SKIPPED (not renamed) — Hermes Desktop is
+// Source of Truth. The plugin only registers unique Omarchy themes.
+// Assertion: catppuccin is NOT in names (skipped), never shadowed.
+assert.ok(!names.has('catppuccin'), 'catppuccin should be skipped (Hermes is Source of Truth)')
 
-console.log(`ok — ${themes.length} themes, ${palette.length} palette commands, ${settingsPages.length} settings page`)
+// Plugin subscribes to gateway skin.changed for CLI→Desktop sync.
+const skinListener = eventListeners.find(e => e.type === 'skin.changed')
+assert.ok(skinListener, 'plugin must subscribe to skin.changed')
+
+console.log(`ok — ${themes.length} themes, ${palette.length} palette commands, ${settingsPages.length} settings page, skin.changed subscription: ${skinListener ? 'yes' : 'no'}`)

@@ -6,6 +6,13 @@
  *
  * To update after an Omarchy upgrade:
  *   scripts/generate-themes.py --remote omarchy && scripts/deploy.sh
+ *
+ * CLI→Desktop sync: subscribes to the gateway `skin.changed` event. The
+ * Omarchy hook writes ~/.hermes/skins/<slug>.yaml and runs `hermes skin use`,
+ * which emits `skin.changed` with the skin name — this plugin maps the name
+ * back to a registered theme and calls `requestTheme()`. Hermes Desktop is
+ * Source of Truth: built-in collisions are skipped on registration but still
+ * applied via the Built-in name when `omarchy theme set catppuccin` runs.
  */
 import {
   THEMES_AREA, PALETTE_AREA,
@@ -115,10 +122,12 @@ function buildTheme(slug, c, taken) {
 // Baked-in palettes
 // ---------------------------------------------------------------------------
 // BEGIN GENERATED THEMES — do not edit by hand, run scripts/generate-themes.py
-// 25 themes from /usr/share/omarchy/themes, ~/.config/omarchy/themes
+// 28 themes from /usr/share/omarchy/themes, ~/.config/omarchy/themes
 const RAW = [
+  { slug:'aetheria',         c:{ mode:'dark',  accent:'#be3f50', background:'#0e091d', foreground:'#14b9b5', red:'#c8e967', yellow:'#7cd699', green:'#e20342', cyan:'#ff7f41', blue:'#be3f50', magenta:'#9147a8', bright_red:'#ce4f48', bright_yellow:'#fd3e6a', bright_green:'#f93d3b', bright_cyan:'#ffbe74', bright_blue:'#04c5f0', bright_magenta:'#6c032c' } },
   { slug:'catppuccin',       c:{ mode:'dark',  accent:'#89b4fa', selection:'#45475a', muted:'#585b70', background:'#1e1e2e', dark_background:'#161622', darker_background:'#101019', lighter_background:'#313244', foreground:'#cdd6f4', dark_foreground:'#6c7086', bright_foreground:'#cdd6f4', red:'#f38ba8', yellow:'#f9e2af', green:'#a6e3a1', cyan:'#94e2d5', blue:'#89b4fa', magenta:'#f5c2e7', bright_red:'#f38ba8', bright_yellow:'#f9e2af', bright_green:'#a6e3a1', bright_cyan:'#94e2d5', bright_blue:'#89b4fa', bright_magenta:'#f5c2e7' } },
   { slug:'catppuccin-latte', c:{ mode:'light', accent:'#1e66f5', selection:'#ccd0da', muted:'#acb0be', background:'#eff1f5', dark_background:'#e3e4e8', darker_background:'#d7d8dc', lighter_background:'#dce0e8', foreground:'#4c4f69', dark_foreground:'#9ca0b0', bright_foreground:'#4c4f69', red:'#d20f39', yellow:'#df8e1d', green:'#40a02b', cyan:'#179299', blue:'#1e66f5', magenta:'#ea76cb', bright_red:'#d20f39', bright_yellow:'#df8e1d', bright_green:'#40a02b', bright_cyan:'#179299', bright_blue:'#1e66f5', bright_magenta:'#ea76cb' } },
+  { slug:'cpunk',            c:{ mode:'dark',  accent:'#aaacac', background:'#040303', foreground:'#ffffff', red:'#f82a2a', yellow:'#fef348', green:'#d1d2d1', cyan:'#babbbb', blue:'#aaacac', magenta:'#f76e78', bright_red:'#ff7f7f', bright_yellow:'#fff9a3', bright_green:'#ffffff', bright_cyan:'#e8e9e9', bright_blue:'#d8d9d9', bright_magenta:'#ffc2c7' } },
   { slug:'ethereal',         c:{ mode:'dark',  accent:'#7d82d9', selection:'#252e56', muted:'#6d7db6', background:'#060b1e', dark_background:'#040816', darker_background:'#030610', lighter_background:'#131a3a', foreground:'#ffcead', dark_foreground:'#6d7db6', bright_foreground:'#ffcead', red:'#ed5b5a', yellow:'#e9bb4f', green:'#92a593', cyan:'#a3bfd1', blue:'#7d82d9', magenta:'#c89dc1', bright_red:'#faaaa9', bright_yellow:'#f7dc9c', bright_green:'#c4cfc4', bright_cyan:'#dfeaf0', bright_blue:'#c2c4f0', bright_magenta:'#ead7e7' } },
   { slug:'everforest',       c:{ mode:'dark',  accent:'#7fbbb3', selection:'#3d484d', muted:'#475258', background:'#2d353b', dark_background:'#21272c', darker_background:'#181d20', lighter_background:'#343f44', foreground:'#d3c6aa', dark_foreground:'#4f585e', bright_foreground:'#d3c6aa', red:'#e67e80', yellow:'#dbbc7f', green:'#a7c080', cyan:'#83c092', blue:'#7fbbb3', magenta:'#d699b6', bright_red:'#e67e80', bright_yellow:'#dbbc7f', bright_green:'#a7c080', bright_cyan:'#83c092', bright_blue:'#7fbbb3', bright_magenta:'#d699b6' } },
   { slug:'flexoki-light',    c:{ mode:'light', accent:'#205ea6', selection:'#cecdc3', muted:'#b7b5ac', background:'#fffcf0', dark_background:'#f2efe4', darker_background:'#e5e2d8', lighter_background:'#e6e4d9', foreground:'#100f0f', dark_foreground:'#878580', bright_foreground:'#100f0f', red:'#d14d41', yellow:'#d0a215', green:'#879a39', cyan:'#3aa99f', blue:'#205ea6', magenta:'#ce5d97', bright_red:'#d14d41', bright_yellow:'#d0a215', bright_green:'#879a39', bright_cyan:'#3aa99f', bright_blue:'#4385be', bright_magenta:'#ce5d97' } },
@@ -132,6 +141,7 @@ const RAW = [
   { slug:'matte-black',      c:{ mode:'dark',  accent:'#e68e0d', selection:'#2a2a2a', muted:'#333333', background:'#121212', dark_background:'#0d0d0d', darker_background:'#090909', lighter_background:'#1e1e1e', foreground:'#bebebe', dark_foreground:'#555555', bright_foreground:'#bebebe', red:'#d35f5f', yellow:'#b91c1c', green:'#ffc107', cyan:'#bebebe', blue:'#e68e0d', magenta:'#d35f5f', bright_red:'#b91c1c', bright_yellow:'#b90a0a', bright_green:'#ffc107', bright_cyan:'#eaeaea', bright_blue:'#f59e0b', bright_magenta:'#b91c1c' } },
   { slug:'miasma',           c:{ mode:'dark',  accent:'#78824b', selection:'#383838', muted:'#666666', background:'#222222', dark_background:'#191919', darker_background:'#121212', lighter_background:'#2c2c2c', foreground:'#c2c2b0', dark_foreground:'#555555', bright_foreground:'#c2c2b0', red:'#685742', yellow:'#b36d43', green:'#5f875f', cyan:'#c9a554', blue:'#78824b', magenta:'#bb7744', bright_red:'#685742', bright_yellow:'#b36d43', bright_green:'#5f875f', bright_cyan:'#c9a554', bright_blue:'#78824b', bright_magenta:'#bb7744' } },
   { slug:'nord',             c:{ mode:'dark',  accent:'#81a1c1', selection:'#434c5e', muted:'#4c566a', background:'#2e3440', dark_background:'#222730', darker_background:'#191c23', lighter_background:'#3b4252', foreground:'#d8dee9', dark_foreground:'#667080', bright_foreground:'#d8dee9', red:'#bf616a', yellow:'#ebcb8b', green:'#a3be8c', cyan:'#88c0d0', blue:'#81a1c1', magenta:'#b48ead', bright_red:'#bf616a', bright_yellow:'#ebcb8b', bright_green:'#a3be8c', bright_cyan:'#8fbcbb', bright_blue:'#81a1c1', bright_magenta:'#b48ead' } },
+  { slug:'omacarchy',        c:{ mode:'dark',  accent:'#808080', selection:'#808080', muted:'#a0a0a0', background:'#1c1c1e', dark_background:'#1c1c1e', darker_background:'#0c0c0e', lighter_background:'#2c2c2e', foreground:'#ffffff', dark_foreground:'#a0a0a0', bright_foreground:'#f2f2f2', red:'#4a4a4a', yellow:'#6a6a6a', green:'#5a5a5a', cyan:'#9a9a9a', blue:'#7a7a7a', magenta:'#8a8a8a', bright_red:'#555555', bright_yellow:'#777777', bright_green:'#666666', bright_cyan:'#aaaaaa', bright_blue:'#888888', bright_magenta:'#999999' } },
   { slug:'osaka-jade',       c:{ mode:'dark',  accent:'#509475', selection:'#32473b', muted:'#53685b', background:'#111c18', dark_background:'#0c1512', darker_background:'#090f0d', lighter_background:'#23372b', foreground:'#c1c497', dark_foreground:'#81b8a8', bright_foreground:'#f7e8b2', red:'#ff5345', yellow:'#459451', green:'#549e6a', cyan:'#2dd5b7', blue:'#509475', magenta:'#d2689c', bright_red:'#db9f9c', bright_yellow:'#e5c736', bright_green:'#63b07a', bright_cyan:'#8cd3cb', bright_blue:'#acd4cf', bright_magenta:'#75bbb3' } },
   { slug:'retro-82',         c:{ mode:'dark',  accent:'#faa968', selection:'#134e5a', muted:'#2a6b78', background:'#05182e', dark_background:'#031222', darker_background:'#020c17', lighter_background:'#0a2540', foreground:'#f6dcac', dark_foreground:'#3f8f8a', bright_foreground:'#f6dcac', red:'#f85525', yellow:'#e97b3c', green:'#028391', cyan:'#8cbfb8', blue:'#3f8f8a', magenta:'#3f8f8a', bright_red:'#f85525', bright_yellow:'#e97b3c', bright_green:'#028391', bright_cyan:'#8cbfb8', bright_blue:'#faa968', bright_magenta:'#3f8f8a' } },
   { slug:'ristretto',        c:{ mode:'dark',  accent:'#f38d70', selection:'#403e41', muted:'#72696a', background:'#2c2525', dark_background:'#211b1b', darker_background:'#181414', lighter_background:'#3d2f2a', foreground:'#e6d9db', dark_foreground:'#72696a', bright_foreground:'#e6d9db', red:'#fd6883', yellow:'#f9cc6c', green:'#adda78', cyan:'#85dacc', blue:'#f38d70', magenta:'#a8a9eb', bright_red:'#ff8297', bright_yellow:'#fcd675', bright_green:'#c8e292', bright_cyan:'#9bf1e1', bright_blue:'#f8a788', bright_magenta:'#bebffd' } },
@@ -146,7 +156,11 @@ const RAW = [
 // END GENERATED THEMES
 
 const taken = new Set()
+// Skip Hermes built-in collisions — they are Source of Truth and must not be
+// replaced by Omarchy themes. Only unique Omarchy themes get registered.
 const THEMES = RAW.flatMap(({ slug, c }) => {
+  // Skip Hermes built-in collisions (Source of Truth)
+  if (BUILTIN_NAMES.has(slug)) return []
   const t = buildTheme(slug, c, taken)
   if (!t) return []
   taken.add(t.theme.name)
@@ -270,13 +284,37 @@ export default {
         render: () => jsxs('div', {
           style: { padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', color: 'var(--ui-text-secondary)', fontSize: '13px' },
           children: [
-            jsx('p', { children: THEMES.length + ' Omarchy themes \u2014 no backend, no network.' }),
+            jsx('p', { children: THEMES.length + ' Omarchy themes \u2014 Hermes built-in collisions skipped (Source of Truth).' }),
             jsx('p', { children: 'Colors baked in from /usr/share/omarchy/themes on the omarchy host.' }),
             jsx('p', { children: 'To update: scripts/generate-themes.py --remote omarchy, then scripts/deploy.sh.' }),
           ]
         })
       }]
     })
+
+    // --- CLI→Desktop theme sync (gateway skin.changed event) ----------------
+    // The Omarchy hook writes ~/.hermes/skins/<slug>.yaml and runs
+    // `hermes skin use <slug>`, which the gateway broadcasts as a
+    // `skin.changed` event. We listen and apply the matching desktop theme.
+    const slugToThemeName = new Map(THEMES.map(t => [t.slug, t.theme.name]))
+
+    function applyThemeFor(skinName) {
+      if (!skinName) return
+      // 1) Omarchy unique theme registered by this plugin
+      const omTheme = slugToThemeName.get(skinName)
+      if (omTheme) { requestTheme(omTheme); return }
+      // 2) Hermes built-in (slug == theme name, e.g. catppuccin, nord)
+      if (BUILTIN_NAMES.has(skinName)) { requestTheme(skinName); return }
+      // 3) Unknown skin — ignore silently (user-authored, not Omarchy)
+    }
+
+    // Subscribe to skin changes (CLI theme sets + hermes skin use).
+    // `onEvent` returns a disposer that onDispose() cleans up.
+    const off = ctx.onEvent?.('skin.changed', event => {
+      const skin = event?.payload
+      applyThemeFor(skin?.name)
+    })
+    if (off) disposers.push(off)
 
     ctx.onDispose(() => disposers.forEach(d => d && d()))
   }

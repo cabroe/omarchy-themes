@@ -22,10 +22,10 @@ for arg in "$@"; do
     esac
 done
 
-PLUGIN_DIR='.hermes/desktop-plugins/omarchy-themes'
+PLUGIN_DIR='.hermes/plugins/omarchy-themes/desktop'
 HOOK_DIR='.config/omarchy/hooks/theme-set.d'
 
-echo "→ plugin.js  → $HOST:~/$PLUGIN_DIR/"
+echo "→ plugin.js  → $HOST:~/$PLUGIN_DIR/plugin.js"
 ssh "$HOST" "mkdir -p ~/$PLUGIN_DIR"
 scp -q plugin/desktop/plugin.js "$HOST:$PLUGIN_DIR/plugin.js"
 
