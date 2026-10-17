@@ -201,6 +201,14 @@ q() { printf '"%s"' "$1"; }
 
 log "OK: slug='${SLUG}' skin written → $SKIN_FILE (mode=$mode, source=$SOURCE_DESC, colors=$COLORS)"
 
+# --- Desktop sync marker -------------------------------------------------
+# Write slug to state file so the Hermes Desktop plugin can follow the
+# theme change live (file-watcher-based sync).
+STATE_DIR="$HOME/.hermes/state"
+mkdir -p "$STATE_DIR"
+printf '%s\n' "$SLUG" > "$STATE_DIR/omarchy-active-theme"
+log "OK: desktop marker written → $STATE_DIR/omarchy-active-theme"
+
 # --- Active skin switch --------------------------------------------------
 # `hermes skin use` is idempotent (running with the active skin is a no-op
 # apart from a config write). If the binary is missing we log and exit 0.
