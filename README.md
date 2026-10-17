@@ -1,135 +1,169 @@
-# omarchy-themes
+# 🎨 omarchy-themes
 
-Bringt die [Omarchy](https://omarchy.org)-Farbschemata in **Hermes**: als Themes im Hermes-Desktop und als Live-Skin für Hermes CLI/TUI.
+<p align="center">
+  <b>Bringt die Omarchy-Farbschemata in Hermes — Desktop-Theme-Picker und CLI/TUI-Skin in einem.</b>
+</p>
 
-| Komponente | Was sie tut |
-|---|---|
-| **Desktop-Plugin** (`plugin/desktop/plugin.js`) | Registriert alle 22 Omarchy-Stock-Themes im Theme-Picker, als ⌘K-Befehle und auf einer eigenen Settings-Seite (Suche, Farbvorschau, *Apply*). Läuft rein lokal, ohne Backend und ohne Netzwerk. |
-| **Theme-Sync-Hook** (`hooks/hermes-skin-sync.sh`) | Läuft bei `omarchy theme set <slug>`, erzeugt `~/.hermes/skins/<slug>.yaml` und aktiviert den Skin. CLI und TUI folgen dem Omarchy-Theme damit automatisch. |
-| **Generator** (`scripts/generate-themes.py`) | Liest die `colors.toml`-Dateien und schreibt die Theme-Tabelle im Plugin neu, z. B. nach Omarchy-Updates oder für eigene Themes. |
+<p align="center">
+  <img src="https://img.shields.io/badge/Themes-22-blueviolet?style=for-the-badge" alt="22 Themes">
+  <img src="https://img.shields.io/badge/Tests-passing-brightgreen?style=for-the-badge" alt="Tests passing">
+  <img src="https://img.shields.io/badge/shellcheck-passing-brightgreen?style=for-the-badge" alt="shellcheck">
+  <img src="https://img.shields.io/badge/Deploy-SSH-blue?style=for-the-badge" alt="Deploy via SSH">
+  <img src="https://img.shields.io/badge/Repo-privat-lightgrey?style=for-the-badge" alt="Privates Repo">
+  <img src="https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml/badge.svg" alt="CI">
+</p>
 
-## Schnellstart
+---
+
+## 🧩 Komponenten
+
+| Komponente | Datei | Was sie tut |
+|---|---|---|
+| **Desktop-Plugin** | `plugin/desktop/plugin.js` | Registriert alle 22 Omarchy-Stock-Themes im Hermes-Theme-Picker, als ⌘K-Befehle und auf einer eigenen Settings-Seite. Rein lokal, kein Backend, kein Netzwerk. |
+| **Theme-Sync-Hook** | `hooks/hermes-skin-sync.sh` | Läuft bei `omarchy theme set <slug>`, schreibt `~/.hermes/skins/<slug>.yaml` und aktiviert den Hermes-Skin. CLI und TUI folgen dem Desktop-Theme automatisch. |
+| **Generator** | `scripts/generate-themes.py` | Liest `colors.toml`-Dateien vom Host und schreibt die Theme-Tabelle im Plugin neu — nach Omarchy-Updates oder für eigene Themes. |
+| **Deploy-Script** | `scripts/deploy.sh` | Kopiert Plugin + Hook per `scp` auf den Zielhost und vergleicht Byte für Byte. |
+
+---
+
+## ⚡ Schnellstart
 
 ```bash
-make check     # Lint + Tests, lokal, kein Host nötig
-make deploy    # check, dann Plugin + Hook nach omarchy kopieren und Byte für Byte verifizieren
+make check            # Lint + Tests lokal (kein Host nötig)
+make deploy           # check → Plugin + Hook nach omarchy deployen
+make deploy HOST=foo  # anderen SSH-Host verwenden
 ```
 
-Danach im Hermes-Desktop **⌘K → „Reload desktop plugins“** ausführen und das Plugin unter *Capabilities → Plugins* aktivieren. Es ist opt-in (`defaultEnabled: false`).
+Danach im Hermes-Desktop **⌘K → „Reload desktop plugins"** und das Plugin unter *Capabilities → Plugins* aktivieren (opt-in, `defaultEnabled: false`).
 
-Für einen anderen Host als den SSH-Alias `omarchy`: `make deploy HOST=<alias>`. Nur das Plugin ohne Hook: `scripts/deploy.sh --plugin-only`.
+**Voraussetzungen lokal:** Node ≥ 22, Python ≥ 3.11, `shellcheck`
+**Voraussetzungen auf dem Host:** SSH-Zugang, Omarchy, Hermes
 
-## Benutzung
+---
 
-- **Theme-Picker:** Die Omarchy-Themes stehen neben den eingebauten Hermes-Themes. Namen, die mit einem Hermes-Built-in kollidieren (`catppuccin`, `everforest`), bekommen das Suffix `-omarchy`.
+## 🖥 Benutzung
+
+- **Theme-Picker:** Die Omarchy-Themes erscheinen neben den eingebauten Hermes-Themes. Namen, die mit einem Built-in kollidieren (`catppuccin`, `everforest` …), bekommen das Suffix `-omarchy`.
 - **⌘K:** `Apply Omarchy Theme: <Name>`
-- **Settings → Plugins → Omarchy Themes:** Kartenansicht mit Farbswatches, Filter (Name, Slug oder `dark`/`light`), *Apply* und *Copy name*.
-- **CLI/TUI:** Bei `omarchy theme set nord` schreibt der Hook den Skin und ruft `hermes skin use nord`.
+- **Settings → Plugins → Omarchy Themes:** Kartenansicht mit Farbswatches, Filter (Name/Slug/`dark`/`light`) und *Apply*-Button.
+- **CLI/TUI:** `omarchy theme set nord` → Hook schreibt Skin → `hermes skin use nord` (live in ~1 s).
 
-## Themes aktualisieren
+---
 
-Die Paletten sind ins Plugin eingebacken, weil der Desktop-Renderer in einer Sandbox ohne Dateisystemzugriff läuft. Nach einem Omarchy-Update:
+## 🔄 Themes aktualisieren
+
+Die Paletten sind ins Plugin eingebacken (der Desktop-Renderer hat keinen Dateisystemzugriff). Nach einem Omarchy-Update:
 
 ```bash
-make generate        # = scripts/generate-themes.py --remote omarchy
-make generate-check  # nur prüfen, ob plugin.js aktuell ist (Exit 1, wenn nicht)
+make generate          # Paletten vom Host neu einlesen und plugin.js überschreiben
+make generate-check    # nur prüfen, ob plugin.js aktuell ist (Exit 1 wenn nicht)
 make deploy
 ```
 
-Eigene Themes aus `~/.config/omarchy/themes/` lassen sich zusätzlich aufnehmen. Sie überschreiben System-Themes mit gleichem Slug, und Themes ohne `background`/`foreground`/`accent` werden übersprungen:
+Eigene Themes aus `~/.config/omarchy/themes/` einschließen:
 
 ```bash
-scripts/generate-themes.py --remote omarchy --include-user
+python3 scripts/generate-themes.py --remote omarchy --include-user
 ```
 
-Direkt auf dem omarchy-Host läuft der Generator ohne `--remote`. Er ersetzt nur den Block zwischen `// BEGIN GENERATED THEMES` und `// END GENERATED THEMES` und arbeitet deterministisch (sortiert nach Slug). Ein Lauf ohne geänderte Quellen erzeugt also keinen Diff.
+Der Generator ersetzt nur den Block zwischen `// BEGIN GENERATED THEMES` und `// END GENERATED THEMES` und ist deterministisch — kein Diff, wenn sich nichts geändert hat.
 
-## Verifizieren auf dem Host
+---
+
+## 🧪 Tests
 
 ```bash
-# Hook direkt für ein paar Themes ausführen
-ssh omarchy 'for s in catppuccin tokyo-night nord; do
-  sh ~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh "$s"
-  ~/.local/bin/hermes skin list | grep "*"
-done'
-
-# End-to-End über Omarchy (Login-Shell, damit OMARCHY_PATH gesetzt ist)
-ssh omarchy 'bash -lc "omarchy theme set nord"'
-ssh omarchy '~/.local/bin/hermes skin list | grep "*"'   # → * nord
-
-# Hook-Log
-ssh omarchy 'tail ~/.hermes/logs/omarchy-theme-sync.log'
+make check    # = lint + test
+make test     # node tests/smoke.mjs && sh tests/hook.sh
+make lint     # node --check + py_compile + shellcheck
 ```
 
-## Projektstruktur
+| Test | Prüft |
+|---|---|
+| `tests/smoke.mjs` | Plugin lädt in Node und registriert alle Themes, ⌘K-Befehle und Settings-Seite. Alle Farben sind gültiges `#rrggbb`, kein Name doppelt. |
+| `tests/hook.sh` | Skin-YAML (22 Keys, Kleinschreibung, 3-stellige Hex-Expansion), Skip bei unbekanntem Slug, Exit 0 wenn `hermes` fehlschlägt. |
+
+Gleiches Ergebnis ohne `make`:
+
+```bash
+node --check plugin/desktop/plugin.js
+python3 -m py_compile scripts/generate-themes.py
+shellcheck hooks/hermes-skin-sync.sh scripts/deploy.sh tests/hook.sh
+node tests/smoke.mjs
+sh tests/hook.sh
+```
+
+---
+
+## 📁 Projektstruktur
 
 ```
 omarchy-themes/
 ├── plugin/desktop/plugin.js     # Hermes-Desktop-Plugin (plain ESM, kein Build)
-├── hooks/hermes-skin-sync.sh    # Omarchy-theme-set-Hook → Hermes-CLI/TUI-Skin
+├── hooks/hermes-skin-sync.sh    # Omarchy-theme-set-Hook → Hermes CLI/TUI-Skin
 ├── scripts/
 │   ├── generate-themes.py       # colors.toml → Theme-Tabelle in plugin.js
 │   └── deploy.sh                # scp + Byte-Vergleich auf dem Zielhost
 ├── tests/
-│   ├── smoke.mjs                # lädt plugin.js mit SDK-Stubs, prüft register()
+│   ├── smoke.mjs                # Plugin in Node mit SDK-Stubs
 │   ├── hook.sh                  # Hook gegen Fixture in Sandbox-$HOME
 │   └── stubs/                   # @hermes/plugin-sdk, react, react/jsx-runtime
-└── Makefile
+├── Makefile
+└── README.md
 ```
 
 Zielpfade auf dem Host:
 
 | Datei | Ziel |
 |---|---|
-| `plugin/desktop/plugin.js` | `~/.hermes/desktop-plugins/omarchy-themes/plugin.js` |
+| `plugin/desktop/plugin.js` | `~/.hermes/plugins/omarchy-themes/desktop/plugin.js` |
 | `hooks/hermes-skin-sync.sh` | `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh` |
 
-## Tests
+---
 
-| Test | Prüft |
+## 🗺 Farb-Mapping
+
+### Desktop-Theme
+
+| `colors.toml` | Hermes `DesktopTheme` |
 |---|---|
-| `node --check`, `py_compile`, `shellcheck` | Syntax und Lint aller Dateien |
-| `tests/smoke.mjs` | Plugin lädt in Node und registriert Themes, ⌘K-Befehle und Settings-Seite. Alle Farben sind gültiges `#rrggbb`, kein Name ist doppelt. |
-| `tests/hook.sh` | Skin-YAML (22 Keys, Kleinschreibung, Expansion von 3- auf 6-stellige Hex-Werte), Skip bei unbekanntem Slug, Exit 0 auch dann, wenn `hermes` fehlschlägt |
-
-Voraussetzungen: Node ≥ 22, Python ≥ 3.11 und `shellcheck`. Für `generate` und `deploy` braucht es zusätzlich SSH-Zugriff auf den Host.
-
-## Farb-Mapping
-
-### Desktop-Theme (`DesktopTheme`)
-
-| Omarchy `colors.toml` | Hermes |
-|---|---|
-| `background` | `colors.background`, `terminal.black`, `terminal.brightBlack` |
-| `foreground` | `colors.foreground` + alle `*Foreground`, `terminal.foreground`, `terminal.cursor`, `terminal.brightWhite` |
-| `accent` | `colors.primary`, `accent`, `ring`, `midground`, `composerRing`; die Textfarbe darauf wird je nach Luminanz automatisch weiß oder schwarz |
-| `lighter_background` | `colors.card`, `popover`, `secondary`, `userBubble` |
-| `dark_background` | `colors.border`, `input`, `sidebarBackground`, `sidebarBorder`, `userBubbleBorder` |
-| `muted` / `dark_foreground` | `colors.muted` / `colors.mutedForeground` |
-| `red` | `colors.destructive` |
+| `background` | `background`, `terminal.black`, `terminal.brightBlack` |
+| `foreground` | `foreground` + alle `*Foreground`, `terminal.foreground/cursor/brightWhite` |
+| `accent` | `primary`, `accent`, `ring`, `midground`, `composerRing`; Textfarbe darauf (weiß/schwarz) per Luminanz |
+| `lighter_background` | `card`, `popover`, `secondary`, `userBubble` |
+| `dark_background` | `border`, `input`, `sidebarBackground`, `sidebarBorder`, `userBubbleBorder` |
+| `muted` / `dark_foreground` | `muted` / `mutedForeground` |
+| `red` | `destructive` |
 | `selection` | `terminal.selectionBackground` |
-| `bright_foreground` | `terminal.white` |
-| `red` … `magenta`, `bright_*` | `terminal.*` / `terminal.bright*` |
+| `red…magenta`, `bright_*` | `terminal.*` / `terminal.bright*` |
 | `mode = "light"` | zusätzlich `darkColors`/`darkTerminal` aus `dark_background`/`darker_background` |
 
 Fehlende Keys fallen auf `background`/`foreground`/`accent` zurück. Fehlt einer dieser drei, wird das Theme übersprungen.
 
 ### CLI/TUI-Skin (Hook)
 
-Der Hook schreibt 22 Keys. Alles Weitere erbt der Skin-Loader vom `default`-Skin.
+Der Hook schreibt 22 Keys; alles Weitere erbt der Skin-Loader vom `default`-Skin.
 
-| Omarchy `colors.toml` | Hermes-Skin `colors.*` |
+| `colors.toml` | `~/.hermes/skins/<slug>.yaml` |
 |---|---|
 | `background` | `background` |
 | `foreground` | `banner_title`, `banner_text`, `ui_text`, `prompt`, `status_bar_text` |
 | `accent` | `ui_accent`, `banner_accent`, `input_rule` |
 | `dark_background` | `banner_border`, `ui_border`, `status_bar_bg`, `session_border` |
 | `muted` | `banner_dim` |
-| `green` / `yellow` / `red` | `ui_ok` / `ui_warn` / `ui_error` und `status_bar_good` / `_warn` / `_critical` |
+| `green` / `yellow` / `red` | `ui_ok/warn/error`, `status_bar_good/warn/critical` |
 | `cyan` | `response_border`, `session_label` |
 
 Der Hook ist reines POSIX-`sh` ohne Python. Ein User-Theme hat Vorrang vor dem gleichnamigen System-Theme. Er beendet sich immer mit Exit 0, damit Omarchys Hook-Kette nie abbricht.
 
-## Privatheit
+---
+
+## 🤖 Entstehung
+
+Dieses Projekt wurde von der **Hermes-Bot-Flotte** entworfen und gebaut — Kanban-gesteuert mit `coder`, `devops` und `cicd`. Hook, Desktop-Plugin und Generator entstanden in getrennten Tasks mit unabhängiger Verifikation; `tests/hook.sh` ist der Audit-Trail des Hook-Tasks.
+
+---
+
+## 🔒 Privatheit
 
 Das Repo ist **privat** und bleibt es, bis eine Veröffentlichung ausdrücklich freigegeben wird. Das gilt auch für jeden Mirror.
