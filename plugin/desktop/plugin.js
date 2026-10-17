@@ -1,11 +1,11 @@
 /**
  * omarchy-themes — pure local Hermes-Desktop plugin.
  *
- * No backend, no HTTP calls. All 22 Omarchy stock themes are baked in
- * directly from /usr/share/omarchy/themes on the omarchy host.
+ * No backend, no HTTP calls. The Omarchy palettes are baked into the RAW
+ * table below (generated from /usr/share/omarchy/themes/<slug>/colors.toml).
  *
- * To update after an omarchy upgrade: re-run the generator on omarchy
- * and redeploy this file.
+ * To update after an Omarchy upgrade:
+ *   scripts/generate-themes.py --remote omarchy && scripts/deploy.sh
  */
 import {
   THEMES_AREA, PALETTE_AREA,
@@ -112,8 +112,10 @@ function buildTheme(slug, c, taken) {
 }
 
 // ---------------------------------------------------------------------------
-// 22 Omarchy stock themes baked in from /usr/share/omarchy/themes
+// Baked-in palettes
 // ---------------------------------------------------------------------------
+// BEGIN GENERATED THEMES — do not edit by hand, run scripts/generate-themes.py
+// 22 themes from /usr/share/omarchy/themes
 const RAW = [
   { slug:'catppuccin',       c:{ mode:'dark',  accent:'#89b4fa', selection:'#45475a', muted:'#585b70', background:'#1e1e2e', dark_background:'#161622', darker_background:'#101019', lighter_background:'#313244', foreground:'#cdd6f4', dark_foreground:'#6c7086', bright_foreground:'#cdd6f4', red:'#f38ba8', yellow:'#f9e2af', green:'#a6e3a1', cyan:'#94e2d5', blue:'#89b4fa', magenta:'#f5c2e7', bright_red:'#f38ba8', bright_yellow:'#f9e2af', bright_green:'#a6e3a1', bright_cyan:'#94e2d5', bright_blue:'#89b4fa', bright_magenta:'#f5c2e7' } },
   { slug:'catppuccin-latte', c:{ mode:'light', accent:'#1e66f5', selection:'#ccd0da', muted:'#acb0be', background:'#eff1f5', dark_background:'#e3e4e8', darker_background:'#d7d8dc', lighter_background:'#dce0e8', foreground:'#4c4f69', dark_foreground:'#9ca0b0', bright_foreground:'#4c4f69', red:'#d20f39', yellow:'#df8e1d', green:'#40a02b', cyan:'#179299', blue:'#1e66f5', magenta:'#ea76cb', bright_red:'#d20f39', bright_yellow:'#df8e1d', bright_green:'#40a02b', bright_cyan:'#179299', bright_blue:'#1e66f5', bright_magenta:'#ea76cb' } },
@@ -138,6 +140,7 @@ const RAW = [
   { slug:'vantablack',       c:{ mode:'dark',  accent:'#8d8d8d', selection:'#1a1a1a', muted:'#7a7a7a', background:'#000000', dark_background:'#090909', darker_background:'#070707', lighter_background:'#1a1a1a', foreground:'#ffffff', dark_foreground:'#505050', bright_foreground:'#ffffff', red:'#a4a4a4', yellow:'#cecece', green:'#b6b6b6', cyan:'#b0b0b0', blue:'#8d8d8d', magenta:'#9b9b9b', bright_red:'#a4a4a4', bright_yellow:'#cecece', bright_green:'#b6b6b6', bright_cyan:'#b0b0b0', bright_blue:'#8d8d8d', bright_magenta:'#9b9b9b' } },
   { slug:'white',            c:{ mode:'light', accent:'#6e6e6e', selection:'#c0c0c0', muted:'#808080', background:'#ffffff', dark_background:'#f5f5f5', darker_background:'#e8e8e8', lighter_background:'#c0c0c0', foreground:'#000000', dark_foreground:'#c0c0c0', bright_foreground:'#000000', red:'#2a2a2a', yellow:'#4a4a4a', green:'#3a3a3a', cyan:'#3e3e3e', blue:'#1a1a1a', magenta:'#2e2e2e', bright_red:'#2a2a2a', bright_yellow:'#4a4a4a', bright_green:'#3a3a3a', bright_cyan:'#3e3e3e', bright_blue:'#1a1a1a', bright_magenta:'#2e2e2e' } },
 ]
+// END GENERATED THEMES
 
 const taken = new Set()
 const THEMES = RAW.flatMap(({ slug, c }) => {
@@ -196,8 +199,9 @@ function ThemeCard({ entry, ctx }) {
 
 function BrowsePage({ ctx }) {
   const [filter, setFilter] = useState('')
-  const visible = filter
-    ? THEMES.filter(t => t.label.toLowerCase().includes(filter.toLowerCase()) || t.mode.includes(filter))
+  const q = filter.trim().toLowerCase()
+  const visible = q
+    ? THEMES.filter(t => t.label.toLowerCase().includes(q) || t.slug.includes(q) || t.mode === q)
     : THEMES
 
   return jsxs('div', {
@@ -265,7 +269,7 @@ export default {
           children: [
             jsx('p', { children: THEMES.length + ' Omarchy themes \u2014 no backend, no network.' }),
             jsx('p', { children: 'Colors baked in from /usr/share/omarchy/themes on the omarchy host.' }),
-            jsx('p', { children: 'To update: re-generate plugin.js after an omarchy upgrade and redeploy.' }),
+            jsx('p', { children: 'To update: scripts/generate-themes.py --remote omarchy, then scripts/deploy.sh.' }),
           ]
         })
       }]
