@@ -48,6 +48,9 @@ KEYS = [
     "bright_red", "bright_yellow", "bright_green", "bright_cyan", "bright_blue", "bright_magenta",
 ]
 REQUIRED = ("background", "foreground", "accent")
+# Themes missing these would render with placeholder/fallback colors for
+# half the UI — not worth including even if --include-user finds them.
+REQUIRED_ANSI = ("red", "yellow", "green", "cyan", "blue", "magenta")
 HEX = re.compile(r"^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
 
@@ -79,6 +82,10 @@ def parse_palette(slug: str, text: str) -> dict[str, str] | None:
     missing = [k for k in REQUIRED if k not in out]
     if missing:
         print(f"  skip {slug}: missing {', '.join(missing)}", file=sys.stderr)
+        return None
+    missing_ansi = [k for k in REQUIRED_ANSI if k not in out]
+    if missing_ansi:
+        print(f"  skip {slug}: incomplete palette, missing {', '.join(missing_ansi)}", file=sys.stderr)
         return None
     out.setdefault("mode", "dark")
     return out
