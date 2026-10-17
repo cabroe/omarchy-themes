@@ -6,10 +6,14 @@
  *
  * To update after an Omarchy upgrade:
  *   scripts/generate-themes.py --remote omarchy && scripts/deploy.sh
+ *
+ * CLI→Desktop sync: subscribes to the gateway `skin.changed` event. The
+ * Omarchy hook writes ~/.hermes/skins/<slug>.yaml and runs `hermes skin use`,
+ * which emits `skin.changed` with the skin name — this plugin maps the name
+ * back to a registered theme and calls `requestTheme()`. Hermes Desktop is
+ * Source of Truth: built-in collisions are skipped on registration but still
+ * applied via the Built-in name when `omarchy theme set catppuccin` runs.
  */
-import fs from 'fs'
-import path from 'path'
-import os from 'os'
 import {
   THEMES_AREA, PALETTE_AREA,
   requestTheme,
@@ -288,47 +292,29 @@ export default {
       }]
     })
 
-    // --- CLI→Desktop theme sync (file-watcher on Omarchy hook marker) -------
-    const markerPath = path.join(os.homedir(), '.hermes/state/omarchy-active-theme')
-    // Only Omarchy themes (unique ones, not Hermes built-in collisions) are
-    // registered here. Hermes built-ins (catppuccin, nord, etc.) are handled
-    // by the fallback below — their slug IS their theme name.
+    // --- CLI→Desktop theme sync (gateway skin.changed event) ----------------
+    // The Omarchy hook writes ~/.hermes/skins/<slug>.yaml and runs
+    // `hermes skin use <slug>`, which the gateway broadcasts as a
+    // `skin.changed` event. We listen and apply the matching desktop theme.
     const slugToThemeName = new Map(THEMES.map(t => [t.slug, t.theme.name]))
 
-    // Apply theme from marker: Omarchy unique theme → fallback to Hermes built-in
-    function applyFromMarker(slug) {
+    function applyThemeFor(skinName) {
+      if (!skinName) return
       // 1) Omarchy unique theme registered by this plugin
-      const omTheme = slugToThemeName.get(slug)
+      const omTheme = slugToThemeName.get(skinName)
       if (omTheme) { requestTheme(omTheme); return }
-      // 2) Hermes built-in (slug == theme name, e.g. catppuccin, nord, solarized)
-      if (BUILTIN_NAMES.has(slug)) { requestTheme(slug); return }
-      // Unknown slug — ignore silently
+      // 2) Hermes built-in (slug == theme name, e.g. catppuccin, nord)
+      if (BUILTIN_NAMES.has(skinName)) { requestTheme(skinName); return }
+      // 3) Unknown skin — ignore silently (user-authored, not Omarchy)
     }
 
-    // Apply initial theme from marker if present
-    try {
-      const slug = fs.readFileSync(markerPath, 'utf-8').trim()
-      applyFromMarker(slug)
-    } catch (err) {
-      // Marker doesn't exist yet or can't be read — not an error
-    }
-
-    // Watch for changes (CLI theme sets)
-    let watchHandle = null
-    try {
-      watchHandle = fs.watch(markerPath, (eventType) => {
-        if (eventType !== 'change') return
-        try {
-          const slug = fs.readFileSync(markerPath, 'utf-8').trim()
-          applyFromMarker(slug)
-        } catch (err) {
-          // Ignore transient read errors (file might be mid-write)
-        }
-      })
-      disposers.push(() => watchHandle?.close())
-    } catch (err) {
-      // Watch failed (marker file doesn't exist yet) — will work once created
-    }
+    // Subscribe to skin changes (CLI theme sets + hermes skin use).
+    // `onEvent` returns a disposer that onDispose() cleans up.
+    const off = ctx.onEvent?.('skin.changed', event => {
+      const skin = event?.payload
+      applyThemeFor(skin?.name)
+    })
+    if (off) disposers.push(off)
 
     ctx.onDispose(() => disposers.forEach(d => d && d()))
   }
