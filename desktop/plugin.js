@@ -54,6 +54,85 @@ function toName(slug, taken) {
 }
 
 // ---------------------------------------------------------------------------
+// Color helpers — synthesise the missing mode from the one Omarchy ships
+// ---------------------------------------------------------------------------
+function hexToRgb(hex) {
+  const h = hex.replace('#', '')
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
+}
+// Linear-interpolate two #rrggbb colors. amount=0 → a, amount=1 → b.
+function mixHex(a, b, amount) {
+  const [ar, ag, ab] = hexToRgb(a), [br, bg, bb] = hexToRgb(b)
+  const t = (n, m) => Math.max(0, Math.min(255, Math.round(n + (m - n) * amount)))
+  const h = n => n.toString(16).padStart(2, '0')
+  return '#' + h(t(ar, br)) + h(t(ag, bg)) + h(t(ab, bb))
+}
+
+// Default system typography — matches what the bundled Hermes presets use so
+// the user's OS font + emoji rendering stay intact.
+const DEFAULT_TYPOGRAPHY = {
+  fontSans:
+    '"Segoe WPC", "Segoe UI", -apple-system, BlinkMacSystemFont, "SF Pro Text", ' +
+    '"SF Pro Display", system-ui, sans-serif, ' +
+    '"Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", emoji',
+  fontMono:
+    '"JetBrains Mono", "Cascadia Code", "Cascadia Mono", "DejaVu Sans Mono", ' +
+    '"Liberation Mono", "Noto Sans Mono", "SF Mono", ui-monospace, Menlo, Monaco, ' +
+    'Consolas, monospace, "Apple Color Emoji", "Segoe UI Emoji", emoji',
+}
+
+// Build the *light* counterpart of a dark-mode Omarchy palette.
+// Uses lighter_background as the surface base so cards/popovers still feel
+// related to the dark family — and accent stays the same so brand identity is
+// preserved across the mode toggle.
+function synthLightFromDark(c, ac, acFg) {
+  const surface = c.lighter_background || mixHex(c.background, '#ffffff', 0.85)
+  const card    = mixHex(surface, '#ffffff', 0.6)
+  return {
+    background: surface, foreground: '#1a1a1a',
+    card, cardForeground: '#1a1a1a',
+    popover: card, popoverForeground: '#1a1a1a',
+    primary: ac, primaryForeground: acFg,
+    secondary: card, secondaryForeground: '#1a1a1a',
+    accent: mixHex(ac, '#ffffff', 0.85), accentForeground: '#1a1a1a',
+    muted: mixHex(surface, '#000000', 0.06),
+    mutedForeground: mixHex('#1a1a1a', surface, 0.4),
+    border: mixHex(surface, '#000000', 0.14),
+    input:   mixHex(surface, '#000000', 0.14),
+    ring: ac, midground: ac, composerRing: ac,
+    destructive: c.red || '#b94a3a', destructiveForeground: '#ffffff',
+    sidebarBackground: mixHex(surface, '#000000', 0.04),
+    sidebarBorder:     mixHex(surface, '#000000', 0.14),
+    userBubble:        mixHex(ac,       '#ffffff', 0.85),
+    userBubbleBorder:  mixHex(surface, '#000000', 0.14),
+  }
+}
+
+// Build the *dark* counterpart of a light-mode Omarchy palette.
+// Uses darker_background as the surface base.
+function synthDarkFromLight(c, ac, acFg) {
+  const surface = c.darker_background || c.dark_background || mixHex(c.background, '#000000', 0.85)
+  return {
+    background: surface, foreground: '#e6e6e6',
+    card:       mixHex(surface, '#ffffff', 0.04), cardForeground: '#e6e6e6',
+    popover:    mixHex(surface, '#ffffff', 0.08), popoverForeground: '#e6e6e6',
+    primary: ac, primaryForeground: acFg,
+    secondary: mixHex(surface, '#ffffff', 0.06), secondaryForeground: '#e6e6e6',
+    accent:    mixHex(ac, surface, 0.82), accentForeground: '#e6e6e6',
+    muted:     mixHex(surface, '#ffffff', 0.06),
+    mutedForeground: mixHex('#e6e6e6', surface, 0.45),
+    border:    mixHex(surface, '#ffffff', 0.16),
+    input:     mixHex(surface, '#ffffff', 0.10),
+    ring: ac, midground: ac, composerRing: ac,
+    destructive: c.red || '#e25563', destructiveForeground: '#ffffff',
+    sidebarBackground: mixHex(surface, '#ffffff', 0.02),
+    sidebarBorder:     mixHex(surface, '#ffffff', 0.16),
+    userBubble:        mixHex(ac, surface, 0.18),
+    userBubbleBorder:  mixHex(surface, '#ffffff', 0.16),
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Map one raw colors object to a DesktopTheme entry
 // ---------------------------------------------------------------------------
 function buildTheme(slug, c, taken) {
@@ -68,7 +147,8 @@ function buildTheme(slug, c, taken) {
   const label     = slugToLabel(slug)
   const acFg      = onAccent(ac)
 
-  const colors = {
+  // Native palette = the mode Omarchy ships for this theme.
+  const native = {
     background: bg, foreground: fg,
     card: lighterBg, cardForeground: fg,
     popover: lighterBg, popoverForeground: fg,
@@ -83,13 +163,14 @@ function buildTheme(slug, c, taken) {
     userBubble: lighterBg, userBubbleBorder: darkBg,
   }
 
-  const terminal = {
+  // Native terminal palette — bright_* fall back to non-bright.
+  const nativeTerminal = {
     foreground: fg, cursor: fg,
     selectionBackground: c.selection || darkBg,
     black: bg,
     red:     c.red     || fg,  green:   c.green   || fg,
-    yellow:  c.yellow  || fg,  blue:    c.blue     || ac,
-    magenta: c.magenta || ac,  cyan:    c.cyan     || ac,
+    yellow:  c.yellow  || fg,  blue:    c.blue    || ac,
+    magenta: c.magenta || ac,  cyan:    c.cyan    || ac,
     white:   c.bright_foreground || fg,
     brightBlack:   bg,
     brightRed:     c.bright_red     || c.red     || fg,
@@ -101,18 +182,35 @@ function buildTheme(slug, c, taken) {
     brightWhite:   fg,
   }
 
-  const theme = { name, label, description: 'Omarchy \u00b7 ' + label + ' \u00b7 ' + mode, colors, terminal }
+  // ── Light / Dark palette pair ───────────────────────────────────────────
+  // `colors` is the Light palette (Hermes Desktop convention), `darkColors`
+  // is the Dark palette. Both are always populated so the renderer's
+  // getBaseColors() never falls back to synth — a dark-mode Omarchy theme
+  // applied in a light UI paints with a real light variant instead of the
+  // existing light default, and vice versa.
+  const lightColors = mode === 'light' ? native : synthLightFromDark(c, ac, acFg)
+  const darkColors  = mode === 'dark'  ? native : synthDarkFromLight(c, ac, acFg)
 
-  if (mode === 'light') {
-    theme.darkColors = Object.assign({}, colors, {
-      background: c.dark_background   || '#1e1e2e',
-      card:       c.darker_background || '#313244',
-      popover:    c.darker_background || '#313244',
-      border:     c.darker_background || darkBg,
-      input:      c.darker_background || darkBg,
-      sidebarBackground: c.darker_background || darkBg,
-    })
-    theme.darkTerminal = terminal
+  // Light terminal = bright variant of the dark terminal (swap fg/black,
+  // keep ANSI colors). This way the ANSI palette stays readable on whichever
+  // surface the pane lands on.
+  const lightTerminal = Object.assign({}, nativeTerminal, {
+    foreground: c.bright_foreground || fg,
+    cursor:     c.bright_foreground || fg,
+    black:      c.lighter_background || bg,
+    brightBlack: c.lighter_background || bg,
+  })
+  const darkTerminal = nativeTerminal
+
+  const theme = {
+    name,
+    label,
+    description: 'Omarchy \u00b7 ' + label + ' \u00b7 ' + mode,
+    colors: lightColors,
+    darkColors: darkColors,
+    terminal: lightTerminal,
+    darkTerminal: darkTerminal,
+    typography: DEFAULT_TYPOGRAPHY,
   }
 
   return { slug, label, mode, theme }
@@ -251,7 +349,7 @@ function BrowsePage({ ctx }) {
 export default {
   id: 'omarchy-themes',
   name: 'Omarchy Themes',
-  defaultEnabled: false,
+  defaultEnabled: true,
 
   register(ctx) {
     const disposers = []
@@ -292,14 +390,16 @@ export default {
       }]
     })
 
-    // --- CLI→Desktop theme sync (gateway skin.changed event) ----------------
-    // The Omarchy hook writes ~/.hermes/skins/<slug>.yaml and runs
-    // `hermes skin use <slug>`, which the gateway broadcasts as a
-    // `skin.changed` event. We listen and apply the matching desktop theme.
+    // --- CLI→Desktop theme sync (skin.changed event + RPC polling fallback) --
+    // Two mechanisms to catch theme changes from the CLI:
+    //  1. ctx.onEvent('skin.changed') — gateway broadcast when skin changes
+    //  2. setInterval polling via config.get — fallback if onEvent unavailable
     const slugToThemeName = new Map(THEMES.map(t => [t.slug, t.theme.name]))
+    let lastSkin = null  // track to avoid duplicate applyThemeFor calls
 
     function applyThemeFor(skinName) {
-      if (!skinName) return
+      if (!skinName || skinName === lastSkin) return
+      lastSkin = skinName
       // 1) Omarchy unique theme registered by this plugin
       const omTheme = slugToThemeName.get(skinName)
       if (omTheme) { requestTheme(omTheme); return }
@@ -308,13 +408,24 @@ export default {
       // 3) Unknown skin — ignore silently (user-authored, not Omarchy)
     }
 
-    // Subscribe to skin changes (CLI theme sets + hermes skin use).
-    // `onEvent` returns a disposer that onDispose() cleans up.
-    const off = ctx.onEvent?.('skin.changed', event => {
-      const skin = event?.payload
-      applyThemeFor(skin?.name)
-    })
-    if (off) disposers.push(off)
+    // Mechanism 1: gateway skin.changed event (primary path)
+    if (typeof ctx.onEvent === 'function') {
+      const off = ctx.onEvent('skin.changed', event => {
+        const skin = event?.payload
+        applyThemeFor(skin?.name)
+      })
+      if (off) disposers.push(off)
+    } else {
+      // Mechanism 2: setInterval polling via config.get RPC (browser context, no fs)
+      const timerId = setInterval(async () => {
+        try {
+          const result = await ctx.requestGateway?.('config.get', { key: 'display.skin' })
+          const skin = result?.skin || result?.value
+          if (skin) applyThemeFor(skin)
+        } catch (_) { /* ignore polling errors */ }
+      }, 1000)
+      disposers.push(() => clearInterval(timerId))
+    }
 
     ctx.onDispose(() => disposers.forEach(d => d && d()))
   }

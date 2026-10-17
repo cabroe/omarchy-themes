@@ -34,7 +34,7 @@ make deploy           # check → Plugin + Hook nach omarchy deployen
 make deploy HOST=foo  # anderen SSH-Host verwenden
 ```
 
-Danach im Hermes-Desktop **⌘K → „Reload desktop plugins"** und das Plugin unter *Capabilities → Plugins* aktivieren (opt-in, `defaultEnabled: false`).
+Danach im Hermes-Desktop **⌘K → „Reload desktop plugins"** — das Plugin ist ab Werk aktiv (`defaultEnabled: true`). Wer es deaktivieren will: Settings → Capabilities → Plugins → Omarchy Themes → Toggle.
 
 **Voraussetzungen lokal:** Node ≥ 22, Python ≥ 3.11, `shellcheck`
 **Voraussetzungen auf dem Host:** SSH-Zugang, Omarchy, Hermes
@@ -47,6 +47,18 @@ Danach im Hermes-Desktop **⌘K → „Reload desktop plugins"** und das Plugin 
 - **⌘K:** `Apply Omarchy Theme: <Name>`
 - **Settings → Plugins → Omarchy Themes:** Kartenansicht mit Farbswatches, Filter (Name/Slug/`dark`/`light`) und *Apply*-Button.
 - **CLI/TUI:** `omarchy theme set nord` → Hook schreibt Skin → `hermes skin use nord` (live in ~1 s).
+
+### Was das Plugin anpasst
+
+Jedes registrierte Theme liefert **beide** Paletten + **beide** Terminal-Paletten + **Typography**, damit der Wechsel zwischen Light- und Dark-Mode in Hermes die ganze UI neu einfärbt — nicht nur die Border:
+
+| Feld | Wofür |
+|---|---|
+| `colors` / `darkColors` | Hintergrund, Card, Popover, Sidebar, Input, Border, Primary/Accent, Muted, Destructive, User-Bubble |
+| `terminal` / `darkTerminal` | ANSI-Palette (schwarz/weiß + 8 Farben + Bright-Varianten) fürs integrierte Terminal |
+| `typography` | `fontSans` (System-Stack mit Emoji-Fallback), `fontMono` (JetBrains Mono-Stack) |
+
+Für die **Gegenrichtung** (Light-Variante eines Dark-Themes oder umgekehrt) wird die fehlende Palette im Plugin synthetisiert — `lighter_background` / `darker_background` aus dem Omarchy-Theme als Surface-Seed, Akzent bleibt identisch, damit der Markencharakter erhalten bleibt.
 
 ---
 

@@ -46,6 +46,20 @@ for (const { data: t } of themes) {
     }
   }
   assert.ok(t.colors.background && t.colors.foreground && t.colors.accent)
+
+  // Every theme must ship BOTH light + dark palettes and BOTH terminal
+  // palettes — otherwise a dark Omarchy theme activated in a light UI paints
+  // only the border (renderer falls back to the existing light default).
+  assert.ok(t.darkColors?.background, `${t.name}: missing darkColors`)
+  assert.ok(t.darkTerminal?.foreground, `${t.name}: missing darkTerminal`)
+  assert.notDeepStrictEqual(t.colors, t.darkColors,
+    `${t.name}: colors === darkColors (no synthesis happened)`)
+
+  // Typography: the renderer's applyTheme falls back to DEFAULT_TYPOGRAPHY
+  // when fontSans/fontMono are missing, so an empty stack lets the OS pick
+  // a font that often clashes with the chrome.
+  assert.ok(t.typography?.fontSans?.length > 0, `${t.name}: missing fontSans`)
+  assert.ok(t.typography?.fontMono?.length > 0, `${t.name}: missing fontMono`)
 }
 
 // Hermes built-in collisions are SKIPPED (not renamed) — Hermes Desktop is
