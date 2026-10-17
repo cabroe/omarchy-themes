@@ -1,3 +1,0 @@
-# Empty file is a valid TOML — the parser must still produce a usable
-# (or at least non-crashing) result. Used to assert the scanner's
-# tolerance for empty colors.toml files.
