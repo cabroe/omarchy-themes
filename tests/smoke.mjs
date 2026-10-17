@@ -46,7 +46,9 @@ for (const { data: t } of themes) {
   assert.ok(t.colors.background && t.colors.foreground && t.colors.accent)
 }
 
-// Built-in Hermes names must be suffixed, never shadowed.
-assert.ok(names.has('catppuccin-omarchy') || !names.has('catppuccin'))
+// Hermes built-in collisions are SKIPPED (not renamed) — Hermes Desktop is
+// Source of Truth. The plugin only registers unique Omarchy themes.
+// Assertion: catppuccin is NOT in names (skipped), never shadowed.
+assert.ok(!names.has('catppuccin'), 'catppuccin should be skipped (Hermes is Source of Truth)')
 
 console.log(`ok — ${themes.length} themes, ${palette.length} palette commands, ${settingsPages.length} settings page`)

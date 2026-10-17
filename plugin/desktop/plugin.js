@@ -152,7 +152,11 @@ const RAW = [
 // END GENERATED THEMES
 
 const taken = new Set()
+// Skip Hermes built-in collisions — they are Source of Truth and must not be
+// replaced by Omarchy themes. Only unique Omarchy themes get registered.
 const THEMES = RAW.flatMap(({ slug, c }) => {
+  // Skip Hermes built-in collisions (Source of Truth)
+  if (BUILTIN_NAMES.has(slug)) return []
   const t = buildTheme(slug, c, taken)
   if (!t) return []
   taken.add(t.theme.name)
@@ -276,7 +280,7 @@ export default {
         render: () => jsxs('div', {
           style: { padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', color: 'var(--ui-text-secondary)', fontSize: '13px' },
           children: [
-            jsx('p', { children: THEMES.length + ' Omarchy themes \u2014 no backend, no network.' }),
+            jsx('p', { children: THEMES.length + ' Omarchy themes \u2014 Hermes built-in collisions skipped (Source of Truth).' }),
             jsx('p', { children: 'Colors baked in from /usr/share/omarchy/themes on the omarchy host.' }),
             jsx('p', { children: 'To update: scripts/generate-themes.py --remote omarchy, then scripts/deploy.sh.' }),
           ]
@@ -286,13 +290,25 @@ export default {
 
     // --- CLI→Desktop theme sync (file-watcher on Omarchy hook marker) -------
     const markerPath = path.join(os.homedir(), '.hermes/state/omarchy-active-theme')
-    const slugToTheme = new Map(THEMES.map(t => [t.slug, t.theme.name]))
+    // Only Omarchy themes (unique ones, not Hermes built-in collisions) are
+    // registered here. Hermes built-ins (catppuccin, nord, etc.) are handled
+    // by the fallback below — their slug IS their theme name.
+    const slugToThemeName = new Map(THEMES.map(t => [t.slug, t.theme.name]))
+
+    // Apply theme from marker: Omarchy unique theme → fallback to Hermes built-in
+    function applyFromMarker(slug) {
+      // 1) Omarchy unique theme registered by this plugin
+      const omTheme = slugToThemeName.get(slug)
+      if (omTheme) { requestTheme(omTheme); return }
+      // 2) Hermes built-in (slug == theme name, e.g. catppuccin, nord, solarized)
+      if (BUILTIN_NAMES.has(slug)) { requestTheme(slug); return }
+      // Unknown slug — ignore silently
+    }
 
     // Apply initial theme from marker if present
     try {
       const slug = fs.readFileSync(markerPath, 'utf-8').trim()
-      const themeName = slugToTheme.get(slug)
-      if (themeName) requestTheme(themeName)
+      applyFromMarker(slug)
     } catch (err) {
       // Marker doesn't exist yet or can't be read — not an error
     }
@@ -304,8 +320,7 @@ export default {
         if (eventType !== 'change') return
         try {
           const slug = fs.readFileSync(markerPath, 'utf-8').trim()
-          const themeName = slugToTheme.get(slug)
-          if (themeName) requestTheme(themeName)
+          applyFromMarker(slug)
         } catch (err) {
           // Ignore transient read errors (file might be mid-write)
         }
