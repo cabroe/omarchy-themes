@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 log = logging.getLogger(__name__)
 
@@ -427,10 +427,13 @@ def get_theme(slug: str, paths: str | None = None) -> dict[str, Any]:
 
 
 @router.post("/rescan")
-def rescan() -> dict[str, Any]:
+def rescan(paths: str | None = Query(None, description="Optional comma-separated search paths override.")) -> dict[str, Any]:
     """Invalidate the cache, scan again, and return the new count."""
     _cache.invalidate()
-    records = _scan()
+    if paths:
+        records = _scan(paths=[p.strip() for p in paths.split(",") if p.strip()])
+    else:
+        records = _scan()
     _cache.publish(records)
     return {"ok": True, "count": len(records), "themes": [_to_payload(r) for r in records]}
 

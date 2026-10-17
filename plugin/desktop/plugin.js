@@ -44,7 +44,7 @@ function parseThemeEntry(raw) {
 async function fetchThemes(ctx, { signal } = {}) {
   const data = await ctx.rest('/themes', {
     signal,
-    timeout: REST_TIMEOUT_MS
+    timeoutMs: REST_TIMEOUT_MS
   })
   const list = data && Array.isArray(data.themes) ? data.themes : []
   const parsed = []
@@ -222,7 +222,7 @@ function AboutPage({ ctx }) {
   async function rescan() {
     setRescanning(true)
     try {
-      const data = await ctx.rest('/rescan', { method: 'POST', timeout: REST_TIMEOUT_MS })
+      const data = await ctx.rest('/rescan', { method: 'POST', timeoutMs: REST_TIMEOUT_MS })
       setCount(typeof data.count === 'number' ? data.count : null)
     } catch {
       setCount(null)
