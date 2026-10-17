@@ -83,6 +83,12 @@ Both tests exit 0 on success and rely only on the stdlib `tomllib` plus
 FastAPI. Fixtures live in `tests/fixtures/themes/` so the tests are
 hermetic — no Omarchy installation required.
 
+> **Note:** System-Python (`/usr/bin/python3`) on the build host may not
+> ship FastAPI. If `test_server.py` errors with `ModuleNotFoundError:
+> No module named 'fastapi'`, use the Hermes-managed Python instead:
+> `/home/opc/.hermes/installs/5ab599b943b5eb79/environments/92a85146f7a54a1db2221dfb01a2f734/venv/bin/python3`
+> (or source the matching `venv/bin/activate`).
+
 ## Configuration
 
 Override the scanned paths via the `OMARCHY_THEME_PATHS` environment
