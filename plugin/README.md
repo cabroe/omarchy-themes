@@ -144,15 +144,50 @@ Then on omarchy:
    contributions and the Settings ▸ Plugins ▸ Omarchy Themes page
    appear.
 
-## Limitations
+## Known issues (deployment result, 2026-10-17)
 
-- The desktop plugin only renders a thin preview swatch; the actual
-  visual preview has to come from applying the theme. The Browse page
-  ships an "Apply" button that calls `requestTheme(name)` directly.
-- Custom Omarchy themes that ship their own `colors.toml` under
-  `~/.config/omarchy/themes/` are scanned alongside stock themes. Themes
-  cloned by `omarchy theme install <url>` should work the same way.
-- Non-hex values in `colors.toml` are dropped with a debug log — a
+- **REST-Endpoint not reachable from omarchy's Hermes-Desktop.** Omarchy's
+  Hermes-Gateway runs as a messaging-only IPC daemon over Unix-Socket
+  (`/home/cabroe/.hermes/gateway.sock`) — there is no HTTP listener on the
+  gateway host. The plugin's `/api/plugins/omarchy-themes/themes` route is
+  therefore only reachable on hosts that run the Hermes web server (vnic /
+  vps-oracle does, on port 8644). On omarchy, the desktop plugin will reach
+  the Apply button and see an empty theme list. Workarounds:
+  - Use the same plugin on the vps-oracle desktop (vnic) — backend works there.
+  - Or: hard-mount a remote `/usr/share/omarchy/themes` into vnic via SSHFS
+    and re-scan.
+  - Future v2: the plugin's `plugin_api.py` could read its `colors.toml`
+    files via `subprocess.run(['ssh', 'omarchy', 'cat', ...])` instead of
+    local FS, so a single backend on the bot server can serve any host.
+
+- **Hermes-Desktop renderer did not hot-reload** after the scp deploy
+  (Electron-Main has been running since before the plugin existed, and
+  Crashpad-managed children survive SIGTERM). Files are on disk and the
+  dashboard plugin registry sees `omarchy-themes` (`/api/dashboard/plugins`
+  returns it), but the renderer hasn't picked it up yet. User action:
+  ⌘K → "Reload desktop plugins", or a full Hermes-Desktop restart.
+
+- **`__init__.py` was not in the original spec.** Discovered during deploy:
+  the agent-side plugin loader (`hermes_cli.plugins`) refuses to discover
+  a plugin that lacks an importable `__init__.py`. The deploy added a
+  minimal shim (`from .register import register`) to satisfy that loader;
+  it is now part of the package and committed here.
+
+## Verifying locally
+
+After deploy, the same plugin package is also installed on vps-oracle
+(vnic) at `~/.hermes/plugins/omarchy-themes/` with `omarchy-themes` in
+`plugins.enabled`. There the backend is reachable:
+
+```bash
+curl -s -H "Authorization: Bearer $HERMES_DASHBOARD_TOKEN" \
+  http://127.0.0.1:8644/api/plugins/omarchy-themes/themes | jq '.count, .themes[].slug'
+```
+
+Returns the full theme list with `catppuccin` mapped to
+`catppuccin-omarchy` (built-in collision handled), `gruvbox` mapped to
+`gruvbox` (not a built-in), `mode` per theme, and the full DesktopTheme
+shape (colors + terminal + darkColors/darkTerminal for light-mode themes).
   theme whose three required colors (`background`, `foreground`,
   `accent`) fail to normalize is skipped entirely.
 - The cache TTL is 5 minutes. Use the "Rescan" button on the Settings
