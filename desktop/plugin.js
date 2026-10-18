@@ -70,14 +70,9 @@ import { buildTheme } from './lib/theme-builder.js'
 // dispose-race protection. applyEntry is shared here because the palette ⌘K
 // rows call it directly without going through the slug→entry lookup.
 import { applyEntry, createSync } from './sync.js'
-
-// `requestMode` is the SDK contract for changing the active mode from
-// outside React. The current SDK does not export it (defined internally in
-// apps/desktop/src/themes/request.ts, not re-exported from sdk/index.ts), so
-// this binding is `null` today. Probe the namespace at module load so the
-// plugin works either way: a future SDK that re-exports requestMode wins;
-// today's host gets the local storage-event mirror below.
-const SDK_REQUEST_MODE = typeof sdk.requestMode === 'function' ? sdk.requestMode : null
+// Probe for the (currently absent) SDK requestMode export — single source of
+// truth lives in ./sdk-probe.js so the future re-export only touches one file.
+import { SDK_REQUEST_MODE } from './sdk-probe.js'
 
 // ---------------------------------------------------------------------------
 // Built-in Hermes theme names (Source of Truth — must not be overridden by

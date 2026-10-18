@@ -149,7 +149,14 @@ python3 -m unittest tests/generate_themes_test.py
 
 ```
 omarchy-themes/
-├── desktop/plugin.js         # Hermes-Desktop-Plugin (plain ESM, kein Build)
+├── desktop/
+│   ├── plugin.js             # Einstiegspunkt, register(ctx)
+│   ├── sync.js               # 4-Tür-CLI/Omarchy-Sync-State-Machine
+│   ├── settings-page.js      # React-UI (JSX via jsx-runtime)
+│   ├── lib/                  # Pure Helper (colors, theme-builder, palette-parsers)
+│   ├── types.d.ts            # gemeinsame Shapes (per @typedef import referenziert)
+│   ├── runtime-modules.d.ts  # ambient declare module ...
+│   └── tsconfig.json         # `make typecheck`
 ├── hooks/hermes-skin-sync.sh # Omarchy-theme-set-Hook → Hermes CLI/TUI-Skin
 ├── scripts/
 │   └── generate-themes.py    # colors.toml → Theme-Tabelle in plugin.js
