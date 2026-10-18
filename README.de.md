@@ -49,14 +49,14 @@ make install-githooks   # Pre-push-Hook aktivieren, der generate-check ausführt
 
 ## 🖥 Benutzung
 
-- **Theme-Picker:** Die Omarchy-Themes erscheinen neben den eingebauten Hermes-Themes. Namen, die mit einem Hermes-Built-in kollidieren (`catppuccin`, `everforest` …), werden übersprungen — das Built-in gewinnt als Source of Truth. Das eingebaute `catppuccin` / `everforest` wird direkt über Hermes benutzt; das Plugin registriert **keinen** `…-omarchy`-Klon.
+- **Theme-Picker:** Die Omarchy-Themes erscheinen neben den eingebauten Hermes-Themes als `omarchy-<slug>`. Slugs, die mit einem Hermes-Built-in kollidieren (`catppuccin`, `everforest` …), werden übersprungen — das Built-in gewinnt als Source of Truth. Das eingebaute `catppuccin` / `everforest` wird direkt über Hermes benutzt; das Plugin registriert keinen `omarchy-catppuccin`-/`omarchy-everforest`-Klon (ein CLI-Wechsel dorthin folgt nur dem Hell/Dunkel-Modus der Omarchy-Palette).
 - **⌘K:** `Apply Omarchy Theme: <Name>`
 - **Settings → Plugins → omarchy-themes:** Kartenansicht mit Farbswatches, Filter (Name/Slug/`dark`/`light`) und *Apply*-Button.
 - **CLI/TUI:** `omarchy theme set nord` → Hook schreibt Skin → `hermes skin use nord` (live in ~1 s). Der Desktop übernimmt das Theme und schaltet zusätzlich in den Modus der Palette (Light/Dark). Zwei Wege führen dorthin: das Gateway-Event `skin.changed` (wenn der Desktop mit diesem Rechner verbunden ist) und eine Überwachung von `display.skin` in der lokalen `<HERMES_HOME>/config.yaml` über die Datei-Watch-Brücke des Desktops — damit funktioniert der Sync auch, wenn ein entferntes Gateway die aktive Verbindung ist.
 
-### ⚠️ Bekannte Einschränkungen
+### Theme-Namen
 
-- **CLI-Skins verdecken gleichnamige Plugin-Themes.** Hermes übernimmt jeden aktivierten Skin als eigenes Desktop-Theme (`description: "Hermes skin"`, gecacht in `hermes-desktop-backend-themes-v1`). `resolveTheme` bevorzugt diese Backend-Themes vor Plugin-Themes gleichen Namens (built-in > user > backend > Plugin). Sobald ein Slug einmal per Hook aktiv war, malt der Desktop für diesen Namen die vereinfachte Ein-Paletten-Konvertierung des Skins statt der Dual-Palette des Plugins — auch über ⌘K und die Settings-Seite. Eine saubere Lösung braucht eine Änderung in Hermes (Plugin-Themes vor Backend-Skins gleichen Namens).
+Das Plugin registriert seine Themes als `omarchy-<slug>` (z. B. `omarchy-nord`, Label „Omarchy Nord“), der Hook behält den CLI-Skin-Namen `<slug>` (`hermes skin use nord`). Das Präfix ist Absicht: Hermes übernimmt jeden aktivierten CLI-Skin unter dem nackten Slug als Desktop-Theme (`description: "Hermes skin"`, eine Ein-Paletten-Konvertierung, gecacht in `hermes-desktop-backend-themes-v1`), und `resolveTheme` bevorzugt solche Backend-Themes vor Plugin-Themes gleichen Namens. Ohne Präfix würde ein einmal aktiver Slug diese vereinfachte Konvertierung statt des Hell/Dunkel-Paars des Plugins malen. Bei `skin.changed` wendet das Plugin sein Theme einen Tick nach Hermes' eigener Verarbeitung erneut an, damit das Dual-Paletten-Theme stehen bleibt. Nebeneffekt: Nach einem CLI-Wechsel kann der Picker „Nord“ (Hermes-Skin) und „Omarchy Nord“ (dieses Plugin) auflisten — nimm die Omarchy-Variante.
 
 ### Was das Plugin anpasst
 

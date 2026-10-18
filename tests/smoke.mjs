@@ -39,6 +39,9 @@ for (const { data: row } of palette) {
   assert.ok(row.label, `${row.id}: palette row without label`)
   assert.equal(typeof row.run, 'function', `${row.id}: palette row without run() is hidden by the host`)
 }
+// Desktop names are prefixed: Hermes registers CLI skins under the bare slug as
+// backend themes, which would shadow a same-named plugin theme (resolveTheme).
+for (const { data: t } of themes) assert.match(t.name, /^omarchy-/, `${t.name}: missing omarchy- prefix`)
 assert.equal(settingsPages.length, 1)
 assert.equal(disposers.length, 1)
 
@@ -94,7 +97,11 @@ const MODE_KEY = 'hermes-desktop-mode-v1'
 const PROFILE_MODES_KEY = 'hermes-desktop-profile-modes-v1'
 const LAST_PROFILE_KEY = 'hermes-desktop-active-profile-v1'
 const runRow = slug => palette.find(p => p.data.id === `omarchy-themes.apply.${slug}`).data.run()
-const skinChanged = name => skinListener.listener({ type: 'skin.changed', payload: { name } })
+// The listener re-applies on the next tick (after the host's own handling).
+const skinChanged = async name => {
+  skinListener.listener({ type: 'skin.changed', payload: { name } })
+  await new Promise(r => setTimeout(r, 0))
+}
 
 // Named live profile: its own slot + global change, other profiles keep theirs.
 store.set(LAST_PROFILE_KEY, 'work')
@@ -104,17 +111,23 @@ runRow('nord')
 assert.deepEqual(JSON.parse(store.get(PROFILE_MODES_KEY)), { home: 'light', work: 'dark' })
 assert.equal(store.get(MODE_KEY), 'dark')
 assert.equal(storageEvents.at(-1)?.key, MODE_KEY, 'ThemeProvider must be poked via a storage event')
-assert.equal(requested.at(-1), 'nord')
+assert.equal(requested.at(-1), 'omarchy-nord')
 
 // Default profile owns the global slot only; the per-profile record is left alone.
 store.delete(LAST_PROFILE_KEY)
-skinChanged('lupine')
+// The host requests the bare-slug backend skin right after the plugins; the
+// deferred apply must come last so the dual-palette theme is what stays.
+skinListener.listener({ type: 'skin.changed', payload: { name: 'lupine' } })
+const syncRequested = requested.length
+requested.push('lupine') // what the host's ingestBackendSkin → ThemeProvider does
+await new Promise(r => setTimeout(r, 0))
+assert.ok(requested.length > syncRequested + 1, 'listener must re-apply after the host')
+assert.equal(requested.at(-1), 'omarchy-lupine')
 assert.equal(store.get(MODE_KEY), 'light')
 assert.deepEqual(JSON.parse(store.get(PROFILE_MODES_KEY)), { home: 'light', work: 'dark' })
-assert.equal(requested.at(-1), 'lupine')
 
 // Built-in collision: Hermes' own catppuccin, in Omarchy's catppuccin mode (dark).
-skinChanged('catppuccin')
+await skinChanged('catppuccin')
 assert.equal(store.get(MODE_KEY), 'dark')
 assert.equal(requested.at(-1), 'catppuccin')
 const requestedBefore = requested.length
@@ -122,8 +135,8 @@ const requestedBefore = requested.length
 // Foreign skins (non-Omarchy built-in, unknown name) leave the mode untouched.
 store.set(MODE_KEY, 'system')
 const eventsBefore = storageEvents.length
-skinChanged('github')
-skinChanged('no-such-skin')
+await skinChanged('github')
+await skinChanged('no-such-skin')
 assert.equal(store.get(MODE_KEY), 'system')
 assert.equal(storageEvents.length, eventsBefore)
 assert.equal(requested.length, requestedBefore)
@@ -164,13 +177,13 @@ assert.equal(requested.length, beforeLocal, 'unchanged display.skin must not re-
 files.set(CONFIG, config('lupine'))
 store.set(MODE_KEY, 'dark')
 await fileChanged(watchId)
-assert.equal(requested.at(-1), 'lupine')
+assert.equal(requested.at(-1), 'omarchy-lupine')
 assert.equal(store.get(MODE_KEY), 'light')
 
 // Other preview watches' events are ignored.
 files.set(CONFIG, config('nord'))
 await fileChanged('someone-else')
-assert.equal(requested.at(-1), 'lupine')
+assert.equal(requested.at(-1), 'omarchy-lupine')
 
 // Dispose releases the watch.
 localDisposers.forEach(d => d())

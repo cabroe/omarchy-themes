@@ -69,9 +69,11 @@ function slugToLabel(slug) {
 
 // Built-in slugs are filtered out upstream (THEMES.flatMap below — Source of
 // Truth), so `slug` here is always a unique Omarchy palette and never collides
-// with a built-in name. No `-omarchy` suffix branch is needed.
+// with a built-in name. The desktop name gets an `omarchy-` prefix on purpose:
+// Hermes registers every CLI skin under its bare slug as a backend theme, and a
+// backend theme of the same name would shadow this entry in resolveTheme().
 function toName(slug, taken) {
-  let name = slug
+  let name = 'omarchy-' + slug
   while (taken.has(name)) name = name + '-dup'
   return name
 }
@@ -235,7 +237,7 @@ function buildTheme(slug, c, taken) {
 
   const theme = {
     name,
-    label,
+    label: 'Omarchy ' + label,
     description: 'Omarchy \u00b7 ' + label + ' \u00b7 ' + mode,
     colors: lightColors,
     darkColors: darkColors,
@@ -287,10 +289,11 @@ const RAW = [
 const taken = new Set()
 // Skip Hermes built-in collisions — they are Source of Truth and must not be
 // replaced by Omarchy themes. Only unique Omarchy themes get registered.
-// Known limitation: Hermes adopts every activated CLI skin as a backend theme
-// (themes/backend-sync.ts) and resolveTheme() prefers backend over contributed
-// themes of the same name — once the hook has activated `nord`, the desktop
-// paints the skin's single-palette conversion instead of this entry.
+// Desktop theme names carry an `omarchy-` prefix (toName). Hermes adopts every
+// activated CLI skin as a backend theme under the bare slug (themes/backend-sync.ts)
+// and resolveTheme() prefers backend over contributed themes of the same name —
+// without the prefix the skin's single-palette conversion would hide these
+// dual-palette entries as soon as the hook had activated the slug once.
 const THEMES = RAW.flatMap(({ slug, c }) => {
   // Skip Hermes built-in collisions (Source of Truth)
   if (BUILTIN_NAMES.has(slug)) return []
@@ -570,13 +573,21 @@ export default {
     })
 
     // CLI→Desktop sync, two doors into the same handler:
-    //  1. `skin.changed` from the ACTIVE gateway — only fires when the desktop
-    //     is connected to the machine the hook ran on.
-    //  2. A watch on this machine's `<HERMES_HOME>/config.yaml` — the hook's
-    //     `hermes skin use` writes `display.skin` there, so the sync also works
-    //     while a remote gateway is the active connection.
-    // Applying twice (local connection: both doors fire) is idempotent.
-    disposers.push(ctx.onEvent('skin.changed', event => applySkin(event?.payload?.name)))
+    //  1. A watch on this machine's `<HERMES_HOME>/config.yaml` — the hook's
+    //     `hermes skin use` writes `display.skin` there, so it works whichever
+    //     gateway is the active connection.
+    //  2. `skin.changed` from the active gateway — only when it is this machine.
+    //     The host handles the event itself right after the plugins and requests
+    //     the bare-slug backend skin (single palette). Re-apply on the next
+    //     tick so the dual-palette `omarchy-<slug>` theme is what stays painted.
+    // Applying twice is idempotent.
+    let reapply = null
+    disposers.push(ctx.onEvent('skin.changed', event => {
+      const name = event?.payload?.name
+      clearTimeout(reapply)
+      reapply = setTimeout(() => applySkin(name), 0)
+    }))
+    disposers.push(() => clearTimeout(reapply))
     disposers.push(watchLocalSkin(applySkin))
 
     ctx.onDispose(() => disposers.forEach(d => d && d()))
