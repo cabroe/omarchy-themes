@@ -46,7 +46,6 @@ make install-hook
 ```bash
 # 1. Disable the theme-set hook (CLI/TUI auto-sync stops immediately)
 make uninstall-hook
-# Equivalent: rm -f ~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh
 
 # 2. Remove the desktop plugin
 hermes plugins remove omarchy-themes
