@@ -4,9 +4,9 @@
 
 **Omarchy colour schemes in Hermes Desktop — automatic on every `omarchy theme set`.**
 
-[![en](https://img.shields.io/badge/lang-en-blue.svg)](README.md)
-[![de](https://img.shields.io/badge/lang-de-blue.svg)](README.de.md)
-[![CI](https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml)
+[![en](https://img.shields.io/badge/lang-en-blue.svg?style=flat-square)](README.md)
+[![de](https://img.shields.io/badge/lang-de-blue.svg?style=flat-square)](README.de.md)
+[![CI](https://img.shields.io/github/actions/workflow/status/cabroe/omarchy-themes/ci.yml?branch=main&style=flat-square)](https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml)
 
 </div>
 
