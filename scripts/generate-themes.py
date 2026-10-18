@@ -109,9 +109,37 @@ def read_remote(host: str, directory: str) -> dict[str, str]:
         'printf "@@@ %s\\n" "${f%/colors.toml}"; cat "$f"; echo; done'
     )
     res = subprocess.run(["ssh", host, script], capture_output=True, text=True, check=True)
+    return parse_sections(res.stdout)
+
+
+# Themes that ship no colors.toml (only an alacritty.toml) still get applied by
+# Omarchy: omarchy-theme-set generates the colors.toml from the terminal palette
+# and resolves the derived keys (muted, dark_background, mode, ...). Reuse its
+# own tools so the baked palette is exactly what Omarchy applies. Needs the
+# omarchy CLI on the host; without it nothing is derived.
+DERIVE_SCRIPT = (
+    'cd {directory} 2>/dev/null || exit 0; '
+    'command -v omarchy-theme-colors-from-alacritty >/dev/null && command -v omarchy-theme-color >/dev/null || exit 0; '
+    'for d in */; do d=${{d%/}}; [ -f "$d/colors.toml" ] && continue; [ -f "$d/alacritty.toml" ] || continue; '
+    't=$(mktemp -d); cp "$d/alacritty.toml" "$t/"; '
+    'omarchy-theme-colors-from-alacritty "$t" >/dev/null 2>&1; '
+    'if [ -f "$t/colors.toml" ]; then printf "@@@ %s\\n" "$d"; '
+    'omarchy-theme-color --file "$t/colors.toml" --all | awk -F"\\t" \'{{printf "%s = \\"%s\\"\\n", $1, $2}}\'; echo; fi; '
+    'rm -rf "$t"; done'
+)
+
+
+def read_derived(host: str | None, directory: str) -> dict[str, str]:
+    script = DERIVE_SCRIPT.format(directory=directory)
+    cmd = ["ssh", host, script] if host else ["bash", "-c", script]
+    res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    return parse_sections(res.stdout)
+
+
+def parse_sections(stdout: str) -> dict[str, str]:
     files: dict[str, str] = {}
     slug = None
-    for line in res.stdout.splitlines(keepends=True):
+    for line in stdout.splitlines(keepends=True):
         if line.startswith("@@@ "):
             slug = line[4:].strip()
             files[slug] = ""
@@ -150,8 +178,11 @@ def main() -> int:
     raw: dict[str, str] = {}
     for d in dirs:  # later dirs override earlier ones
         found = read_remote(args.remote, d) if args.remote else read_local(d)
-        print(f"{len(found):3d} colors.toml in {d}", file=sys.stderr)
+        derived = {s: t for s, t in read_derived(args.remote, d).items() if s not in found}
+        print(f"{len(found):3d} colors.toml in {d}"
+              + (f" (+{len(derived)} resolved from alacritty.toml)" if derived else ""), file=sys.stderr)
         raw.update(found)
+        raw.update(derived)
 
     palettes = {s: p for s, t in raw.items() if (p := parse_palette(s, t)) is not None}
     if not palettes:

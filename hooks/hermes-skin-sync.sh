@@ -31,9 +31,15 @@ log() {
 }
 
 # --- Source resolution ---------------------------------------------------
-# User overlay (highest priority), then system themes shipped with Omarchy.
+# User overlay (highest priority), then system themes shipped with Omarchy,
+# then the theme Omarchy just applied. The last one covers themes that ship no
+# colors.toml of their own (e.g. only an alacritty.toml): omarchy-theme-set
+# generates the colors.toml into its current-theme dir before the hooks run.
+# It is only trusted while theme.name says it belongs to this slug.
 USER_THEME="$HOME/.config/omarchy/themes/${SLUG}/colors.toml"
 SYSTEM_THEME="/usr/share/omarchy/themes/${SLUG}/colors.toml"
+OMARCHY_STATE="$HOME/.local/state/omarchy/current"
+CURRENT_THEME="$OMARCHY_STATE/theme/colors.toml"
 
 COLORS=""
 if [ -s "$USER_THEME" ]; then
@@ -42,10 +48,13 @@ if [ -s "$USER_THEME" ]; then
 elif [ -s "$SYSTEM_THEME" ]; then
     COLORS="$SYSTEM_THEME"
     SOURCE_DESC="system"
+elif [ -s "$CURRENT_THEME" ] && [ "$(cat "$OMARCHY_STATE/theme.name" 2>/dev/null)" = "$SLUG" ]; then
+    COLORS="$CURRENT_THEME"
+    SOURCE_DESC="current"
 fi
 
 if [ -z "$COLORS" ]; then
-    log "SKIP: slug='${SLUG}' — no colors.toml (looked in ${USER_THEME} and ${SYSTEM_THEME})"
+    log "SKIP: slug='${SLUG}' — no colors.toml (looked in ${USER_THEME}, ${SYSTEM_THEME} and ${CURRENT_THEME})"
     exit 0
 fi
 
@@ -133,11 +142,11 @@ read_key background darker_background dark_background && background=$val_norm
 read_key foreground bright_foreground light_foreground && foreground=$val_norm
 read_key accent blue magenta && accent=$val_norm
 read_key dark_background darker_background background && dark_bg=$val_norm
-read_key muted dark_foreground dark_background && muted=$val_norm
-read_key red orange bright_red && red=$val_norm
-read_key yellow bright_yellow && yellow=$val_norm
-read_key green bright_green && green=$val_norm
-read_key cyan bright_cyan && cyan=$val_norm
+read_key muted dark_foreground color8 dark_background && muted=$val_norm
+read_key red color1 orange bright_red && red=$val_norm
+read_key yellow color3 bright_yellow && yellow=$val_norm
+read_key green color2 bright_green && green=$val_norm
+read_key cyan color6 bright_cyan && cyan=$val_norm
 
 mode=$(toml_string mode)
 case "$mode" in

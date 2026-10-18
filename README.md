@@ -111,7 +111,7 @@ To include custom themes from `~/.config/omarchy/themes/`:
 python3 scripts/generate-themes.py --include-user
 ```
 
-The generator only replaces the block between `// BEGIN GENERATED THEMES` and `// END GENERATED THEMES` and is deterministic — no diff if nothing changed.
+The generator only replaces the block between `// BEGIN GENERATED THEMES` and `// END GENERATED THEMES` and is deterministic — no diff if nothing changed. Themes that ship no `colors.toml` (only an `alacritty.toml`, e.g. installed from a git repo) are resolved with Omarchy's own `omarchy-theme-colors-from-alacritty` / `omarchy-theme-color`, so the baked palette is exactly what Omarchy applies; this needs the omarchy CLI on the host.
 
 ---
 
@@ -200,7 +200,7 @@ The hook writes 22 keys; everything else is inherited by the skin loader from th
 | `green` / `yellow` / `red` | `ui_ok/warn/error`, `status_bar_good/warn/critical` |
 | `cyan` | `response_border`, `session_label` |
 
-The hook is pure POSIX `sh` with no Python dependency. A user theme takes precedence over a system theme with the same name. It always exits with code 0 so it never breaks Omarchy's hook chain.
+The hook is pure POSIX `sh` with no Python dependency. A user theme takes precedence over a system theme with the same name. It always exits with code 0 so it never breaks Omarchy's hook chain. For themes without a `colors.toml` of their own the hook falls back to the `colors.toml` Omarchy generated for the theme it just applied (`~/.local/state/omarchy/current/theme/`, only while `theme.name` matches), including the `colorN` names.
 
 ---
 

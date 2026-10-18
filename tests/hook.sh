@@ -54,4 +54,32 @@ HOME="$SANDBOX" HERMES_BIN="$SANDBOX/bin/hermes-fail" sh "$ROOT/hooks/hermes-ski
     || fail "hermes failure must exit 0"
 grep -q 'ERR: hermes skin use fixture exited 3' "$LOG" || fail "failure not logged"
 
-echo "ok — hook: skin generation, skip path, failure path"
+# 4. Theme without its own colors.toml (alacritty.toml only): Omarchy generates
+#    colors.toml with colorN names into its current-theme dir. Trusted only
+#    while theme.name matches the slug.
+mkdir -p "$SANDBOX/.config/omarchy/themes/legacy" "$SANDBOX/.local/state/omarchy/current/theme"
+: > "$SANDBOX/.config/omarchy/themes/legacy/alacritty.toml"
+cat > "$SANDBOX/.local/state/omarchy/current/theme/colors.toml" <<'EOF'
+accent = "#6699ff"
+background = "#000000"
+foreground = "#e6e6e6"
+color1 = "#e65c5c"
+color2 = "#66cc66"
+color3 = "#ffcc66"
+color6 = "#66cccc"
+color8 = "#404040"
+EOF
+echo legacy > "$SANDBOX/.local/state/omarchy/current/theme.name"
+HOME="$SANDBOX" HERMES_BIN="$SANDBOX/bin/hermes-ok" sh "$ROOT/hooks/hermes-skin-sync.sh" legacy
+LEGACY="$SANDBOX/.hermes/skins/legacy.yaml"
+test -s "$LEGACY"                                 || fail "current-theme fallback: skin not written"
+grep -q '  ui_error: "#e65c5c"' "$LEGACY"         || fail "colorN alias: red from color1"
+grep -q '  ui_ok: "#66cc66"' "$LEGACY"            || fail "colorN alias: green from color2"
+grep -q '  banner_dim: "#404040"' "$LEGACY"       || fail "colorN alias: muted from color8"
+grep -q "source=current" "$LOG"                   || fail "source not logged"
+echo other > "$SANDBOX/.local/state/omarchy/current/theme.name"
+rm -f "$LEGACY"
+HOME="$SANDBOX" HERMES_BIN="$SANDBOX/bin/hermes-ok" sh "$ROOT/hooks/hermes-skin-sync.sh" legacy
+test ! -e "$LEGACY"                               || fail "foreign theme.name must not be trusted"
+
+echo "ok — hook: skin generation, skip path, failure path, current-theme fallback"
