@@ -143,7 +143,7 @@ function synthLightFromDark(c, ac, acFg) {
     border: mixHex(surface, '#000000', 0.14),
     input:   mixHex(surface, '#000000', 0.14),
     ring: ac, midground: ac, composerRing: ac,
-    destructive: c.red || '#b94a3a', destructiveForeground: '#ffffff',
+    destructive: c.red || '#ef4444', destructiveForeground: '#ffffff',
     sidebarBackground: mixHex(surface, '#000000', 0.04),
     sidebarBorder:     mixHex(surface, '#000000', 0.14),
     userBubble:        mixHex(ac,       '#ffffff', 0.85),
@@ -172,7 +172,7 @@ function synthDarkFromLight(c, ac, acFg) {
     border:    mixHex(surface, '#ffffff', 0.16),
     input:     mixHex(surface, '#ffffff', 0.10),
     ring: ac, midground: ac, composerRing: ac,
-    destructive: c.red || '#e25563', destructiveForeground: '#ffffff',
+    destructive: c.red || '#ef4444', destructiveForeground: '#ffffff',
     sidebarBackground: mixHex(surface, '#ffffff', 0.02),
     sidebarBorder:     mixHex(surface, '#ffffff', 0.16),
     userBubble:        mixHex(ac, surface, 0.18),
@@ -364,7 +364,12 @@ let lastRequest = { profile: null, mode: null }
 function requestMode(mode) {
   // Prefer the host's contract when the SDK exposes it; the mirror below is
   // the fallback that pokes the ThemeProvider via a storage event.
-  if (typeof sdk.requestMode === 'function') return sdk.requestMode(mode)
+  if (typeof sdk.requestMode === 'function') {
+    // Update lastRequest so the mirror's idempotent guard stays in sync even
+    // when the SDK path was taken (prevents a stale guard on the next call).
+    lastRequest = { profile: null, mode }
+    return sdk.requestMode(mode)
+  }
   if (typeof window === 'undefined') return
   try {
     const ls = window.localStorage
@@ -385,9 +390,14 @@ function requestMode(mode) {
 }
 
 function applyEntry(entry) {
-  requestMode(entry.mode)
+  // requestTheme first so the palette is set before the mode is committed.
+  // Reversed (requestMode then requestTheme) would briefly paint the old
+  // theme in the new mode before the theme request resolves — one render
+  // frame in the wrong variant.
   requestTheme(entry.theme.name)
+  requestMode(entry.mode)
 }
+
 
 // A theme/skin name from the Omarchy or CLI side → desktop. Several doors can
 // report the same switch within seconds (theme.name, config.yaml, gateway
@@ -446,7 +456,7 @@ function displaySkin(yaml) {
       continue
     }
     if (!inDisplay) continue
-    const indent = line.match(/^ */)[0].length
+    const indent = line.replace(/\t/g, '  ').match(/^ */)[0].length
     childIndent ??= indent
     if (indent !== childIndent) continue
     const m = line.match(/^ +skin:\s*(['"]?)([^'"#\s]+)\1\s*(#.*)?$/)
@@ -504,15 +514,20 @@ async function refreshSkip(bridge) {
 function paletteFromToml(text) {
   const t = {}
   for (const line of text.split(/\r?\n/)) {
-    const m = line.match(/^\s*([A-Za-z0-9_]+)\s*=\s*["']?(#[0-9A-Fa-f]{6}|dark|light)["']?\s*(#.*)?$/)
-    if (m) t[m[1]] = m[2].toLowerCase()
+    const m = line.match(/^\s*([A-Za-z0-9_]+)\s*=\s*["']?(#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?|dark|light)["']?\s*(#.*)?$/)
+    if (m) t[m[1]] = m[2].length > 7 ? m[2].slice(0, 7).toLowerCase() : m[2].toLowerCase()
   }
   const accent = t.accent ?? t.color4
   if (!t.background || !t.foreground || !accent) return null
   const c = {
     mode: t.mode ?? (luma(t.background) > 0.5 ? 'light' : 'dark'),
     accent, background: t.background, foreground: t.foreground,
-    selection: t.selection ?? t.selection_background, muted: t.muted ?? t.color8, dark_foreground: t.dark_foreground ?? t.color8,
+    selection: t.selection ?? t.selection_background, muted: t.muted ?? t.color8,
+    // Deliberately no color8 fallback for dark_foreground: buildTheme already
+    // falls back to fg (foreground), which always contrasts with the surface.
+    // color8 (ANSI bright-black) and color8-as-muted can end up identical,
+    // producing invisible mutedForeground text on the muted background.
+    dark_foreground: t.dark_foreground,
     dark_background: t.dark_background, darker_background: t.darker_background, lighter_background: t.lighter_background,
     bright_foreground: t.bright_foreground,
   }
@@ -837,6 +852,7 @@ export default {
       // trusting a single watch to survive the swap.
       let colorsStop = () => {}
       let armingColors = false
+      let pendingRearm = false  // set when an event fires while an arm is in progress
       const colorsArrived = () => {
         clearTimeout(colorsTimer)
         colorsTimer = setTimeout(() => {
@@ -851,31 +867,47 @@ export default {
         }, 250)
       }
       const armColors = async () => {
-        // Guard against overlapping arms: if a previous armColors() promise
-        // hasn't resolved yet (async path lookup + watchPreviewFile call),
-        // a second concurrent arm would register a duplicate listener for the
-        // same path. The event handler calls armColors() again only after
-        // off()+stopPreviewFileWatch, so it's safe to skip the duplicate.
-        if (armingColors || !alive()) return
+        if (!alive()) return
+        if (armingColors) {
+          // A concurrent arm is in progress; note that a re-arm is needed so
+          // the next arm runs once the current one finishes. This handles the
+          // burst case: old watch is stopped by the event handler, but the
+          // armingColors guard blocks the immediate re-arm call — without the
+          // pendingRearm flag the watcher would be left without a live watch.
+          pendingRearm = true
+          return
+        }
         armingColors = true
         try {
           const path = await omarchyFile(bridge, 'current/theme/colors.toml')
           if (!path || !alive()) return
-          let id = null
+          // Resolve the watch ID first, then register the listener.
+          // Registering before would open a window where payload.id cannot be
+          // matched (id is null) and the first event after a rename-swap
+          // would be silently dropped. watchPreviewFile and the IPC handler
+          // both run on the microtask/macrotask queue, so an event from the
+          // bridge can arrive between the two lines — with listener-after-id
+          // there is no such window.
+          const watch = await bridge.watchPreviewFile(path).catch(() => null)
+          if (!watch?.id) return
+          // Second alive() check: dispose may have run during the await above.
+          if (!alive()) { void bridge.stopPreviewFileWatch?.(watch.id); return }
+          const id = watch.id
           const off = bridge.onPreviewFileChanged(async payload => {
-            if (!id || payload?.id !== id) return
+            if (payload?.id !== id) return
             off()
             void bridge.stopPreviewFileWatch?.(id)
             if (!alive()) return
-            void armColors() // the swap orphaned this watch — watch the path again
+            void armColors() // re-arm for the next rename-swap (sets pendingRearm if busy)
             colorsArrived()
           })
-          const watch = await bridge.watchPreviewFile(path).catch(() => null)
-          if (!watch?.id) { off(); return }
-          id = watch.id
           colorsStop = () => { off(); void bridge.stopPreviewFileWatch?.(id) }
         } finally {
           armingColors = false
+          // If an event arrived while this arm was resolving (armingColors was
+          // true, so it set pendingRearm instead of recursing), run a fresh
+          // arm now that the guard is clear.
+          if (pendingRearm && alive()) { pendingRearm = false; void armColors().catch(() => {}) }
         }
       }
       void armColors().catch(() => {})
