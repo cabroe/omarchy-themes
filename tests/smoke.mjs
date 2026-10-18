@@ -270,6 +270,94 @@ assert.equal(requested.at(-1), 'omarchy-lupine')
 assert.equal(pluginStore.get('last-theme'), 'lupine')
 assert.equal(pluginStore.get('last-skin'), 'lupine')
 assert.equal(await launch('lupine'), 0, 'caught up once, not on every launch')
+
+// Omarchy themes the baked table does not know (user overlay, newer Omarchy):
+// the palette comes from current/theme/colors.toml, as ONE replaceable theme.
+const COLORS = '/home/u/.local/state/omarchy/current/theme/colors.toml'
+const TOGGLE = '/home/u/.local/state/omarchy/toggles/skip-hermes-theme-changes'
+const toml = (bg, fg) => `accent = "#BE3F50"\nforeground = "${fg}"\nbackground = "${bg}"\n\ncolor1 = "#c8e967"\ncolor2 = "#E20342"\ncolor8 = "#c53253"\n`
+const registered = new Map()
+const dynDisposers = []
+const dynCtx = () => ({
+  ...ctx,
+  register: c => { registered.set(c.id, c.data); return () => { if (registered.get(c.id) === c.data) registered.delete(c.id) } },
+  registerSettingsPage: () => {},
+  onDispose: fn => dynDisposers.push(fn),
+})
+const disposeDyn = () => dynDisposers.splice(0).forEach(d => d())
+
+clock += 20000
+files.set(COLORS, toml('#0e091d', '#14b9b5'))
+files.set(THEME_NAME, 'nord\n')
+plugin.register(dynCtx())
+await settle()
+assert.ok(!registered.has('theme-current'), 'a known theme needs no dynamic theme')
+
+clock += 20000
+files.set(THEME_NAME, 'my-custom\n')
+await changed(THEME_NAME)
+let dyn = registered.get('theme-current')
+assert.ok(dyn, 'unknown Omarchy theme must be registered from colors.toml')
+assert.equal(dyn.name, 'omarchy-current')
+assert.equal(dyn.label, 'Omarchy My Custom')
+assert.equal(dyn.darkColors.background, '#0e091d')
+assert.equal(dyn.darkColors.destructive, '#c8e967', 'named colors map from color1 (red)')
+assert.equal(requested.at(-1), 'omarchy-current')
+assert.equal(store.get(MODE_KEY), 'dark')
+
+// The next unknown theme replaces the registration; the mode follows the background.
+clock += 20000
+files.set(COLORS, toml('#fafafa', '#212121'))
+files.set(THEME_NAME, 'my-light\n')
+await changed(THEME_NAME)
+dyn = registered.get('theme-current')
+assert.equal(dyn.label, 'Omarchy My Light')
+assert.equal(dyn.colors.background, '#fafafa')
+assert.equal(requested.at(-1), 'omarchy-current')
+assert.equal(store.get(MODE_KEY), 'light')
+
+// colors.toml missing → nothing is applied, the user's appearance stays.
+const beforeMissing = requested.length
+clock += 20000
+files.delete(COLORS)
+files.set(THEME_NAME, 'no-colors\n')
+await changed(THEME_NAME)
+assert.equal(requested.length, beforeMissing)
+
+// Omarchy's own `omarchy` skin stands for the current Omarchy theme: the
+// host's single-palette paint is replaced by the dual-palette entry.
+clock += 20000
+files.set(THEME_NAME, 'lupine\n')
+await changed(THEME_NAME)
+await skinChanged('omarchy')
+assert.equal(requested.at(-1), 'omarchy-lupine')
+
+// Toggle skip-hermes-theme-changes stops every automatic switch.
+const beforeToggle = requested.length
+files.set(TOGGLE, '')
+clock += 20000
+files.set(THEME_NAME, 'tokyo-night\n')
+await changed(THEME_NAME)
+await skinChanged('tokyo-night')
+assert.equal(requested.length, beforeToggle, 'toggle on: no automatic switching')
+files.delete(TOGGLE)
+clock += 20000
+files.set(THEME_NAME, 'nord\n')
+await changed(THEME_NAME)
+assert.equal(requested.at(-1), 'omarchy-nord', 'toggle off: switching resumes')
+
+// Launch: the dynamic palette is registered again (it is not persisted), but
+// registering is no theme switch.
+disposeDyn()
+assert.ok(!registered.has('theme-current'), 'dispose must unregister the dynamic theme')
+files.set(COLORS, toml('#0e091d', '#14b9b5'))
+files.set(THEME_NAME, 'my-custom\n')
+const beforePrime = requested.length
+plugin.register(dynCtx())
+await settle()
+assert.ok(registered.has('theme-current'), 'launch must re-register the current unknown theme')
+assert.equal(requested.length, beforePrime, 'launch registration must not switch the theme')
+disposeDyn()
 Date.now = realNow
 delete globalThis.window
 

@@ -59,6 +59,18 @@ make install-githooks # activate the pre-push generate-check hook (optional)
 
 The plugin registers its themes under `omarchy-<slug>` (e.g. `omarchy-nord`, label "Omarchy Nord"), while the hook keeps the CLI skin name `<slug>` (`hermes skin use nord`). The prefix is deliberate: Hermes adopts every activated CLI skin as a desktop theme under the bare slug (`description: "Hermes skin"`, a single-palette conversion cached in `hermes-desktop-backend-themes-v1`), and `resolveTheme` prefers those backend themes over plugin themes of the same name. Without the prefix, a slug that had been active once would paint that simplified conversion instead of the plugin's light/dark palette pair. On `skin.changed` the plugin re-applies its theme one tick after Hermes' own handling, so the dual-palette theme is what stays painted. Side effect: after a CLI switch the picker may list both "Nord" (Hermes' skin) and "Omarchy Nord" (this plugin) — pick the Omarchy one.
 
+### Themes not in the table, and switching it off
+
+An Omarchy theme the plugin does not know (a theme under `~/.config/omarchy/themes/`, or one newer than the last `make generate`) still follows: the plugin reads `~/.local/state/omarchy/current/theme/colors.toml` (`colorN` names are mapped like the generator does: `red` = `color1` … `cyan` = `color6`; the mode comes from `mode` or the background's brightness) and registers **one** replaceable theme, `omarchy-current` (label "Omarchy <slug>"). The next unknown theme replaces it; a known theme uses its baked entry. After a Hermes restart the palette is registered again.
+
+Omarchy's own `omarchy` skin (`omarchy-theme-set-hermes`) is treated as "the current Omarchy theme": the desktop shows the matching dual-palette entry instead of the skin's single-palette conversion.
+
+To stop all automatic switching, create the Omarchy toggle (the theme picker and ⌘K keep working):
+
+```bash
+touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes   # off again: rm the file
+```
+
 ### What the plugin customises
 
 Every registered theme ships **both** palettes + **both** terminal palettes + **typography**, so switching between light and dark mode in Hermes recolours the entire UI — not just the border:

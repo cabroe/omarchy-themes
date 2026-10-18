@@ -58,6 +58,18 @@ make install-githooks   # Pre-push-Hook aktivieren, der generate-check ausführt
 
 Das Plugin registriert seine Themes als `omarchy-<slug>` (z. B. `omarchy-nord`, Label „Omarchy Nord“), der Hook behält den CLI-Skin-Namen `<slug>` (`hermes skin use nord`). Das Präfix ist Absicht: Hermes übernimmt jeden aktivierten CLI-Skin unter dem nackten Slug als Desktop-Theme (`description: "Hermes skin"`, eine Ein-Paletten-Konvertierung, gecacht in `hermes-desktop-backend-themes-v1`), und `resolveTheme` bevorzugt solche Backend-Themes vor Plugin-Themes gleichen Namens. Ohne Präfix würde ein einmal aktiver Slug diese vereinfachte Konvertierung statt des Hell/Dunkel-Paars des Plugins malen. Bei `skin.changed` wendet das Plugin sein Theme einen Tick nach Hermes' eigener Verarbeitung erneut an, damit das Dual-Paletten-Theme stehen bleibt. Nebeneffekt: Nach einem CLI-Wechsel kann der Picker „Nord“ (Hermes-Skin) und „Omarchy Nord“ (dieses Plugin) auflisten — nimm die Omarchy-Variante.
 
+### Themes außerhalb der Tabelle und Abschalten
+
+Ein Omarchy-Theme, das das Plugin nicht kennt (ein Theme unter `~/.config/omarchy/themes/` oder neuer als das letzte `make generate`), wird trotzdem verfolgt: Das Plugin liest `~/.local/state/omarchy/current/theme/colors.toml` (`colorN`-Namen werden wie im Generator abgebildet: `red` = `color1` … `cyan` = `color6`; den Modus liefert `mode` oder die Hintergrund-Helligkeit) und registriert **ein** austauschbares Theme `omarchy-current` (Label „Omarchy <slug>“). Das nächste unbekannte Theme ersetzt es; ein bekanntes Theme nutzt seinen eingebauten Eintrag. Nach einem Hermes-Neustart wird die Palette neu registriert.
+
+Omarchys eigener Skin `omarchy` (`omarchy-theme-set-hermes`) gilt als „das aktuelle Omarchy-Theme“: Der Desktop zeigt den passenden Dual-Paletten-Eintrag statt der Ein-Paletten-Konvertierung des Skins.
+
+Um jedes automatische Umschalten zu stoppen, legst du den Omarchy-Toggle an (Theme-Picker und ⌘K funktionieren weiter):
+
+```bash
+touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes   # wieder an: Datei löschen
+```
+
 ### Was das Plugin anpasst
 
 Jedes registrierte Theme liefert **beide** Paletten + **beide** Terminal-Paletten + **Typography**, damit der Wechsel zwischen Light- und Dark-Mode in Hermes die ganze UI neu einfärbt — nicht nur die Border:

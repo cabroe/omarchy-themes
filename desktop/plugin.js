@@ -14,6 +14,12 @@
  * to a registered theme and switches the UI into that palette's mode.
  * Hermes Desktop is Source of Truth: built-in collisions are skipped on
  * registration; `omarchy theme set catppuccin` paints Hermes' own built-in.
+ *
+ * Themes the baked table lacks (user overlays, themes added after the last
+ * generate) are read from Omarchy's current/theme/colors.toml and offered as
+ * the single replaceable theme `omarchy-current`. The Omarchy toggle
+ * `skip-hermes-theme-changes` (~/.local/state/omarchy/toggles/) stops all
+ * automatic switching; the theme picker and ⌘K rows keep working.
  */
 import {
   THEMES_AREA, PALETTE_AREA,
@@ -365,9 +371,25 @@ function applyEntry(entry) {
 const DEDUPE_MS = 15000
 let lastApplied = { name: null, at: 0 }
 
+// Omarchy themes the baked table does not know. Their palette comes from
+// current/theme/colors.toml and is registered as ONE theme that each new
+// unknown Omarchy theme replaces (same contribution id → the host repaints).
+const DYNAMIC_NAME = 'omarchy-current'
+let dynamic = null       // { slug, entry, sig, stop }
+let omarchySlug = null   // theme.name as last seen
+let skipSync = false     // Omarchy toggle skip-hermes-theme-changes, cached
+
+const isKnown = name =>
+  THEMES.some(t => t.slug === name) || (BUILTIN_NAMES.has(name) && RAW_MODE.has(name))
+
 function applySkin(name, { force = false } = {}) {
+  // Omarchy's own `omarchy` skin (omarchy-theme-set-hermes) always stands for
+  // the current Omarchy theme; the host paints it as a single-palette skin,
+  // so map it to the matching dual-palette entry instead.
+  if (name === 'omarchy') name = omarchySlug
+  if (!name || skipSync) return
   if (!force && name === lastApplied.name && Date.now() - lastApplied.at < DEDUPE_MS) return
-  const entry = THEMES.find(t => t.slug === name)
+  const entry = THEMES.find(t => t.slug === name) ?? (dynamic?.slug === name ? dynamic.entry : null)
   if (entry) {
     lastApplied = { name, at: Date.now() }
     applyEntry(entry)
@@ -429,6 +451,75 @@ async function omarchyThemeNamePath(bridge) {
     if (typeof file?.text === 'string') return path
   }
   return null
+}
+
+// Files next to theme.name: `current/theme/colors.toml`, `toggles/<flag>`.
+async function omarchyFile(bridge, rel) {
+  const path = await omarchyThemeNamePath(bridge)
+  return path && path.replace(/current\/theme\.name$/, rel)
+}
+
+async function readText(bridge, path) {
+  const file = path ? await bridge.readFileText(path).catch(() => null) : null
+  return typeof file?.text === 'string' ? file.text : null
+}
+
+// Omarchy's toggle convention: the flag is a file in toggles/.
+async function refreshSkip(bridge) {
+  skipSync = (await readText(bridge, await omarchyFile(bridge, 'toggles/skip-hermes-theme-changes'))) !== null
+}
+
+// Omarchy's colors.toml: accent/foreground/background plus color0..15, and
+// sometimes named ANSI colors, shades or `mode`. Same mapping as the generator
+// (red=color1 … cyan=color6, bright_*=color9..14); the mode falls back to the
+// background's brightness.
+function paletteFromToml(text) {
+  const t = {}
+  for (const line of text.split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Za-z0-9_]+)\s*=\s*["']?(#[0-9A-Fa-f]{6}|dark|light)["']?\s*(#.*)?$/)
+    if (m) t[m[1]] = m[2].toLowerCase()
+  }
+  const accent = t.accent ?? t.color4
+  if (!t.background || !t.foreground || !accent) return null
+  const c = {
+    mode: t.mode ?? (luma(t.background) > 0.5 ? 'light' : 'dark'),
+    accent, background: t.background, foreground: t.foreground,
+    selection: t.selection_background, muted: t.muted ?? t.color8, dark_foreground: t.dark_foreground ?? t.color8,
+    dark_background: t.dark_background, darker_background: t.darker_background, lighter_background: t.lighter_background,
+    bright_foreground: t.bright_foreground,
+  }
+  ;['red', 'green', 'yellow', 'blue', 'magenta', 'cyan'].forEach((n, i) => {
+    c[n] = t[n] ?? t['color' + (i + 1)]
+    c['bright_' + n] = t['bright_' + n] ?? t['color' + (i + 9)]
+  })
+  return c
+}
+
+// Register the current Omarchy theme from colors.toml. True when the dynamic
+// theme now matches `slug`.
+async function registerCurrent(ctx, bridge, slug) {
+  const text = await readText(bridge, await omarchyFile(bridge, 'current/theme/colors.toml'))
+  const c = text && paletteFromToml(text)
+  const entry = c && buildTheme(slug, c, new Set())
+  if (!entry) return false
+  entry.theme.name = DYNAMIC_NAME
+  const sig = slug + JSON.stringify(entry.theme)
+  if (dynamic?.sig === sig) return true
+  dynamic?.stop?.()
+  dynamic = { slug, entry, sig, stop: ctx.register({ id: 'theme-current', area: THEMES_AREA, data: entry.theme }) }
+  return true
+}
+
+// Launch: make the palette available again (it is not persisted) and learn
+// the current theme name and toggle. Registering is not a theme switch.
+async function primeCurrent(ctx, bridge) {
+  try {
+    const name = themeName((await readText(bridge, await omarchyThemeNamePath(bridge))) ?? '')
+    if (!name) return
+    omarchySlug ??= name
+    await refreshSkip(bridge)
+    if (!isKnown(name)) await registerCurrent(ctx, bridge, name)
+  } catch (_) { /* Omarchy not here — the baked themes still work */ }
 }
 
 // Watch one local file through the desktop's preview file-watch bridge
@@ -628,6 +719,7 @@ export default {
             jsx('p', { children: THEMES.length + ' Omarchy themes \u2014 Hermes built-in collisions skipped (Source of Truth).' }),
             jsx('p', { children: 'Colors baked in from /usr/share/omarchy/themes on a host running Omarchy.' }),
             jsx('p', { children: 'To update: scripts/generate-themes.py --remote <host>.' }),
+            jsx('p', { children: 'Omarchy themes not in this list are read from current/theme/colors.toml and shown as "omarchy-current". Switching off: touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes.' }),
           ]
         })
       }]
@@ -646,14 +738,29 @@ export default {
     // 1 and 2 work whichever gateway is the active connection. Later doors are
     // no-ops for the same name (DEDUPE_MS).
     let epoch = 0
+    const bridge = typeof window === 'undefined' ? undefined : window.hermesDesktop
     disposers.push(ctx.onEvent('skin.changed', event => {
       const name = event?.payload?.name
       const mine = ++epoch
+      // Same task as the host's handler, so the cached toggle decides; refresh it for the next one.
+      if (bridge?.readFileText) void refreshSkip(bridge)
       Promise.resolve().then(() => { if (mine === epoch) applySkin(name, { force: true }) })
     }))
     disposers.push(() => { epoch++ })
-    disposers.push(watchOmarchyTheme(applySkin, ctx.storage))
-    disposers.push(watchConfigSkin(applySkin, ctx.storage))
+    if (bridge?.readFileText) {
+      disposers.push(watchOmarchyTheme(async name => {
+        omarchySlug = name
+        await refreshSkip(bridge)
+        if (!skipSync && !isKnown(name)) await registerCurrent(ctx, bridge, name)
+        applySkin(name)
+      }, ctx.storage))
+      disposers.push(watchConfigSkin(async name => {
+        await refreshSkip(bridge)
+        applySkin(name)
+      }, ctx.storage))
+      void primeCurrent(ctx, bridge)
+    }
+    disposers.push(() => { dynamic?.stop?.(); dynamic = null; omarchySlug = null; skipSync = false })
 
     ctx.onDispose(() => disposers.forEach(d => d && d()))
   }

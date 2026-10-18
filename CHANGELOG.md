@@ -4,6 +4,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Added
+- Omarchy themes missing from the baked table (user overlays, themes newer than
+  the last `make generate`) now follow too: the palette is read from
+  `current/theme/colors.toml` and shown as the replaceable theme
+  `omarchy-current`; it is registered again after a Hermes restart.
+- Omarchy toggle `skip-hermes-theme-changes`
+  (`~/.local/state/omarchy/toggles/`) stops all automatic theme switching.
+- Omarchy's own `omarchy` skin (`omarchy-theme-set-hermes`) maps to the
+  dual-palette entry of the current Omarchy theme instead of Hermes' single-palette
+  conversion.
+
 ### Changed
 - Repository is public. `main` is protected (no force pushes or deletions, linear
   history, CI must pass for everyone except the owner); secret scanning with push
