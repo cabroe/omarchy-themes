@@ -8,7 +8,6 @@
   <img src="https://img.shields.io/badge/Themes-25-blueviolet?style=for-the-badge" alt="25 Themes">
   <img src="https://img.shields.io/badge/Tests-passing-brightgreen?style=for-the-badge" alt="Tests passing">
   <img src="https://img.shields.io/badge/shellcheck-passing-brightgreen?style=for-the-badge" alt="shellcheck">
-  <img src="https://img.shields.io/badge/Deploy-SSH-blue?style=for-the-badge" alt="Deploy via SSH">
   <img src="https://img.shields.io/badge/Repo-privat-lightgrey?style=for-the-badge" alt="Privates Repo">
   <img src=".github/badges/ci.svg" alt="CI">
 </p>
@@ -26,22 +25,26 @@
 | **Desktop-Plugin** | `desktop/plugin.js` | Registriert 25 Themes (22 Omarchy-Stock-Themes + 3 eigene mit vollständiger Palette) im Hermes-Theme-Picker, als ⌘K-Befehle und auf einer eigenen Settings-Seite. Rein lokal, kein Backend, kein Netzwerk. |
 | **Theme-Sync-Hook** | `hooks/hermes-skin-sync.sh` | Läuft bei `omarchy theme set <slug>`, schreibt `~/.hermes/skins/<slug>.yaml` und aktiviert den Hermes-Skin. CLI und TUI folgen dem Desktop-Theme automatisch. |
 | **Generator** | `scripts/generate-themes.py` | Liest `colors.toml`-Dateien vom Host und schreibt die Theme-Tabelle im Plugin neu — nach Omarchy-Updates oder für eigene Themes. |
-| **Deploy-Script** | `scripts/deploy.sh` | Kopiert Plugin + Hook per `scp` auf den Zielhost und vergleicht Byte für Byte. |
 
 ---
 
 ## ⚡ Schnellstart
 
+**Installation über Hermes:**
+
 ```bash
-make check            # Lint + Tests lokal (kein Host nötig)
-make deploy           # check → Plugin + Hook nach omarchy deployen
-make deploy HOST=foo  # anderen SSH-Host verwenden
+hermes plugins install https://github.com/cabroe/omarchy-themes
 ```
 
 Danach im Hermes-Desktop **⌘K → „Reload desktop plugins"** — das Plugin ist ab Werk aktiv (`defaultEnabled: true`). Wer es deaktivieren will: Settings → Capabilities → Plugins → omarchy-themes → Toggle.
 
-**Voraussetzungen lokal:** Node ≥ 22, Python ≥ 3.11, `shellcheck`  
-**Voraussetzungen auf dem Host:** SSH-Zugang, Omarchy, Hermes
+Für den CLI/TUI-Hook `hooks/hermes-skin-sync.sh` manuell nach `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh` kopieren und ausführbar machen.
+
+**Voraussetzungen lokal (für Entwicklung):** Node ≥ 22, Python ≥ 3.11, `shellcheck`
+
+```bash
+make check            # Lint + Tests lokal
+```
 
 ---
 
@@ -77,15 +80,14 @@ Der Test prüft das (siehe `tests/smoke.mjs`): für jedes registrierte Theme mus
 Die Paletten sind ins Plugin eingebacken (der Desktop-Renderer hat keinen Dateisystemzugriff). Nach einem Omarchy-Update:
 
 ```bash
-make generate          # Paletten vom Host neu einlesen und plugin.js überschreiben
+make generate          # Paletten neu einlesen und plugin.js überschreiben
 make generate-check    # nur prüfen, ob plugin.js aktuell ist (Exit 1 wenn nicht)
-make deploy
 ```
 
 Eigene Themes aus `~/.config/omarchy/themes/` einschließen:
 
 ```bash
-python3 scripts/generate-themes.py --remote omarchy --include-user
+python3 scripts/generate-themes.py --include-user
 ```
 
 Der Generator ersetzt nur den Block zwischen `// BEGIN GENERATED THEMES` und `// END GENERATED THEMES` und ist deterministisch — kein Diff, wenn sich nichts geändert hat.
@@ -110,7 +112,7 @@ Gleiches Ergebnis ohne `make`:
 ```bash
 node --check desktop/plugin.js
 python3 -m py_compile scripts/generate-themes.py
-shellcheck hooks/hermes-skin-sync.sh scripts/deploy.sh tests/hook.sh
+shellcheck hooks/hermes-skin-sync.sh tests/hook.sh
 node tests/smoke.mjs
 sh tests/hook.sh
 ```
@@ -124,8 +126,7 @@ omarchy-themes/
 ├── desktop/plugin.js         # Hermes-Desktop-Plugin (plain ESM, kein Build)
 ├── hooks/hermes-skin-sync.sh # Omarchy-theme-set-Hook → Hermes CLI/TUI-Skin
 ├── scripts/
-│   ├── generate-themes.py    # colors.toml → Theme-Tabelle in plugin.js
-│   └── deploy.sh             # scp + Byte-Vergleich auf dem Zielhost
+│   └── generate-themes.py    # colors.toml → Theme-Tabelle in plugin.js
 ├── tests/
 │   ├── smoke.mjs             # Plugin in Node mit SDK-Stubs
 │   ├── hook.sh               # Hook gegen Fixture in Sandbox-$HOME
@@ -136,12 +137,12 @@ omarchy-themes/
 
 Der Desktop-Plugin-Pfad (`desktop/plugin.js`) entspricht dem, was der Hermes-Plugin-Loader beim `hermes plugins install <url>` sucht (siehe `findDesktopEntry` in `desktop-plugin-install.ts`). Früher lag das Plugin unter `plugin/desktop/plugin.js` — der Loader hat dort nichts erkannt und brach mit „No agent or desktop plugin artifacts found" ab.
 
-Zielpfade auf dem Host (per `make deploy`):
+Zielpfade nach Installation:
 
 | Datei | Ziel |
 |---|---|
 | `desktop/plugin.js` | `~/.hermes/plugins/omarchy-themes/desktop/plugin.js` |
-| `hooks/hermes-skin-sync.sh` | `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh` |
+| `hooks/hermes-skin-sync.sh` | manuell kopieren nach `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh` |
 
 ---
 

@@ -1,19 +1,18 @@
 HOST ?= omarchy
 
-.PHONY: help check test lint generate generate-check deploy
+.PHONY: help check test lint generate generate-check
 
 help:
 	@echo "make check            lint + tests (local, no host needed)"
 	@echo "make generate         regenerate theme table from \$$HOST (incl. user themes)"
 	@echo "make generate-check   fail if plugin.js is out of date vs. \$$HOST (incl. user themes)"
-	@echo "make deploy           copy plugin + hook to \$$HOST and verify"
 
 check: lint test
 
 lint:
 	node --check desktop/plugin.js
 	python3 -m py_compile scripts/generate-themes.py
-	shellcheck hooks/hermes-skin-sync.sh scripts/deploy.sh tests/hook.sh
+	shellcheck hooks/hermes-skin-sync.sh tests/hook.sh
 
 test:
 	node tests/smoke.mjs
@@ -24,6 +23,3 @@ generate:
 
 generate-check:
 	python3 scripts/generate-themes.py --remote $(HOST) --include-user --check
-
-deploy: check
-	sh scripts/deploy.sh $(HOST)

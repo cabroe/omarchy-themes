@@ -4,8 +4,8 @@
  * No backend, no HTTP calls. The Omarchy palettes are baked into the RAW
  * table below (generated from /usr/share/omarchy/themes/<slug>/colors.toml).
  *
- * To update after an Omarchy upgrade:
- *   scripts/generate-themes.py --remote omarchy && scripts/deploy.sh
+ * To update after an Omarchy upgrade, regenerate from a host with Omarchy:
+ *   scripts/generate-themes.py --remote <host>
  *
  * CLI→Desktop sync: subscribes to the gateway `skin.changed` event. The
  * Omarchy hook writes ~/.hermes/skins/<slug>.yaml and runs `hermes skin use`,
@@ -374,7 +374,7 @@ function BrowsePage({ ctx }) {
 // ---------------------------------------------------------------------------
 export default {
   id: 'omarchy-themes',
-  name: 'Omarchy Themes',
+  name: 'omarchy-themes',
   defaultEnabled: true,
 
   register(ctx) {
@@ -398,7 +398,7 @@ export default {
 
     ctx.registerSettingsPage?.({
       id: 'settings',
-      title: 'Omarchy Themes',
+      title: 'omarchy-themes',
       icon: 'symbol-color',
       order: 10,
       render: () => jsx(BrowsePage, { ctx }),
@@ -409,8 +409,8 @@ export default {
           style: { padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', color: 'var(--ui-text-secondary)', fontSize: '13px' },
           children: [
             jsx('p', { children: THEMES.length + ' Omarchy themes \u2014 Hermes built-in collisions skipped (Source of Truth).' }),
-            jsx('p', { children: 'Colors baked in from /usr/share/omarchy/themes on the omarchy host.' }),
-            jsx('p', { children: 'To update: scripts/generate-themes.py --remote omarchy, then scripts/deploy.sh.' }),
+            jsx('p', { children: 'Colors baked in from /usr/share/omarchy/themes on a host running Omarchy.' }),
+            jsx('p', { children: 'To update: scripts/generate-themes.py --remote <host>.' }),
           ]
         })
       }]
