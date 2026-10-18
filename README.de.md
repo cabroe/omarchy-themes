@@ -38,11 +38,7 @@
 
 `hermes plugins install https://github.com/cabroe/omarchy-themes`, dann **⌘K → „Reload desktop plugins"**. Einmal aktivieren: Settings → Capabilities → Plugins → omarchy-themes → Toggle.
 
-Für den CLI/TUI-Hook: `make install-hook` (idempotent); `make uninstall-hook` (oder das rückwärtskompatible `make uninstall`) entfernt sie.
-
-**Deinstallation:**
-- Hook: `make uninstall-hook`
-- Plugin: `hermes plugins remove omarchy-themes`, dann Hermes Desktop neu starten.
+**Deinstallation:** `hermes plugins remove omarchy-themes`, dann Hermes Desktop neu starten.
 
 **Entwicklung:** Node ≥ 22, Python ≥ 3.11, `shellcheck`. `make check` = Lint + Tests; `make install-githooks` aktiviert Pre-push-`generate-check`-Guard (blockt den Push bei Drift — kein Auto-Commit mehr).
 

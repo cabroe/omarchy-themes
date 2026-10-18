@@ -31,12 +31,8 @@
 ## Install
 
 ```bash
-# 1. Install the desktop plugin
 hermes plugins install https://github.com/cabroe/omarchy-themes
 # then: Settings → Capabilities → Plugins → omarchy-themes → enable
-
-# 2. Install the theme-set hook (CLI/TUI auto-sync)
-make install-hook
 ```
 
 ---
@@ -44,15 +40,9 @@ make install-hook
 ## Uninstall
 
 ```bash
-# 1. Disable the theme-set hook (CLI/TUI auto-sync stops immediately)
-make uninstall-hook
-
-# 2. Remove the desktop plugin
 hermes plugins remove omarchy-themes
 # then restart Hermes Desktop so the plugin stops registering its themes
 ```
-
-Both steps are independent — leaving one in place is safe.
 
 ---
 
