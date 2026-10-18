@@ -5,12 +5,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Themes-25-blueviolet?style=for-the-badge" alt="25 Themes">
-  <img src="https://img.shields.io/badge/Tests-passing-brightgreen?style=for-the-badge" alt="Tests passing">
-  <img src="https://img.shields.io/badge/shellcheck-passing-brightgreen?style=for-the-badge" alt="shellcheck">
-  <img src="https://img.shields.io/badge/Repo-privat-lightgrey?style=for-the-badge" alt="Privates Repo">
-  <img src=".github/badges/ci.svg" alt="CI">
+  <a href=".github/workflows/ci.yml"><img src=".github/badges/ci.svg" alt="CI-Status"></a>
 </p>
+
+<p align="center"><sub>Einziges Live-Badge: <code>make check</code> (Lint + Tests + shellcheck) auf <code>main</code>, automatisch vom <a href=".github/workflows/ci.yml"><code>badge</code>-Job</a> aktualisiert. Die Theme-Zahl ist Build-abhängig (sie wächst mit Omarchy-Releases und mit <code>--include-user</code>) und wird deshalb bewusst nicht als statisches Badge gezeigt — die Live-Zahl für das aktuelle <code>desktop/plugin.js</code> gibt <code>node tests/smoke.mjs</code> aus.</sub></p>
 
 <p align="center">
   <a href="README.md">🇬🇧 English version</a>
@@ -22,7 +20,7 @@
 
 | Komponente | Datei | Was sie tut |
 |---|---|---|
-| **Desktop-Plugin** | `desktop/plugin.js` | Registriert 25 Themes (22 Omarchy-Stock-Themes + 3 eigene mit vollständiger Palette) im Hermes-Theme-Picker, als ⌘K-Befehle und auf einer eigenen Settings-Seite. Rein lokal, kein Backend, kein Netzwerk. |
+| **Desktop-Plugin** | `desktop/plugin.js` | Registriert alle Omarchy-Stock-Themes (zuzüglich beliebiger eigener Themes aus `~/.config/omarchy/themes/` bei Generierung mit `--include-user`, abzüglich der Hermes-Built-in-Kollisionen wie `catppuccin` / `everforest`) im Hermes-Theme-Picker, als ⌘K-Befehle und auf einer eigenen Settings-Seite. Die Zahl hängt davon ab, was Omarchy ausliefert und welche User-Themes installiert sind, und ist deshalb nirgends hartkodiert — die aktuelle Zahl für deinen Build liefert `node tests/smoke.mjs`. Rein lokal, kein Backend, kein Netzwerk. |
 | **Theme-Sync-Hook** | `hooks/hermes-skin-sync.sh` | Läuft bei `omarchy theme set <slug>`, schreibt `~/.hermes/skins/<slug>.yaml` und aktiviert den Hermes-Skin. CLI und TUI folgen dem Desktop-Theme automatisch. |
 | **Generator** | `scripts/generate-themes.py` | Liest `colors.toml`-Dateien vom Host und schreibt die Theme-Tabelle im Plugin neu — nach Omarchy-Updates oder für eigene Themes. |
 
@@ -50,7 +48,7 @@ make check            # Lint + Tests lokal
 
 ## 🖥 Benutzung
 
-- **Theme-Picker:** Die Omarchy-Themes erscheinen neben den eingebauten Hermes-Themes. Namen, die mit einem Built-in kollidieren (`catppuccin`, `everforest` …), bekommen das Suffix `-omarchy`.
+- **Theme-Picker:** Die Omarchy-Themes erscheinen neben den eingebauten Hermes-Themes. Namen, die mit einem Hermes-Built-in kollidieren (`catppuccin`, `everforest` …), werden übersprungen — das Built-in gewinnt als Source of Truth. Das eingebaute `catppuccin` / `everforest` wird direkt über Hermes benutzt; das Plugin registriert **keinen** `…-omarchy`-Klon.
 - **⌘K:** `Apply Omarchy Theme: <Name>`
 - **Settings → Plugins → omarchy-themes:** Kartenansicht mit Farbswatches, Filter (Name/Slug/`dark`/`light`) und *Apply*-Button.
 - **CLI/TUI:** `omarchy theme set nord` → Hook schreibt Skin → `hermes skin use nord` (live in ~1 s).
