@@ -26,6 +26,53 @@
 
 ---
 
+## 📸 Live demo
+
+Real screen captures over SSH against a live Omarchy install (Tailscale · Wayland · Hyprland · Hermes Desktop v0.21.7). Commands were plain `omarchy theme set <slug>`; Waybar re-skins instantly and Hermes-Desktop catches up in ~0.6 s when the mode flips.
+
+<details>
+<summary><strong>1 · Multi-Theme-Tour — 7 themes back-to-back</strong></summary>
+
+<p align="center"><img alt="Multi-Theme-Tour composite" src="assets/screenshots/tour-composite.png"></p>
+
+| Step | Theme | What happens |
+|---|---|---|
+| 00 | `catppuccin` (default) | Starting state. |
+| 01 | `nord` | Waybar re-skin instant; Hermes stays dark (mode unchanged). |
+| 02 | `tokyo-night` | Waybar re-skin (neon blue). |
+| 03 | `rose-pine` | Waybar re-skin (mauve). |
+| 04 | `catppuccin-latte` | **Full UI flip to light mode** — sidebar, chat, background, waybar all switch. |
+| 05 | `flexoki-light` | Waybar re-skin (beige). |
+| 99 | `catppuccin` | End state; loop closes cleanly. |
+
+> **Why the dark→dark steps look subtle in the screenshots:** the renderer (`renderedModeFor` in `apps/desktop/src/themes/context.tsx`) keeps the UI in the same mode and re-paints palette deltas. Waybar is the loud witness. The light step (04) is where the switch is visually obvious because Hermes exits dark → enters light.
+</details>
+
+<details>
+<summary><strong>2 · ⌘K (Command-Palette) demo</strong></summary>
+
+<p align="center"><img alt="Cmd-K shows every registered Omarchy theme as an instant-apply row" src="assets/screenshots/cmdk-omarchy-themes.png" width="48%"> <img alt="Cmd-K plugins command and Reload desktop plugins" src="assets/screenshots/cmdk-plugins.png" width="48%"></p>
+
+Two real palette states captured via `Ctrl-K` → typed query:
+
+- **Left** — searching `omarchy` lists every registered Omarchy theme as an instant-apply row. Built-in collisions with Hermes (`catppuccin`, `everforest`, …) are skipped on registration — Hermes' built-ins stay Source of Truth.
+- **Right** — searching `plugins` exposes the `Plugins` Settings-page opener, `Reload desktop plugins`, and the bot/kanban desktop-plugin toggles.
+</details>
+
+<details>
+<summary><strong>3 · Settings-Page Card-View (reconstruction)</strong></summary>
+
+The live settings page lives at `id: 'settings'` (registered via `ctx.registerSettingsPage`) and renders a Card-View per theme with swatches and an *Apply* button. SSH automation could not reach the Card-View itself (it opens as an in-app slide-out), so the image below is a **faithful reconstruction** from the live `colors.toml` files:
+
+<p align="center"><img alt="Settings-Page Card-View reconstruction" src="assets/screenshots/cardview-reconstruction.png"></p>
+
+Background = native theme background. Swatches cover `background` / `foreground` / `accent` / `red` / `green` / `yellow`. The *Apply* button uses the theme's `accent`. The filter hint shows the slug.
+</details>
+
+The full interactive walkthrough (responsive grid, all seven tour captures, both Cmd-K captures, the Card-View) lives at [`assets/demo.html`](assets/demo.html) — open in any browser.
+
+---
+
 ## 📦 Install & use
 
 **Install via Hermes:**
