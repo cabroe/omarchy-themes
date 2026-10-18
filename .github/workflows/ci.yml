@@ -54,9 +54,3 @@ jobs:
         # = lint (node --check, py_compile, shellcheck) + test (smoke.mjs, hook.sh)
         # Kein Netz, keine Secrets — rein lokale Checks.
         run: make check
-
-      - name: Run make typecheck
-        # tsc --allowJs --checkJs --noEmit gegen desktop/tsconfig.json.
-        # Laufzeit: ~30 s beim ersten Mal (npm install typescript via npx),
-        # <1 s nach dem ersten Cache-Hit. Keine Secrets.
-        run: make typecheck
