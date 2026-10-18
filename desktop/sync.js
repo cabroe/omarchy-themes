@@ -77,9 +77,13 @@
  */
 import * as sdk from '@hermes/plugin-sdk'
 const { requestTheme, THEMES_AREA } = sdk
-// Probe for the (currently absent) SDK requestMode export — single source of
-// truth lives in ./sdk-probe.js so the future re-export only touches one file.
-import { SDK_REQUEST_MODE } from './sdk-probe.js'
+// `requestMode` is the SDK contract for changing the active mode from
+// outside React. The current SDK does not export it (defined internally in
+// apps/desktop/src/themes/request.ts, not re-exported from sdk/index.ts), so
+// this binding is `null` today. Probe the namespace at module load so the
+// plugin works either way: a future SDK that re-exports requestMode wins;
+// today's host gets the local storage-event mirror below.
+const SDK_REQUEST_MODE = typeof sdk.requestMode === 'function' ? sdk.requestMode : null
 import { displaySkin, themeName, paletteFromToml } from './lib/palette-parsers.js'
 
 // ---------------------------------------------------------------------------

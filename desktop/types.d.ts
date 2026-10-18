@@ -236,3 +236,10 @@ export type AliveCheck = () => boolean
 /** Result of registerCurrent(): 'new' when the dynamic theme changed,
  *  'same' when it already matches, null when colors.toml gave no palette. */
 export type RegisterCurrentResult = 'new' | 'same' | null
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+/** A #rrggbb colour (lowercase, leading '#'). Typed as plain string so
+ *  callers can pass `c.background` (Palette.background is `string`) without
+ *  fighting the strict template-literal type; the runtime invariant is
+ *  documented in JSDoc and enforced by tests/smoke.mjs (HEX regex). */
+export type Hex = string
