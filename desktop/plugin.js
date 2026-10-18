@@ -387,11 +387,16 @@ function displaySkin(yaml) {
 
 // Watch this machine's `<HERMES_HOME>/config.yaml` through the desktop's
 // preview file-watch bridge (window.hermesDesktop — the renderer has no fs).
-// `<HERMES_HOME>` is the parent of the desktop-plugins root. The first read
-// only seeds the baseline: a launch must not stomp a theme the user picked in
-// the desktop. Afterwards every change of `display.skin` calls onSkin.
+// `<HERMES_HOME>` is the parent of the desktop-plugins root. Afterwards every
+// change of `display.skin` calls onSkin.
+//
+// Launch: the skin last seen is remembered in the plugin's own storage. If
+// Omarchy switched themes while Hermes was closed, the stored value differs
+// from the config and the desktop catches up. If nothing changed, the launch
+// only seeds the baseline — it must not stomp a theme picked in the desktop.
 // Returns a disposer; a host without the bridge gets a no-op.
-function watchLocalSkin(onSkin) {
+function watchLocalSkin(onSkin, store) {
+  const SEEN_KEY = 'last-skin'
   const bridge = typeof window === 'undefined' ? undefined : window.hermesDesktop
   if (!bridge?.desktopPluginsRoot || !bridge.readFileText || !bridge.watchPreviewFile || !bridge.onPreviewFileChanged) {
     return () => {}
@@ -411,6 +416,7 @@ function watchLocalSkin(onSkin) {
       const skin = await read()
       if (disposed || !skin || skin === lastSkin) return
       lastSkin = skin
+      store?.set(SEEN_KEY, skin)
       onSkin(skin)
     } catch (_) { /* unreadable mid-write — the next change event retries */ }
   })
@@ -419,6 +425,9 @@ function watchLocalSkin(onSkin) {
     const root = String(await bridge.desktopPluginsRoot())
     configPath = root.replace(/[\\/]desktop-plugins[\\/]?$/, '') + '/config.yaml'
     lastSkin = await read()
+    const seen = store?.get(SEEN_KEY, null)
+    if (lastSkin) store?.set(SEEN_KEY, lastSkin)
+    if (!disposed && seen && lastSkin && seen !== lastSkin) onSkin(lastSkin)
     const watch = await bridge.watchPreviewFile(configPath)
     if (!watch?.id) return
     if (disposed) bridge.stopPreviewFileWatch?.(watch.id)
@@ -588,7 +597,7 @@ export default {
       reapply = setTimeout(() => applySkin(name), 0)
     }))
     disposers.push(() => clearTimeout(reapply))
-    disposers.push(watchLocalSkin(applySkin))
+    disposers.push(watchLocalSkin(applySkin, ctx.storage))
 
     ctx.onDispose(() => disposers.forEach(d => d && d()))
   }

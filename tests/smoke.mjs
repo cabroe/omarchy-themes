@@ -189,6 +189,27 @@ assert.equal(requested.at(-1), 'omarchy-lupine')
 localDisposers.forEach(d => d())
 assert.equal(watches.size, 0, 'dispose must stop the file watch')
 assert.equal(changeListeners.size, 0)
+
+// Launch catch-up: the plugin remembers the skin it last saw. Omarchy switched
+// while Hermes was closed → the stored value differs → apply once at launch.
+// Same value → only the baseline, the user's desktop pick stays.
+const pluginStore = new Map()
+const storage = { get: (k, d) => pluginStore.get(k) ?? d, set: (k, v) => pluginStore.set(k, v), remove: k => pluginStore.delete(k) }
+const launch = async skin => {
+  files.set(CONFIG, config(skin))
+  const before = requested.length
+  const ds = []
+  plugin.register({ ...ctx, storage, register: () => () => {}, registerSettingsPage: () => {}, onDispose: fn => ds.push(fn) })
+  await tick(); await tick()
+  ds.forEach(d => d())
+  return requested.length - before
+}
+assert.equal(await launch('nord'), 0, 'first launch only seeds the baseline')
+assert.equal(await launch('nord'), 0, 'unchanged skin must not stomp the desktop pick')
+assert.equal(await launch('lupine'), 1, 'skin changed while closed → catch up')
+assert.equal(requested.at(-1), 'omarchy-lupine')
+assert.equal(pluginStore.get('last-skin'), 'lupine')
+assert.equal(await launch('lupine'), 0, 'caught up once, not on every launch')
 delete globalThis.window
 
 // ---------------------------------------------------------------------------

@@ -53,7 +53,7 @@ make install-githooks # activate the pre-push generate-check hook (optional)
 - **Theme picker:** Omarchy themes appear alongside the built-in Hermes themes as `omarchy-<slug>`. Slugs that collide with a Hermes built-in (`catppuccin`, `everforest` …) are skipped — the built-in wins as the Source of Truth. Use the built-in `catppuccin` / `everforest` directly via Hermes; the plugin registers no `omarchy-catppuccin` / `omarchy-everforest` clone (a CLI switch to them only follows the Omarchy palette's light/dark mode).
 - **⌘K:** `Apply Omarchy Theme: <name>`
 - **Settings → Plugins → omarchy-themes:** Card view with colour swatches, filter (name/slug/`dark`/`light`) and an *Apply* button.
-- **CLI/TUI:** `omarchy theme set nord` → hook writes skin → `hermes skin use nord` (live in ~1 s). The desktop picks the theme up and also switches into the palette's mode (light/dark). Two doors lead there: the gateway event `skin.changed` (when the desktop is connected to this machine) and a watch on `display.skin` in the local `<HERMES_HOME>/config.yaml` via the desktop's file-watch bridge — so the sync also works while a remote gateway is the active connection.
+- **CLI/TUI:** `omarchy theme set nord` → hook writes skin → `hermes skin use nord` (live in ~1 s). The desktop picks the theme up and also switches into the palette's mode (light/dark). Two doors lead there: the gateway event `skin.changed` (when the desktop is connected to this machine) and a watch on `display.skin` in the local `<HERMES_HOME>/config.yaml` via the desktop's file-watch bridge — so the sync also works while a remote gateway is the active connection. The plugin remembers the skin it last saw: if you switched themes while Hermes was closed, the desktop catches up at the next launch; if nothing changed, a launch leaves a theme you picked in the desktop alone.
 
 ### Theme names
 
@@ -125,7 +125,7 @@ make lint     # node --check + py_compile + shellcheck
 
 | Test | Checks |
 |---|---|
-| `tests/smoke.mjs` | Plugin loads in Node and registers all themes, ⌘K commands (each with `label` + `run`, otherwise the host hides them), and the settings page. All colours are valid `#rrggbb`, no duplicate names. Enforces luma difference ≥ 0.5 between `colors` and `darkColors` (aligned with renderer threshold), completeness of 25 UI keys per palette, and brand consistency (identical `accent`/`primary`/`ring`/`midground`/`composerRing` in both palettes). Also covers the CLI→desktop sync: mode persistence per profile, built-in/foreign skins, and the `display.skin` config watch (baseline on launch, apply on change, dispose). |
+| `tests/smoke.mjs` | Plugin loads in Node and registers all themes, ⌘K commands (each with `label` + `run`, otherwise the host hides them), and the settings page. All colours are valid `#rrggbb`, no duplicate names, all desktop names `omarchy-` prefixed. Enforces luma difference ≥ 0.5 between `colors` and `darkColors` (aligned with renderer threshold), completeness of 25 UI keys per palette, and brand consistency (identical `accent`/`primary`/`ring`/`midground`/`composerRing` in both palettes). Also covers the CLI→desktop sync: mode persistence per profile, built-in/foreign skins, re-apply after the host's own skin handling, and the `display.skin` config watch (baseline vs. catch-up on launch, apply on change, dispose). |
 | `tests/hook.sh` | Skin YAML (22 keys, lowercase, 3-digit hex expansion), skip on unknown slug, exit 0 when `hermes` fails. |
 
 Without `make`:
