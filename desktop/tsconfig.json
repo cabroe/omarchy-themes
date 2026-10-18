@@ -1,0 +1,21 @@
+{
+  "//": "Type-check config for desktop/plugin.js only. Used by `make typecheck`. NOT used at runtime — the plugin loads as plain ESM in Hermes Desktop. Keep this narrow: anything outside desktop/ is out of scope for the typecheck step.",
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": false,
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "strictNullChecks": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": false
+  },
+  "include": ["**/*.js", "**/*.d.ts"],
+  "exclude": ["node_modules", "../../node_modules"]
+}
