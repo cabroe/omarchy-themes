@@ -860,8 +860,10 @@ function AboutPage() {
       ]}) }),
 
       // Footer
-      jsx('div', { style: { fontSize: '11px', color: 'var(--ui-text-secondary)', opacity: 0.7 }, children:
-        'Hermes built-in themes are never overridden \u2014 Hermes stays the source of truth for names it already owns.' }),
+      jsxs('div', { style: { display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '11px', color: 'var(--ui-text-secondary)', opacity: 0.7 }, children: [
+        jsx('div', { children: 'Hermes built-in themes are never overridden \u2014 Hermes stays the source of truth for names it already owns.' }),
+        jsx('div', { children: 'github.com/cabroe/omarchy-themes' }),
+      ]}),
     ]
   })
 }
