@@ -28,7 +28,13 @@ import { useState } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
 
 // ---------------------------------------------------------------------------
-// Built-in Hermes theme names — suffix collisions with -omarchy
+// Built-in Hermes theme names (Source of Truth — must not be overridden by
+// an Omarchy palette of the same name).
+//   - At registration (THEMES.flatMap below, ~L274): slugs in this set are
+//     SKIPPED, so they never reach toName() and never receive a `-omarchy`
+//     suffix. The built-in name stays available for the CLI/skin flow.
+//   - In applyThemeFor (~L433): matched by name to apply the built-in
+//     directly when the CLI picks one of these slugs.
 // ---------------------------------------------------------------------------
 const BUILTIN_NAMES = new Set([
   'github', 'nous', 'nous-alt', 'catppuccin', 'everforest', 'solarized',
@@ -52,8 +58,11 @@ function slugToLabel(slug) {
   return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
+// Built-in slugs are filtered out upstream (THEMES.flatMap, ~L274 — Source of
+// Truth), so `slug` here is always a unique Omarchy palette and never collides
+// with a built-in name. No `-omarchy` suffix branch is needed.
 function toName(slug, taken) {
-  let name = BUILTIN_NAMES.has(slug) ? slug + '-omarchy' : slug
+  let name = slug
   while (taken.has(name)) name = name + '-dup'
   return name
 }
