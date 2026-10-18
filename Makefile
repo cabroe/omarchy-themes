@@ -4,8 +4,8 @@ HOST ?= omarchy
 
 help:
 	@echo "make check            lint + tests (local, no host needed)"
-	@echo "make generate         regenerate theme table from \$$HOST (default: omarchy)"
-	@echo "make generate-check   fail if plugin.js is out of date vs. \$$HOST"
+	@echo "make generate         regenerate theme table from \$$HOST (incl. user themes)"
+	@echo "make generate-check   fail if plugin.js is out of date vs. \$$HOST (incl. user themes)"
 	@echo "make deploy           copy plugin + hook to \$$HOST and verify"
 
 check: lint test
@@ -20,10 +20,10 @@ test:
 	sh tests/hook.sh
 
 generate:
-	python3 scripts/generate-themes.py --remote $(HOST)
+	python3 scripts/generate-themes.py --remote $(HOST) --include-user
 
 generate-check:
-	python3 scripts/generate-themes.py --remote $(HOST) --check
+	python3 scripts/generate-themes.py --remote $(HOST) --include-user --check
 
 deploy: check
 	sh scripts/deploy.sh $(HOST)
