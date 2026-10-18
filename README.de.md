@@ -1,28 +1,42 @@
+<div align="center">
+
 # 🎨 omarchy-themes
 
-<p align="center">
-  <b>Bringt die Omarchy-Farbschemata in Hermes — Desktop-Theme-Picker und CLI/TUI-Skin in einem.</b>
-</p>
+**Bringt die Omarchy-Farbschemata in Hermes — Desktop-Theme-Picker und CLI/TUI-Skin in einem.**
 
-<p align="center">
-  <a href="https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml"><img src="https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI-Status"></a>
-</p>
+[![CI-Status](https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml)
 
-<p align="center"><sub>Badge: <code>make check</code> (Lint + Tests + shellcheck, Node 22 und LTS) auf <code>main</code>, direkt aus GitHub Actions. Die Theme-Zahl ist Build-abhängig (sie wächst mit Omarchy-Releases und mit <code>--include-user</code>) und wird deshalb bewusst nicht als statisches Badge gezeigt — die Live-Zahl für das aktuelle <code>desktop/plugin.js</code> gibt <code>node tests/smoke.mjs</code> aus.</sub></p>
+<sub>Badge: <code>make check</code> (Lint + Tests + shellcheck, Node 22 und LTS) auf <code>main</code>, direkt aus GitHub Actions. Die Theme-Zahl ist Build-abhängig (sie wächst mit Omarchy-Releases und mit <code>--include-user</code>) und wird deshalb bewusst nicht als statisches Badge gezeigt — die Live-Zahl für das aktuelle <code>desktop/plugin.js</code> gibt <code>node tests/smoke.mjs</code> aus.</sub>
 
-<p align="center">
-  <a href="README.md">🇬🇧 English version</a>
-</p>
+[🇬🇧 English version](README.md)
+
+</div>
+
+---
+
+## Inhalt
+
+- [🧩 Komponenten](#-komponenten)
+- [📦 Installation & Benutzung](#-installation--benutzung)
+  - [🎯 Was du bekommst](#-was-du-bekommst)
+  - [🛠 Was das Plugin anpasst](#-was-das-plugin-anpasst)
+- [🔄 Themes aktualisieren](#-themes-aktualisieren)
+- [🧪 Tests](#-tests)
+  - [🔥 Live-Theme-Smoke](#-live-theme-smoke)
+- [📁 Projektstruktur](#-projektstruktur)
+- [🔬 Implementation Notes](#-implementation-notes)
+- [🗺 Farb-Mapping](#-farb-mapping)
+  - [🖥 Desktop-Theme](#-desktop-theme)
+  - [⌨️ CLI/TUI-Skin (Hook)](#-clitui-skin-hook)
+- [📄 Lizenz](#-lizenz)
 
 ---
 
 ## 🧩 Komponenten
 
-| Komponente | Datei | Was sie tut |
-|---|---|---|
-| **Desktop-Plugin** | `desktop/plugin.js` | Registriert alle Omarchy-Stock-Themes (zuzüglich beliebiger eigener Themes aus `~/.config/omarchy/themes/` bei Generierung mit `--include-user`, abzüglich der Hermes-Built-in-Kollisionen wie `catppuccin` / `everforest`) im Hermes-Theme-Picker, als ⌘K-Befehle und auf einer eigenen Settings-Seite. Die Zahl hängt davon ab, was Omarchy ausliefert und welche User-Themes installiert sind, und ist deshalb nirgends hartkodiert — die aktuelle Zahl für deinen Build liefert `node tests/smoke.mjs`. Rein lokal, kein Backend, kein Netzwerk. |
-| **Theme-Sync-Hook** | `hooks/hermes-skin-sync.sh` | Läuft bei `omarchy theme set <slug>`, schreibt `~/.hermes/skins/<slug>.yaml` und aktiviert den Hermes-Skin. CLI und TUI folgen dem Desktop-Theme automatisch. |
-| **Generator** | `scripts/generate-themes.py` | Liest `colors.toml`-Dateien vom Host und schreibt die Theme-Tabelle im Plugin neu — nach Omarchy-Updates oder für eigene Themes. |
+- **Desktop-Plugin** (`desktop/plugin.js`) — Registriert alle Omarchy-Stock-Themes (zuzüglich beliebiger eigener Themes aus `~/.config/omarchy/themes/` bei Generierung mit `--include-user`, abzüglich der Hermes-Built-in-Kollisionen wie `catppuccin` / `everforest`) im Hermes-Theme-Picker, als ⌘K-Befehle und auf einer eigenen Settings-Seite. Die Zahl hängt davon ab, was Omarchy ausliefert und welche User-Themes installiert sind, und ist deshalb nirgends hartkodiert — die aktuelle Zahl für deinen Build liefert `node tests/smoke.mjs`. Rein lokal, kein Backend, kein Netzwerk.
+- **Theme-Sync-Hook** (`hooks/hermes-skin-sync.sh`) — Läuft bei `omarchy theme set <slug>`, schreibt `~/.hermes/skins/<slug>.yaml` und aktiviert den Hermes-Skin. CLI und TUI folgen dem Desktop-Theme automatisch.
+- **Generator** (`scripts/generate-themes.py`) — Liest `colors.toml`-Dateien vom Host und schreibt die Theme-Tabelle im Plugin neu — nach Omarchy-Updates oder für eigene Themes.
 
 ---
 
@@ -45,7 +59,7 @@ make check              # Lint + Tests lokal
 make install-githooks   # Pre-push-Hook aktivieren, der generate-check ausführt (optional)
 ```
 
-### Was du bekommst
+### 🎯 Was du bekommst
 
 - **Theme-Picker:** Die Omarchy-Themes erscheinen neben den eingebauten Hermes-Themes als `omarchy-<slug>`. Slugs, die mit einem Hermes-Built-in kollidieren (`catppuccin`, `everforest` …), werden übersprungen — das Built-in gewinnt als Source of Truth.
 - **⌘K:** `Apply Omarchy Theme: <Name>`
@@ -54,7 +68,7 @@ make install-githooks   # Pre-push-Hook aktivieren, der generate-check ausführt
 - **Plugin-Themes heißen `omarchy-<slug>`, CLI-Skins `<slug>`:** das Präfix verhindert, dass ein einmal aktiver CLI-Skin seine Ein-Paletten-Konvertierung über das Hell/Dunkel-Paar des Plugins zeichnet (`resolveTheme` bevorzugt Backend-Skin-Themes). Nach einem CLI-Wechsel kann der Picker „Nord" und „Omarchy Nord" auflisten — nimm die Omarchy-Variante.
 - **Unbekannte Themes** (User-installiert oder neuer als `make generate`): Das Plugin liest `~/.local/state/omarchy/current/theme/colors.toml` und registriert **einen** austauschbaren `omarchy-current`-Eintrag (Label „Omarchy <slug>"). Omarchys eigener Skin `omarchy` (`omarchy-theme-set-hermes`) zählt ebenfalls als „aktuelles Omarchy-Theme".
 
-### Was das Plugin anpasst
+### 🛠 Was das Plugin anpasst
 
 Jedes registrierte Theme liefert **beide** Paletten + **beide** Terminal-Paletten + **Typography**, damit der Wechsel zwischen Light- und Dark-Mode in Hermes die ganze UI neu einfärbt — nicht nur die Border:
 
@@ -63,33 +77,6 @@ Jedes registrierte Theme liefert **beide** Paletten + **beide** Terminal-Palette
 | `colors` / `darkColors` | Hintergrund, Card, Popover, Sidebar, Input, Border, Primary/Accent, Muted, Destructive, User-Bubble. Beide Paletten teilen denselben Marken-`accent`/`primary`/`ring`/`midground`/`composerRing`; die Gegenpalette wird automatisch synthetisiert, damit jedes Theme echten Hell/Dunkel-Kontrast hat (Rec.709-Luma ≥ 0,5 zwischen `colors.background` und `darkColors.background`). Siehe [Implementation Notes](#-implementation-notes). |
 | `terminal` / `darkTerminal` | ANSI-Palette (schwarz/weiß + 8 Farben + Bright-Varianten) fürs integrierte Terminal |
 | `typography` | `fontSans` (System-Stack mit Emoji-Fallback), `fontMono` (JetBrains-Mono-Stack) |
-
-### 🔬 Implementation Notes
-
-Warum ein eigener Mixer statt Omarchy's eigenem `lighter_background` / `darker_background`?
-Omarchy's „lighter" eines Dark-Themes ist immer noch dunkel-grau (`nord` `#3b4252`, Luma ≈ 0,18),
-und das „darker" eines Light-Themes ist immer noch hell-grau (`lupine` `#dedede`, Luma ≈ 0,87).
-Der Renderer (`renderedModeFor` in `apps/desktop/src/themes/context.tsx`) wertet die Surface-Luma
-gegen 0,5 aus und entscheidet davon abhängig Light vs. Dark — Omarchy's eigene Varianten
-bleiben damit auf der falschen Seite des Schwellwerts und der UI-Modus flippt nie.
-
-Das Plugin synthetisiert die fehlende Palette mit
-`mixHex(c.background, '#000' | '#fff', 0.88)` — den nativen Hintergrund um 88 %
-Richtung Schwarz (für die Dark-Variante eines Light-Themes) oder Weiß (für die
-Light-Variante eines Dark-Themes) gezogen. Der `tests/smoke.mjs`-Luma-Test
-erzwingt den ≥ 0,5-Schwellwert für jedes registrierte Theme.
-
-Die Marken-Identität bleibt erhalten, weil `accent` / `primary` / `ring` /
-`midground` / `composerRing` in beiden Paletten aus demselben Omarchy-`accent`
-abgeleitet werden — `lupine` ist immer lupine-blau und `nord` immer nord-cyan,
-egal in welchem Modus. Siehe `desktop/plugin.js` (`synthLightFromDark` /
-`synthDarkFromLight`).
-
-Die einzigen Stellschrauben, die dieses Plugin nach außen legt, sind
-`SURFACE_MIX_AMOUNT` (0,88) und `ACCENT_TEXT_LUMA` (0,55) am Anfang der
-Color-Helpers-Sektion in `plugin.js` — beides benannte Konstanten, damit
-die renderer-seitigen Zahlen per Code-Suche direkt bei ihrer Definition
-landen.
 
 ---
 
@@ -114,7 +101,7 @@ make lint     # node --check + py_compile + shellcheck
 | `tests/generate_themes_test.py` | Stdlib-`unittest` für `scripts/generate-themes.py`: `norm_hex` (3-/6-stellig, Kleinschreibung, ungültig), `parse_palette` (kaputtes TOML, fehlendes `background`, fehlende ANSI, 3- und 6-stellige Hex-Normalisierung, `mode`-Behandlung inkl. Default bei Abwesenheit, zusätzliche Keys ignoriert), `read_local` (Slug-Erkennung, fehlendes Verzeichnis, Sortierung), `parse_sections` (einfach, mehrfach, leer), `render` (Marker-Vertrag) und `main()`-Exit-Codes (0/1/2) mit `TemporaryDirectory`-Fixtures — inklusive User-Theme-Override bei Slug-Kollision (`--include-user`). |
 | `tests/theme-switch-smoke.sh` | Live: echtes `omarchy theme set` durch die Hook-Kette per SSH (`make theme-smoke`). Deckt nur die CLI/TUI-Skin-Pipeline ab, nicht das Desktop-Plugin; nicht Teil von `make check`. |
 
-### Live-Theme-Smoke
+### 🔥 Live-Theme-Smoke
 
 `tests/theme-switch-smoke.sh` läuft `omarchy theme set` gegen einen echten Omarchy-Host — Stock-Themes, User-Themes, die echte Hook-Kette. Er ist **nicht** Teil von `make check`, weil er User-State mutiert (aktiver Skin, `~/.hermes/skins/*.yaml`).
 
@@ -176,9 +163,38 @@ Zielpfade nach Installation:
 
 ---
 
+## 🔬 Implementation Notes
+
+Warum ein eigener Mixer statt Omarchy's eigenem `lighter_background` / `darker_background`?
+Omarchy's „lighter" eines Dark-Themes ist immer noch dunkel-grau (`nord` `#3b4252`, Luma ≈ 0,18),
+und das „darker" eines Light-Themes ist immer noch hell-grau (`lupine` `#dedede`, Luma ≈ 0,87).
+Der Renderer (`renderedModeFor` in `apps/desktop/src/themes/context.tsx`) wertet die Surface-Luma
+gegen 0,5 aus und entscheidet davon abhängig Light vs. Dark — Omarchy's eigene Varianten
+bleiben damit auf der falschen Seite des Schwellwerts und der UI-Modus flippt nie.
+
+Das Plugin synthetisiert die fehlende Palette mit
+`mixHex(c.background, '#000' | '#fff', 0.88)` — den nativen Hintergrund um 88 %
+Richtung Schwarz (für die Dark-Variante eines Light-Themes) oder Weiß (für die
+Light-Variante eines Dark-Themes) gezogen. Der `tests/smoke.mjs`-Luma-Test
+erzwingt den ≥ 0,5-Schwellwert für jedes registrierte Theme.
+
+Die Marken-Identität bleibt erhalten, weil `accent` / `primary` / `ring` /
+`midground` / `composerRing` in beiden Paletten aus demselben Omarchy-`accent`
+abgeleitet werden — `lupine` ist immer lupine-blau und `nord` immer nord-cyan,
+egal in welchem Modus. Siehe `desktop/plugin.js` (`synthLightFromDark` /
+`synthDarkFromLight`).
+
+Die einzigen Stellschrauben, die dieses Plugin nach außen legt, sind
+`SURFACE_MIX_AMOUNT` (0,88) und `ACCENT_TEXT_LUMA` (0,55) am Anfang der
+Color-Helpers-Sektion in `plugin.js` — beides benannte Konstanten, damit
+die renderer-seitigen Zahlen per Code-Suche direkt bei ihrer Definition
+landen.
+
+---
+
 ## 🗺 Farb-Mapping
 
-### Desktop-Theme
+### 🖥 Desktop-Theme
 
 | `colors.toml` | Hermes `DesktopTheme` |
 |---|---|
@@ -195,7 +211,7 @@ Zielpfade nach Installation:
 
 Fehlende Keys fallen auf `background`/`foreground`/`accent` zurück. Fehlt einer dieser drei, wird das Theme übersprungen. Ist `lighter_background` gleich `background` (Omarchy leitet das für Themes ohne Flächentöne so ab, z. B. aetheria, ayaka, cpunk, last-horizon, solitude), werden Karten und Popover um wenige Prozent vom Seitenhintergrund abgehoben; ist `dark_background` gleich `background` (hermarchy, omacarchy), wird auch der Sidebar-/Border-Ton angehoben, damit Sidebar und Rahmen sichtbar bleiben.
 
-### CLI/TUI-Skin (Hook)
+### ⌨️ CLI/TUI-Skin (Hook)
 
 Der Hook schreibt 22 Keys; alles Weitere erbt der Skin-Loader vom `default`-Skin.
 
