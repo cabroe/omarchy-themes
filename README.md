@@ -60,17 +60,29 @@ Every registered theme ships **both** palettes + **both** terminal palettes + **
 
 | Field | Purpose |
 |---|---|
-| `colors` / `darkColors` | Background, card, popover, sidebar, input, border, primary/accent, muted, destructive, user bubble |
+| `colors` / `darkColors` | Background, card, popover, sidebar, input, border, primary/accent, muted, destructive, user bubble. Both palettes share the same brand `accent`/`primary`/`ring`/`midground`/`composerRing`; the opposite palette is auto-synthesised so every theme has true light/dark contrast (Rec.709 luma ≥ 0.5 between `colors.background` and `darkColors.background`). See [Implementation notes](#-implementation-notes). |
 | `terminal` / `darkTerminal` | ANSI palette (black/white + 8 colours + bright variants) for the integrated terminal |
 | `typography` | `fontSans` (system stack with emoji fallback), `fontMono` (JetBrains Mono stack) |
 
-For the **opposite direction** (light variant of a dark theme or vice versa), the missing palette is synthesised in the plugin. The **surface seed** is `mixHex(c.background, '#ffffff' | '#000000', 0.88)` — the native background colour pulled 88% towards white or black. This ensures both palettes have genuine light/dark contrast and the renderer (`renderedModeFor` in `apps/desktop/src/themes/context.tsx`, Rec.709 luma > 0.5) reliably picks the right palette — even for Omarchy light themes like `lupine` (where `darker_background` is only a light grey) and dark themes like `nord` (where `lighter_background` is only slightly brighter black). Omarchy's `lighter_background` / `darker_background` are intentionally ignored because they sit too close to the original to cross the renderer threshold.
+### 🔬 Implementation notes
 
-**Brand identity** is preserved: `accent`, `primary`, `ring`, `midground`, and `composerRing` are derived identically from `c.accent` in both palettes — so `lupine` is always lupine-blue and `nord` is always nord-cyan, regardless of light or dark mode.
+Why a custom mixer instead of Omarchy's own `lighter_background` / `darker_background`?
+Omarchy's "lighter" of a dark theme is still dark-grey (`nord` `#3b4252`, luma ≈ 0.18),
+and the "darker" of a light theme is still light-grey (`lupine` `#dedede`, luma ≈ 0.87).
+The renderer (`renderedModeFor` in `apps/desktop/src/themes/context.tsx`) evaluates the
+surface luma against 0.5 and picks light vs. dark from that — so Omarchy's own variants
+stay on the wrong side of the threshold and the UI mode never flips.
 
-Since **plugin hardening** ([t_3ca941bc]) + **theme mode sync**, every apply enforces the correct UI mode: `lupine` flips to light, `nord` stays dark. `setMode(entry.mode)` runs in addition to `requestTheme(name)` in the settings card apply path. For this to work outside React components (⌘K palette `palette.action`, `applyThemeFor(skin.changed)`), `requestMode` is needed in `@hermes/plugin-sdk` — follow-up task after the Hermes SDK update. Until then, ⌘K and CLI→desktop sync show hardening behaviour (no mode flip, but no lupine-as-dark either).
+The plugin synthesises the missing palette with
+`mixHex(c.background, '#000' | '#fff', 0.88)` — the native background pulled 88 %
+towards black (for a light theme's dark variant) or white (for a dark theme's light
+variant). The `tests/smoke.mjs` luma test enforces the ≥ 0.5 threshold for every
+registered theme.
 
-The test verifies this (see `tests/smoke.mjs`): for every registered theme, the luma difference between `colors.background` and `darkColors.background` must be ≥ 0.5 (aligned with the renderer threshold).
+Brand identity is preserved because `accent` / `primary` / `ring` / `midground` /
+`composerRing` are derived from the same Omarchy `accent` in both palettes — `lupine`
+is always lupine-blue and `nord` is always nord-cyan, regardless of mode. See
+`desktop/plugin.js` (`synthLightFromDark` / `synthDarkFromLight`).
 
 ---
 

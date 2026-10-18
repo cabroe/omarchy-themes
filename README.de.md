@@ -59,17 +59,30 @@ Jedes registrierte Theme liefert **beide** Paletten + **beide** Terminal-Palette
 
 | Feld | Wofür |
 |---|---|
-| `colors` / `darkColors` | Hintergrund, Card, Popover, Sidebar, Input, Border, Primary/Accent, Muted, Destructive, User-Bubble |
+| `colors` / `darkColors` | Hintergrund, Card, Popover, Sidebar, Input, Border, Primary/Accent, Muted, Destructive, User-Bubble. Beide Paletten teilen denselben Marken-`accent`/`primary`/`ring`/`midground`/`composerRing`; die Gegenpalette wird automatisch synthetisiert, damit jedes Theme echten Hell/Dunkel-Kontrast hat (Rec.709-Luma ≥ 0,5 zwischen `colors.background` und `darkColors.background`). Siehe [Implementation Notes](#-implementation-notes). |
 | `terminal` / `darkTerminal` | ANSI-Palette (schwarz/weiß + 8 Farben + Bright-Varianten) fürs integrierte Terminal |
-| `typography` | `fontSans` (System-Stack mit Emoji-Fallback), `fontMono` (JetBrains Mono-Stack) |
+| `typography` | `fontSans` (System-Stack mit Emoji-Fallback), `fontMono` (JetBrains-Mono-Stack) |
 
-Für die **Gegenrichtung** (Light-Variante eines Dark-Themes oder umgekehrt) wird die fehlende Palette im Plugin synthetisiert. **Surface-Seed** ist jeweils `mixHex(c.background, '#ffffff' | '#000000', 0.88)` — also die native BG-Farbe um 88 % Richtung Weiß oder Schwarz gezogen. Das stellt sicher, dass beide Paletten echten Hell/Dunkel-Kontrast haben und der Renderer (`renderedModeFor` in `apps/desktop/src/themes/context.tsx`, Rec.709-Luma > 0.5) zuverlässig die richtige Palette wählt — selbst bei Omarchy-Light-Themes wie `lupine` (für die `darker_background` nur leichtes Grau ist) und Omarchy-Dark-Themes wie `nord` (für die `lighter_background` nur leicht helleres Schwarz ist). Omarchy's `lighter_background` / `darker_background` werden bewusst ignoriert, weil sie für den Renderer-Schwellwert zu nah am Original liegen.
+### 🔬 Implementation Notes
 
-**Marken-Identität** bleibt erhalten: `accent`, `primary`, `ring`, `midground`, `composerRing` werden in beiden Paletten identisch aus `c.accent` abgeleitet — `lupine` ist also immer lupine-blau, `nord` immer nord-cyan, egal ob Light- oder Dark-Mode.
+Warum ein eigener Mixer statt Omarchy's eigenem `lighter_background` / `darker_background`?
+Omarchy's „lighter" eines Dark-Themes ist immer noch dunkel-grau (`nord` `#3b4252`, Luma ≈ 0,18),
+und das „darker" eines Light-Themes ist immer noch hell-grau (`lupine` `#dedede`, Luma ≈ 0,87).
+Der Renderer (`renderedModeFor` in `apps/desktop/src/themes/context.tsx`) wertet die Surface-Luma
+gegen 0,5 aus und entscheidet davon abhängig Light vs. Dark — Omarchy's eigene Varianten
+bleiben damit auf der falschen Seite des Schwellwerts und der UI-Modus flippt nie.
 
-Seit **Plugin-Hardening** ([t_3ca941bc]) + **Theme-Mode-Sync** erzwingt jeder Apply den passenden UI-Modus: `lupine` flipt zu Light, `nord` bleibt Dark. `setMode(entry.mode)` läuft zusätzlich zu `requestTheme(name)` im Apply-Pfad der Settings-Karte. Damit das auch außerhalb von React-Komponenten funktioniert (⌘K-Palette-`palette.action`, `applyThemeFor(skin.changed)`), braucht es `requestMode` im `@hermes/plugin-sdk` — Folge-Task für nach dem Hermes-SDK-Update. Bis dahin zeigen ⌘K und CLI→Desktop-Sync das Hardening-Verhalten (kein Mode-Flip, aber auch kein Lupine-als-Dark mehr).
+Das Plugin synthetisiert die fehlende Palette mit
+`mixHex(c.background, '#000' | '#fff', 0.88)` — den nativen Hintergrund um 88 %
+Richtung Schwarz (für die Dark-Variante eines Light-Themes) oder Weiß (für die
+Light-Variante eines Dark-Themes) gezogen. Der `tests/smoke.mjs`-Luma-Test
+erzwingt den ≥ 0,5-Schwellwert für jedes registrierte Theme.
 
-Der Test prüft das (siehe `tests/smoke.mjs`): für jedes registrierte Theme muss die Luma-Differenz zwischen `colors.background` und `darkColors.background` ≥ 0,5 sein (deckungsgleich mit dem Renderer-Threshold).
+Die Marken-Identität bleibt erhalten, weil `accent` / `primary` / `ring` /
+`midground` / `composerRing` in beiden Paletten aus demselben Omarchy-`accent`
+abgeleitet werden — `lupine` ist immer lupine-blau und `nord` immer nord-cyan,
+egal in welchem Modus. Siehe `desktop/plugin.js` (`synthLightFromDark` /
+`synthDarkFromLight`).
 
 ---
 
