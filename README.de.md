@@ -36,7 +36,7 @@ hermes plugins install https://github.com/cabroe/omarchy-themes
 
 Danach im Hermes-Desktop **⌘K → „Reload desktop plugins"** — das Plugin ist ab Werk aktiv (`defaultEnabled: true`). Wer es deaktivieren will: Settings → Capabilities → Plugins → omarchy-themes → Toggle.
 
-Für den CLI/TUI-Hook `hooks/hermes-skin-sync.sh` manuell nach `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh` kopieren und ausführbar machen.
+Für den CLI/TUI-Hook `make install-hook` ausführen — das installiert `hooks/hermes-skin-sync.sh` nach `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh` (idempotent, ein erneuter Lauf aktualisiert die Datei). Entfernen mit `make uninstall`.
 
 **Voraussetzungen lokal (für Entwicklung):** Node ≥ 22, Python ≥ 3.11, `shellcheck`
 

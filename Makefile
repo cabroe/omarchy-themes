@@ -1,11 +1,16 @@
 HOST ?= omarchy
 
-.PHONY: help check test lint generate generate-check
+INSTALL_HOOK_DIR ?= $(HOME)/.config/omarchy/hooks/theme-set.d
+INSTALL_HOOK     ?= $(INSTALL_HOOK_DIR)/hermes-skin-sync.sh
+
+.PHONY: help check test lint generate generate-check install-hook uninstall
 
 help:
 	@echo "make check            lint + tests (local, no host needed)"
 	@echo "make generate         regenerate theme table from \$$HOST (incl. user themes)"
 	@echo "make generate-check   fail if plugin.js is out of date vs. \$$HOST (incl. user themes)"
+	@echo "make install-hook     install hooks/hermes-skin-sync.sh into \$$INSTALL_HOOK_DIR (idempotent)"
+	@echo "make uninstall        remove the hook installed by install-hook"
 
 check: lint test
 
@@ -23,3 +28,10 @@ generate:
 
 generate-check:
 	python3 scripts/generate-themes.py --remote $(HOST) --include-user --check
+
+install-hook:
+	mkdir -p $(INSTALL_HOOK_DIR)
+	install -m 755 hooks/hermes-skin-sync.sh $(INSTALL_HOOK)
+
+uninstall:
+	rm -f $(INSTALL_HOOK)
