@@ -36,12 +36,10 @@ import { useState } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
 
 // `requestMode` is the SDK contract for changing the active mode from
-// outside React. The current SDK does not export it (defined internally in
-// apps/desktop/src/themes/request.ts, not re-exported from sdk/index.ts), so
-// this binding is `null` today. Probe the namespace at module load so the
-// plugin works either way: a future SDK that re-exports requestMode wins;
-// today's host gets the local storage-event mirror below.
-const SDK_REQUEST_MODE = typeof sdk.requestMode === 'function' ? sdk.requestMode : null
+// outside React. Probed lazily at call time (not module load) so the plugin
+// picks up a future SDK re-export automatically without requiring a page
+// reload. Today's SDK does not expose it → the local storage-event mirror
+// in `requestMode()` below is the fallback.
 
 // ---------------------------------------------------------------------------
 // Built-in Hermes theme names (Source of Truth — must not be overridden by
@@ -88,9 +86,11 @@ function slugToLabel(slug) {
 // Hermes registers every CLI skin under its bare slug as a backend theme, and a
 // backend theme of the same name would shadow this entry in resolveTheme().
 function toName(slug, taken) {
-  let name = 'omarchy-' + slug
-  while (taken.has(name)) name = name + '-dup'
-  return name
+  const base = 'omarchy-' + slug
+  if (!taken.has(base)) return base
+  let i = 2
+  while (taken.has(base + '-' + i)) i++
+  return base + '-' + i
 }
 
 // ---------------------------------------------------------------------------
@@ -364,7 +364,7 @@ let lastRequest = { profile: null, mode: null }
 function requestMode(mode) {
   // Prefer the host's contract when the SDK exposes it; the mirror below is
   // the fallback that pokes the ThemeProvider via a storage event.
-  if (SDK_REQUEST_MODE) return SDK_REQUEST_MODE(mode)
+  if (typeof sdk.requestMode === 'function') return sdk.requestMode(mode)
   if (typeof window === 'undefined') return
   try {
     const ls = window.localStorage
@@ -676,6 +676,10 @@ function ThemeCard({ entry, ctx }) {
           jsx(Button, {
             size: 'sm',
             onClick: () => {
+              // Update dedupe state so event handlers triggered by this Apply
+              // (skin.changed, watchConfigSkin) don't ghost-reapply within
+              // DEDUPE_MS; the button itself is always immediate regardless.
+              lastApplied = { name: entry.slug, at: Date.now() }
               requestTheme(entry.theme.name)
               setMode(entry.mode)  // entry.mode ∈ {'light','dark'} ⊂ ThemeMode
             },
@@ -787,6 +791,11 @@ export default {
     const alive = () => myInstance === INSTANCE
     const bridge = typeof window === 'undefined' ? undefined : window.hermesDesktop
     dynStore = ctx.storage ?? null
+    // Restore the last known Omarchy slug from storage so a skin.changed
+    // event for 'omarchy' that fires before the first watchOmarchyTheme
+    // callback (e.g. on rapid dispose+re-register) can map back to the slug.
+    const _savedSlug = ctx.storage?.get('last-theme', null)
+    if (typeof _savedSlug === 'string' && _savedSlug) omarchySlug = _savedSlug
     disposers.push(ctx.onEvent('skin.changed', event => {
       const name = event?.payload?.name
       const mine = ++epoch
@@ -808,7 +817,7 @@ export default {
       })
     }))
     disposers.push(() => { epoch++ })
-    if (bridge?.readFileText) {
+    if (bridge?.readFileText && bridge.onPreviewFileChanged && bridge.watchPreviewFile) {
       disposers.push(watchOmarchyTheme(async name => {
         omarchySlug = name
         await refreshSkip(bridge)
@@ -827,6 +836,7 @@ export default {
       // after one event, so this watcher re-arms on every event instead of
       // trusting a single watch to survive the swap.
       let colorsStop = () => {}
+      let armingColors = false
       const colorsArrived = () => {
         clearTimeout(colorsTimer)
         colorsTimer = setTimeout(() => {
@@ -841,21 +851,32 @@ export default {
         }, 250)
       }
       const armColors = async () => {
-        const path = await omarchyFile(bridge, 'current/theme/colors.toml')
-        if (!path || !alive()) return
-        let id = null
-        const off = bridge.onPreviewFileChanged(async payload => {
-          if (!id || payload?.id !== id) return
-          off()
-          void bridge.stopPreviewFileWatch?.(id)
-          if (!alive()) return
-          void armColors() // the swap orphaned this watch — watch the path again
-          colorsArrived()
-        })
-        const watch = await bridge.watchPreviewFile(path).catch(() => null)
-        if (!watch?.id) { off(); return }
-        id = watch.id
-        colorsStop = () => { off(); void bridge.stopPreviewFileWatch?.(id) }
+        // Guard against overlapping arms: if a previous armColors() promise
+        // hasn't resolved yet (async path lookup + watchPreviewFile call),
+        // a second concurrent arm would register a duplicate listener for the
+        // same path. The event handler calls armColors() again only after
+        // off()+stopPreviewFileWatch, so it's safe to skip the duplicate.
+        if (armingColors || !alive()) return
+        armingColors = true
+        try {
+          const path = await omarchyFile(bridge, 'current/theme/colors.toml')
+          if (!path || !alive()) return
+          let id = null
+          const off = bridge.onPreviewFileChanged(async payload => {
+            if (!id || payload?.id !== id) return
+            off()
+            void bridge.stopPreviewFileWatch?.(id)
+            if (!alive()) return
+            void armColors() // the swap orphaned this watch — watch the path again
+            colorsArrived()
+          })
+          const watch = await bridge.watchPreviewFile(path).catch(() => null)
+          if (!watch?.id) { off(); return }
+          id = watch.id
+          colorsStop = () => { off(); void bridge.stopPreviewFileWatch?.(id) }
+        } finally {
+          armingColors = false
+        }
       }
       void armColors().catch(() => {})
       disposers.push(() => colorsStop())
