@@ -152,6 +152,61 @@ assert.equal(storageEvents.length, eventsBefore)
 assert.equal(requested.length, requestedBefore)
 
 // ---------------------------------------------------------------------------
+// Defensive requestMode — the plugin probes @hermes/plugin-sdk at module
+// load. Today's SDK does not export requestMode (defined internally in
+// apps/desktop/src/themes/request.ts, not re-exported from sdk/index.ts), so
+// the local mirror handles the change: write to PROFILE_MODES_KEY + MODE_KEY,
+// then dispatch a StorageEvent so the ThemeProvider repaints. The mirror
+// must also be idempotent — two consecutive calls with the same effective
+// (profile, mode) target must fire exactly one event, not two (no flackern
+// from a double-click on Apply, a fast CLI/host race, or a re-emit).
+// ---------------------------------------------------------------------------
+
+// Sanity: today's SDK stub does not export requestMode, so the local mirror
+// is the active path. A future SDK that re-exports it takes precedence
+// (probed at module load into SDK_REQUEST_MODE).
+const sdkNs = await import('@hermes/plugin-sdk')
+assert.equal(sdkNs.requestMode, undefined,
+  "today's SDK does not export requestMode — the plugin's local mirror is the fallback path")
+
+// Reset to a clean baseline: work profile, work:light, mode:light. The
+// earlier mode-sync tests left state in any flavour; this block needs to
+// know exactly what the local mirror sees.
+store.set(LAST_PROFILE_KEY, 'work')
+store.set(PROFILE_MODES_KEY, JSON.stringify({ home: 'light', work: 'light' }))
+store.set(MODE_KEY, 'light')
+
+// First call after a state change: profile and mode both new — one event.
+const evBaseline = storageEvents.length
+runRow('lupine')                              // light, work → fires (different from prior state)
+assert.equal(storageEvents.length, evBaseline + 1,
+  'first call after a state change fires exactly one event')
+
+// Same (profile, mode) → idempotent no-op, no extra event.
+const evAfterRepeat = storageEvents.length
+runRow('lupine')                              // same → no-op
+assert.equal(storageEvents.length, evAfterRepeat,
+  'same-mode repeat must be a no-op (no flackern)')
+
+// A real change (mode flip) → fires exactly one event. Next identical
+// call → idempotent no-op.
+const evAfterLupine = storageEvents.length
+runRow('nord')                                // dark, work → mode flips light → dark → one event
+assert.equal(storageEvents.length, evAfterLupine + 1,
+  'mode change fires exactly one event')
+
+const evAfterNord = storageEvents.length
+runRow('nord')                                // same → no-op
+assert.equal(storageEvents.length, evAfterNord,
+  'same-mode repeat after a change must also be idempotent')
+
+// Restore for the file-watching tests below (they expect default profile,
+// MODE_KEY='dark', PROFILE_MODES_KEY={home:light, work:dark}).
+store.delete(LAST_PROFILE_KEY)
+store.set(PROFILE_MODES_KEY, JSON.stringify({ home: 'light', work: 'dark' }))
+store.set(MODE_KEY, 'dark')
+
+// ---------------------------------------------------------------------------
 // Local file doors, independent of which gateway the desktop is connected to:
 //   1. Omarchy's current/theme.name (written ~0.5 s into `omarchy theme set`)
 //   2. display.skin in <HERMES_HOME>/config.yaml (written ~2-3 s later by the hook)
@@ -459,6 +514,53 @@ await settle()
 assert.ok(registered.has('theme-current'), 'launch must re-register the current unknown theme')
 assert.equal(requested.length, beforePrime, 'launch registration must not switch the theme')
 disposeDyn()
+
+// ---------------------------------------------------------------------------
+// Multi-instance dedupe — `lastApplied` must be per-instance. A disposed
+// instance's dedupe state must not leak into the next one, otherwise a fresh
+// instance applying the SAME theme inside the previous instance's dedupe
+// window is wrongly silenced.
+// ---------------------------------------------------------------------------
+// `watchFile` only fires onValue when the read value differs from what it
+// last saw. Without plugin storage, the initial read seeds `last` but does
+// not call onValue (launch catch-up is opt-in). To drive applySkin through a
+// non-forced path we flip THEME_NAME from a starter value to 'lupine'.
+clock += 20000  // clear any leftover window from earlier tests
+files.set(THEME_NAME, 'starter-a\n')
+files.set(CONFIG, config('starter-a'))
+files.set(COLORS, toml('#0e091d', '#14b9b5'))  // safe bogus palette — dynamic theme not used here
+const lastAppliedA = dynCtx()
+plugin.register(lastAppliedA)
+await settle()                                  // last seen = 'starter-a', no onValue
+files.set(THEME_NAME, 'lupine\n')
+await changed(THEME_NAME)                       // flip → onValue('lupine') → applySkin('lupine')
+assert.equal(requested.at(-1), 'omarchy-lupine', 'instance A applies lupine')
+const appliedByA = requested.length
+disposeDyn()
+clock += 0  // INSIDE A's dedupe window — the bug would bite here
+files.set(THEME_NAME, 'starter-b\n')            // B's initial read lands on a different value
+const lastAppliedB = dynCtx()
+plugin.register(lastAppliedB)
+await settle()                                  // last seen = 'starter-b', no onValue
+files.set(THEME_NAME, 'lupine\n')                // FLIP → onValue('lupine') → applySkin('lupine')
+const appliedByBFromBaseline = requested.length
+await changed(THEME_NAME)
+assert.ok(requested.length > appliedByBFromBaseline,
+  "a fresh instance must apply the same theme inside the previous instance's dedupe window")
+assert.equal(requested.at(-1), 'omarchy-lupine', 'instance B applies lupine even though A just did')
+// Same instance, repeated calls for the same name — internal dedupe still works.
+files.delete(COLORS)                            // starter-c is unknown — without a palette, registerCurrent is a no-op and applySkin returns early
+files.set(THEME_NAME, 'starter-c\n')
+await changed(THEME_NAME)                       // different name first, resets the dedupe slot
+const beforeBRepeat = requested.length
+clock += 0  // still inside the window
+files.set(THEME_NAME, 'lupine\n')
+await changed(THEME_NAME)                       // same name → B's own dedupe must drop it
+assert.equal(requested.length, beforeBRepeat,
+  "instance B's own dedupe window is still active for the same name")
+disposeDyn()
+files.delete(COLORS)
+
 Date.now = realNow
 delete globalThis.window
 

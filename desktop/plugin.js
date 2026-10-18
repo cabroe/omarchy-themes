@@ -21,18 +21,27 @@
  * `skip-hermes-theme-changes` (~/.local/state/omarchy/toggles/) stops all
  * automatic switching; the theme picker and ⌘K rows keep working.
  */
-import {
+import * as sdk from '@hermes/plugin-sdk'
+const {
   THEMES_AREA, PALETTE_AREA,
   requestTheme,
   useTheme,           // ThemeMode setter — forces the UI into the matching
-                      // mode when a theme is applied (lupine→light, nord→dark).
-                      // Replaces the old "render-in-current-mode" behaviour that
-                      // painted a Light Omarchy theme (lupine #fafafa) as a dark
-                      // UI because Hermes Desktop was in dark mode.
+                     // mode when a theme is applied (lupine→light, nord→dark).
+                     // Replaces the old "render-in-current-mode" behaviour that
+                     // painted a Light Omarchy theme (lupine #fafafa) as a dark
+                     // UI because Hermes Desktop was in dark mode.
   Button, EmptyState,
-} from '@hermes/plugin-sdk'
+} = sdk
 import { useState } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
+
+// `requestMode` is the SDK contract for changing the active mode from
+// outside React. The current SDK does not export it (defined internally in
+// apps/desktop/src/themes/request.ts, not re-exported from sdk/index.ts), so
+// this binding is `null` today. Probe the namespace at module load so the
+// plugin works either way: a future SDK that re-exports requestMode wins;
+// today's host gets the local storage-event mirror below.
+const SDK_REQUEST_MODE = typeof sdk.requestMode === 'function' ? sdk.requestMode : null
 
 // ---------------------------------------------------------------------------
 // Built-in Hermes theme names (Source of Truth — must not be overridden by
@@ -329,9 +338,12 @@ const RAW_MODE = new Map(RAW.map(({ slug, c }) => [slug, modeOf(c)]))
 // ---------------------------------------------------------------------------
 // Theme apply from outside React (⌘K row, gateway event, local config watch)
 // ---------------------------------------------------------------------------
-// The SDK exports `requestTheme` but not `requestMode` (defined in
-// apps/desktop/src/themes/request.ts, not re-exported from sdk/index.ts). Until
-// it is, persist the mode exactly like the ThemeProvider's
+// The SDK exports `requestTheme`. `requestMode` is the official contract for
+// changing the active mode from outside React (defined in
+// apps/desktop/src/themes/request.ts) but is not re-exported from
+// sdk/index.ts yet — `SDK_REQUEST_MODE` above probes the namespace at module
+// load and delegates to the SDK's requestMode once it lands. Until then the
+// local mirror below persists the mode exactly like the ThemeProvider's
 // `modePref.assign(liveProfile, mode)` does (themes/context.tsx, profilePref):
 // the "default" profile owns the global slot; a named profile gets its own
 // record entry and mirrors into the global slot. Other profiles stay untouched.
@@ -342,11 +354,23 @@ const MODE_KEY          = 'hermes-desktop-mode-v1'
 const PROFILE_MODES_KEY = 'hermes-desktop-profile-modes-v1'
 const LAST_PROFILE_KEY  = 'hermes-desktop-active-profile-v1'
 
+// Last (profile, mode) the local mirror targeted. Without this guard, every
+// applyEntry() call would dispatch a fresh StorageEvent — a second click on
+// Apply, a fast double-emit, or a CLI/host race would re-trigger the
+// ThemeProvider listener and cause visible flackern. Reset on dispose so
+// the next instance's first call always re-dispatches.
+let lastRequest = { profile: null, mode: null }
+
 function requestMode(mode) {
+  // Prefer the host's contract when the SDK exposes it; the mirror below is
+  // the fallback that pokes the ThemeProvider via a storage event.
+  if (SDK_REQUEST_MODE) return SDK_REQUEST_MODE(mode)
   if (typeof window === 'undefined') return
   try {
     const ls = window.localStorage
     const profile = (ls.getItem(LAST_PROFILE_KEY) || '').trim() || 'default'
+    if (lastRequest.profile === profile && lastRequest.mode === mode) return  // idempotent no-op
+    lastRequest = { profile, mode }
     if (profile !== 'default') {
       let record = {}
       try {
@@ -841,6 +865,14 @@ export default {
       INSTANCE++
       clearTimeout(colorsTimer)
       dynamic?.stop?.(); dynamic = null; omarchySlug = null; skipSync = false; dynStore = null
+      // Per-instance dedupe state must NOT leak into the next register: a
+      // fresh instance's first apply for the same theme would otherwise be
+      // wrongly silenced by the previous instance's lastApplied window.
+      lastApplied = { name: null, at: 0 }
+      // The local requestMode mirror's (profile, mode) target — reset so a
+      // fresh instance's first requestMode call always re-dispatches the
+      // storage event (no cross-instance silent no-op).
+      lastRequest = { profile: null, mode: null }
     })
 
     ctx.onDispose(() => disposers.forEach(d => d && d()))
