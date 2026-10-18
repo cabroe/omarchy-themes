@@ -35,7 +35,7 @@
 hermes plugins install https://github.com/cabroe/omarchy-themes
 ```
 
-Then: **⌘K → "Reload desktop plugins"** — the plugin is active out of the box (`defaultEnabled: true`). To disable it: Settings → Capabilities → Plugins → omarchy-themes → Toggle.
+Then: **⌘K → "Reload desktop plugins"**. A plugin installed this way ships opt-in — Hermes treats the desktop half of a unified package (marker `.hermes-package.json`) as `defaultEnabled: false`, regardless of the plugin's own default. Enable it once: Settings → Capabilities → Plugins → omarchy-themes → Toggle (the same toggle disables it).
 
 For the CLI/TUI hook, run `make install-hook` to install `hooks/hermes-skin-sync.sh` to `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh` (idempotent — re-running updates the file in place). `make uninstall` removes it.
 
@@ -53,7 +53,11 @@ make install-githooks # activate the pre-push generate-check hook (optional)
 - **Theme picker:** Omarchy themes appear alongside the built-in Hermes themes. Names that collide with a Hermes built-in (`catppuccin`, `everforest` …) are skipped — the built-in wins as the Source of Truth. Use the built-in `catppuccin` / `everforest` directly via Hermes; the plugin does **not** register an `…-omarchy` clone.
 - **⌘K:** `Apply Omarchy Theme: <name>`
 - **Settings → Plugins → omarchy-themes:** Card view with colour swatches, filter (name/slug/`dark`/`light`) and an *Apply* button.
-- **CLI/TUI:** `omarchy theme set nord` → hook writes skin → `hermes skin use nord` (live in ~1 s).
+- **CLI/TUI:** `omarchy theme set nord` → hook writes skin → `hermes skin use nord` (live in ~1 s). The desktop picks the theme up and also switches into the palette's mode (light/dark). Two doors lead there: the gateway event `skin.changed` (when the desktop is connected to this machine) and a watch on `display.skin` in the local `<HERMES_HOME>/config.yaml` via the desktop's file-watch bridge — so the sync also works while a remote gateway is the active connection.
+
+### ⚠️ Known limitations
+
+- **CLI skins shadow plugin themes of the same name.** Hermes adopts every activated skin as a desktop theme of its own (`description: "Hermes skin"`, cached in `hermes-desktop-backend-themes-v1`). `resolveTheme` prefers these backend themes over plugin themes of the same name (built-in > user > backend > plugin). Once a slug has been active via the hook, the desktop paints the skin's simplified single-palette conversion for that name instead of the plugin's dual palette — via ⌘K and the settings page too. A clean fix needs a change in Hermes (plugin themes before backend skins of the same name).
 
 ### What the plugin customises
 
@@ -121,7 +125,7 @@ make lint     # node --check + py_compile + shellcheck
 
 | Test | Checks |
 |---|---|
-| `tests/smoke.mjs` | Plugin loads in Node and registers all themes, ⌘K commands, and the settings page. All colours are valid `#rrggbb`, no duplicate names. Enforces luma difference ≥ 0.5 between `colors` and `darkColors` (aligned with renderer threshold), completeness of 25 UI keys per palette, and brand consistency (identical `accent`/`primary`/`ring`/`midground`/`composerRing` in both palettes). |
+| `tests/smoke.mjs` | Plugin loads in Node and registers all themes, ⌘K commands (each with `label` + `run`, otherwise the host hides them), and the settings page. All colours are valid `#rrggbb`, no duplicate names. Enforces luma difference ≥ 0.5 between `colors` and `darkColors` (aligned with renderer threshold), completeness of 25 UI keys per palette, and brand consistency (identical `accent`/`primary`/`ring`/`midground`/`composerRing` in both palettes). Also covers the CLI→desktop sync: mode persistence per profile, built-in/foreign skins, and the `display.skin` config watch (baseline on launch, apply on change, dispose). |
 | `tests/hook.sh` | Skin YAML (22 keys, lowercase, 3-digit hex expansion), skip on unknown slug, exit 0 when `hermes` fails. |
 
 Without `make`:

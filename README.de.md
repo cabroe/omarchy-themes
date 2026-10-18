@@ -34,7 +34,7 @@
 hermes plugins install https://github.com/cabroe/omarchy-themes
 ```
 
-Danach im Hermes-Desktop **⌘K → „Reload desktop plugins"** — das Plugin ist ab Werk aktiv (`defaultEnabled: true`). Wer es deaktivieren will: Settings → Capabilities → Plugins → omarchy-themes → Toggle.
+Danach im Hermes-Desktop **⌘K → „Reload desktop plugins"**. Ein so installiertes Plugin ist opt-in — Hermes behandelt die Desktop-Hälfte eines Unified-Packages (Marker `.hermes-package.json`) unabhängig vom Plugin-eigenen Default als `defaultEnabled: false`. Einmal aktivieren: Settings → Capabilities → Plugins → omarchy-themes → Toggle (derselbe Toggle deaktiviert es wieder).
 
 Für den CLI/TUI-Hook `make install-hook` ausführen — das installiert `hooks/hermes-skin-sync.sh` nach `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh` (idempotent, ein erneuter Lauf aktualisiert die Datei). Entfernen mit `make uninstall`.
 
@@ -52,7 +52,11 @@ make install-githooks   # Pre-push-Hook aktivieren, der generate-check ausführt
 - **Theme-Picker:** Die Omarchy-Themes erscheinen neben den eingebauten Hermes-Themes. Namen, die mit einem Hermes-Built-in kollidieren (`catppuccin`, `everforest` …), werden übersprungen — das Built-in gewinnt als Source of Truth. Das eingebaute `catppuccin` / `everforest` wird direkt über Hermes benutzt; das Plugin registriert **keinen** `…-omarchy`-Klon.
 - **⌘K:** `Apply Omarchy Theme: <Name>`
 - **Settings → Plugins → omarchy-themes:** Kartenansicht mit Farbswatches, Filter (Name/Slug/`dark`/`light`) und *Apply*-Button.
-- **CLI/TUI:** `omarchy theme set nord` → Hook schreibt Skin → `hermes skin use nord` (live in ~1 s).
+- **CLI/TUI:** `omarchy theme set nord` → Hook schreibt Skin → `hermes skin use nord` (live in ~1 s). Der Desktop übernimmt das Theme und schaltet zusätzlich in den Modus der Palette (Light/Dark). Zwei Wege führen dorthin: das Gateway-Event `skin.changed` (wenn der Desktop mit diesem Rechner verbunden ist) und eine Überwachung von `display.skin` in der lokalen `<HERMES_HOME>/config.yaml` über die Datei-Watch-Brücke des Desktops — damit funktioniert der Sync auch, wenn ein entferntes Gateway die aktive Verbindung ist.
+
+### ⚠️ Bekannte Einschränkungen
+
+- **CLI-Skins verdecken gleichnamige Plugin-Themes.** Hermes übernimmt jeden aktivierten Skin als eigenes Desktop-Theme (`description: "Hermes skin"`, gecacht in `hermes-desktop-backend-themes-v1`). `resolveTheme` bevorzugt diese Backend-Themes vor Plugin-Themes gleichen Namens (built-in > user > backend > Plugin). Sobald ein Slug einmal per Hook aktiv war, malt der Desktop für diesen Namen die vereinfachte Ein-Paletten-Konvertierung des Skins statt der Dual-Palette des Plugins — auch über ⌘K und die Settings-Seite. Eine saubere Lösung braucht eine Änderung in Hermes (Plugin-Themes vor Backend-Skins gleichen Namens).
 
 ### Was das Plugin anpasst
 
@@ -122,7 +126,7 @@ make lint     # node --check + py_compile + shellcheck
 
 | Test | Prüft |
 |---|---|
-| `tests/smoke.mjs` | Plugin lädt in Node und registriert alle Themes, ⌘K-Befehle und Settings-Seite. Alle Farben sind gültiges `#rrggbb`, kein Name doppelt. Erzwingt Luma-Differenz ≥ 0,5 zwischen `colors` und `darkColors` (deckungsgleich mit Renderer-Threshold ≥ 0,5), Vollständigkeit von 25 UI-Schlüsseln pro Palette und Markentreue (identischer `accent`/`primary`/`ring`/`midground`/`composerRing` in beiden Paletten). |
+| `tests/smoke.mjs` | Plugin lädt in Node und registriert alle Themes, ⌘K-Befehle (jeweils mit `label` + `run`, sonst blendet der Host sie aus) und Settings-Seite. Alle Farben sind gültiges `#rrggbb`, kein Name doppelt. Erzwingt Luma-Differenz ≥ 0,5 zwischen `colors` und `darkColors` (deckungsgleich mit Renderer-Threshold ≥ 0,5), Vollständigkeit von 25 UI-Schlüsseln pro Palette und Markentreue (identischer `accent`/`primary`/`ring`/`midground`/`composerRing` in beiden Paletten). Deckt außerdem den CLI→Desktop-Sync ab: Modus pro Profil, eingebaute und fremde Skins sowie die `display.skin`-Überwachung (Baseline beim Start, Anwenden bei Änderung, Dispose). |
 | `tests/hook.sh` | Skin-YAML (22 Keys, Kleinschreibung, 3-stellige Hex-Expansion), Skip bei unbekanntem Slug, Exit 0 wenn `hermes` fehlschlägt. |
 
 Gleiches Ergebnis ohne `make`:
