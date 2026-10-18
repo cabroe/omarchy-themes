@@ -25,6 +25,7 @@ make theme-smoke HOST=omarchy   # live hook-chain test — mutates the active sk
 
 ## Updating the installed plugin while developing
 
-`~/.hermes/plugins/omarchy-themes` is a tracked git clone: push to GitHub, run
-`hermes plugins update omarchy-themes`, then restart Hermes Desktop (or
-⌘K → "Reload desktop plugins"). Hook changes need `make install-hook`.
+The plugin lives at `~/.hermes/desktop-plugins/omarchy-themes/`. Push your
+changes to GitHub, then either `hermes plugins update omarchy-themes` (the
+official upgrade path) or `make install-hook` to update the hook in place,
+followed by restarting Hermes Desktop (or ⌘K → "Reload desktop plugins").

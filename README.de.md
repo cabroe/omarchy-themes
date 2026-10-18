@@ -86,7 +86,7 @@ omarchy-themes/
 └── Makefile
 ```
 
-Install-Ziel: `~/.hermes/plugins/omarchy-themes/desktop/plugin.js` (auto), `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh` (manuell `make install-hook`).
+Install-Ziel: `~/.hermes/desktop-plugins/omarchy-themes/plugin.js` (auto), `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh` (manuell `make install-hook`).
 
 ---
 
