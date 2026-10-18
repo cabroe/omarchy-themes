@@ -152,74 +152,125 @@ assert.equal(storageEvents.length, eventsBefore)
 assert.equal(requested.length, requestedBefore)
 
 // ---------------------------------------------------------------------------
-// Local config watch: `display.skin` in <HERMES_HOME>/config.yaml drives the
-// same apply path — independent of which gateway the desktop is connected to.
+// Local file doors, independent of which gateway the desktop is connected to:
+//   1. Omarchy's current/theme.name (written ~0.5 s into `omarchy theme set`)
+//   2. display.skin in <HERMES_HOME>/config.yaml (written ~2-3 s later by the hook)
+// Both drive the same apply path; the later one for the same name is a no-op.
 // ---------------------------------------------------------------------------
+let clock = 1e12
+const realNow = Date.now
+Date.now = () => clock
 const files = new Map()
 const changeListeners = new Set()
-const watches = new Set()
+const watchPaths = new Map()
 let nextWatch = 0
 window.hermesDesktop = {
   desktopPluginsRoot: async () => '/home/u/.hermes/desktop-plugins',
+  getMachineProfile: async () => ({ username: 'u' }),
   readFileText: async p => (files.has(p) ? { text: files.get(p) } : { error: 'ENOENT' }),
-  watchPreviewFile: async p => { const id = `w${++nextWatch}`; watches.add(id); return { id, path: p } },
-  stopPreviewFileWatch: async id => watches.delete(id),
+  watchPreviewFile: async p => { const id = `w${++nextWatch}`; watchPaths.set(id, p); return { id, path: p } },
+  stopPreviewFileWatch: async id => watchPaths.delete(id),
   onPreviewFileChanged: fn => { changeListeners.add(fn); return () => changeListeners.delete(fn) },
 }
 const CONFIG = '/home/u/.hermes/config.yaml'
+const THEME_NAME = '/home/u/.local/state/omarchy/current/theme.name'
 const config = skin => `model:\n  skin: not-this\ndisplay:\n  bell_on_complete: false\n  nested:\n    skin: nor-this\n  skin: "${skin}"  # active\nother: 1\n`
 const tick = () => new Promise(r => setTimeout(r, 0))
-const fileChanged = async id => { for (const fn of changeListeners) fn({ id, path: CONFIG }); await tick(); await tick() }
-files.set(CONFIG, config('nord'))
+const settle = async () => { await tick(); await tick(); await tick() }
+const changed = async path => {
+  for (const [id, p] of watchPaths) if (p === path) for (const fn of changeListeners) fn({ id, path })
+  await settle()
+}
+const setSkin = (skin, theme = skin) => { files.set(CONFIG, config(skin)); files.set(THEME_NAME, theme + '\n') }
+const isolated = (extra = {}) => ({ ...ctx, ...extra, register: () => () => {}, registerSettingsPage: () => {} })
+setSkin('nord')
 const localDisposers = []
-plugin.register({ ...ctx, register: () => () => {}, registerSettingsPage: () => {}, onDispose: fn => localDisposers.push(fn) })
-await tick(); await tick()
-const watchId = [...watches][0]
-assert.ok(watchId, 'plugin must watch the local config.yaml')
+plugin.register(isolated({ onDispose: fn => localDisposers.push(fn) }))
+await settle()
+assert.deepEqual([...watchPaths.values()].sort(), [CONFIG, THEME_NAME].sort(),
+  'plugin must watch Omarchy theme.name and the local config.yaml')
 
-// Launch: the current skin is only the baseline, nothing is applied.
+// Launch: the current theme is only the baseline, nothing is applied.
 const beforeLocal = requested.length
 store.set(MODE_KEY, 'light')
-await fileChanged(watchId)
-assert.equal(requested.length, beforeLocal, 'unchanged display.skin must not re-apply')
+await changed(THEME_NAME)
+await changed(CONFIG)
+assert.equal(requested.length, beforeLocal, 'unchanged theme must not re-apply')
 
-// `omarchy theme set lupine` → hook → display.skin: lupine → light + lupine.
-files.set(CONFIG, config('lupine'))
+// `omarchy theme set lupine`: theme.name flips first → light + lupine at once.
+files.set(THEME_NAME, 'lupine\n')
 store.set(MODE_KEY, 'dark')
-await fileChanged(watchId)
+await changed(THEME_NAME)
 assert.equal(requested.at(-1), 'omarchy-lupine')
 assert.equal(store.get(MODE_KEY), 'light')
 
-// Other preview watches' events are ignored.
-files.set(CONFIG, config('nord'))
-await fileChanged('someone-else')
-assert.equal(requested.at(-1), 'omarchy-lupine')
+// ~2.5 s later the hook's `hermes skin use` flips display.skin: same name → no-op.
+const afterFast = requested.length
+clock += 2500
+files.set(CONFIG, config('lupine'))
+await changed(CONFIG)
+assert.equal(requested.length, afterFast, 'the slower door must not re-apply the same theme')
 
-// Dispose releases the watch.
+// After the dedupe window the same name applies again; "Tokyo Night" is a slug.
+clock += 20000
+files.set(THEME_NAME, 'Tokyo Night\n')
+await changed(THEME_NAME)
+assert.equal(requested.at(-1), 'omarchy-tokyo-night')
+assert.equal(store.get(MODE_KEY), 'dark')
+
+// A manual `hermes skin use` (config only) still syncs.
+clock += 20000
+files.set(CONFIG, config('white'))
+await changed(CONFIG)
+assert.equal(requested.at(-1), 'omarchy-white')
+assert.equal(store.get(MODE_KEY), 'light')
+
+// Unknown themes and other preview watches' events are ignored.
+const beforeIgnored = requested.length
+clock += 20000
+files.set(THEME_NAME, 'no-such-theme\n')
+await changed(THEME_NAME)
+for (const fn of changeListeners) fn({ id: 'someone-else', path: THEME_NAME })
+await settle()
+assert.equal(requested.length, beforeIgnored)
+
+// The host's own skin.changed handling comes right after the plugins: the
+// forced event re-apply must win even inside the dedupe window.
+clock += 20000
+files.set(THEME_NAME, 'nord\n')
+await changed(THEME_NAME)
+const beforeForce = requested.length
+await skinChanged('nord')
+assert.ok(requested.length > beforeForce, 'skin.changed must re-apply even inside the dedupe window')
+
+// Dispose releases both watches.
 localDisposers.forEach(d => d())
-assert.equal(watches.size, 0, 'dispose must stop the file watch')
+assert.equal(watchPaths.size, 0, 'dispose must stop the file watches')
 assert.equal(changeListeners.size, 0)
 
-// Launch catch-up: the plugin remembers the skin it last saw. Omarchy switched
+// Launch catch-up: the plugin remembers what it last saw. Omarchy switched
 // while Hermes was closed → the stored value differs → apply once at launch.
 // Same value → only the baseline, the user's desktop pick stays.
 const pluginStore = new Map()
 const storage = { get: (k, d) => pluginStore.get(k) ?? d, set: (k, v) => pluginStore.set(k, v), remove: k => pluginStore.delete(k) }
 const launch = async skin => {
-  files.set(CONFIG, config(skin))
+  clock += 20000
+  setSkin(skin)
   const before = requested.length
   const ds = []
-  plugin.register({ ...ctx, storage, register: () => () => {}, registerSettingsPage: () => {}, onDispose: fn => ds.push(fn) })
-  await tick(); await tick()
+  plugin.register(isolated({ storage, onDispose: fn => ds.push(fn) }))
+  await settle()
   ds.forEach(d => d())
   return requested.length - before
 }
 assert.equal(await launch('nord'), 0, 'first launch only seeds the baseline')
-assert.equal(await launch('nord'), 0, 'unchanged skin must not stomp the desktop pick')
-assert.equal(await launch('lupine'), 1, 'skin changed while closed → catch up')
+assert.equal(await launch('nord'), 0, 'unchanged theme must not stomp the desktop pick')
+assert.equal(await launch('lupine'), 1, 'theme changed while closed → catch up once (both doors agree)')
 assert.equal(requested.at(-1), 'omarchy-lupine')
+assert.equal(pluginStore.get('last-theme'), 'lupine')
 assert.equal(pluginStore.get('last-skin'), 'lupine')
 assert.equal(await launch('lupine'), 0, 'caught up once, not on every launch')
+Date.now = realNow
 delete globalThis.window
 
 // ---------------------------------------------------------------------------

@@ -359,10 +359,17 @@ function applyEntry(entry) {
   requestTheme(entry.theme.name)
 }
 
-// A skin name from the CLI side (gateway event or local config) → desktop.
-function applySkin(name) {
+// A theme/skin name from the Omarchy or CLI side → desktop. Several doors can
+// report the same switch within seconds (theme.name, config.yaml, gateway
+// event); the later ones are no-ops unless forced.
+const DEDUPE_MS = 15000
+let lastApplied = { name: null, at: 0 }
+
+function applySkin(name, { force = false } = {}) {
+  if (!force && name === lastApplied.name && Date.now() - lastApplied.at < DEDUPE_MS) return
   const entry = THEMES.find(t => t.slug === name)
   if (entry) {
+    lastApplied = { name, at: Date.now() }
     applyEntry(entry)
     return
   }
@@ -370,6 +377,7 @@ function applySkin(name) {
   // in the mode the Omarchy palette of that name ships with. Any other skin
   // is not ours — leave the user's appearance alone.
   if (BUILTIN_NAMES.has(name) && RAW_MODE.has(name)) {
+    lastApplied = { name, at: Date.now() }
     requestMode(RAW_MODE.get(name))
     requestTheme(name)
   }
@@ -397,54 +405,78 @@ function displaySkin(yaml) {
   return null
 }
 
-// Watch this machine's `<HERMES_HOME>/config.yaml` through the desktop's
-// preview file-watch bridge (window.hermesDesktop — the renderer has no fs).
-// `<HERMES_HOME>` is the parent of the desktop-plugins root. Afterwards every
-// change of `display.skin` calls onSkin.
+// Omarchy's `current/theme.name`: the theme slug as given to `omarchy theme set`
+// ("Tokyo Night" → tokyo-night, like the theme dir names).
+function themeName(text) {
+  const name = text.trim().toLowerCase().replace(/\s+/g, '-')
+  return name || null
+}
+
+const hermesHomeOf = async bridge =>
+  String(await bridge.desktopPluginsRoot()).replace(/[\\/]desktop-plugins[\\/]?$/, '')
+
+// Omarchy hard-codes `$HOME/.local/state/omarchy/current/theme.name`. $HOME is
+// the parent of a default `~/.hermes`; else fall back to /home/<user>.
+async function omarchyThemeNamePath(bridge) {
+  const rel = '/.local/state/omarchy/current/theme.name'
+  const candidates = []
+  const home = await hermesHomeOf(bridge)
+  if (/[\\/]\.hermes$/.test(home)) candidates.push(home.replace(/[\\/]\.hermes$/, '') + rel)
+  const user = (await bridge.getMachineProfile?.())?.username
+  if (user) candidates.push('/home/' + user + rel)
+  for (const path of candidates) {
+    const file = await bridge.readFileText(path).catch(() => null)
+    if (typeof file?.text === 'string') return path
+  }
+  return null
+}
+
+// Watch one local file through the desktop's preview file-watch bridge
+// (window.hermesDesktop — the renderer has no fs). `parse(text)` extracts the
+// value; every change of it calls onValue.
 //
-// Launch: the skin last seen is remembered in the plugin's own storage. If
-// Omarchy switched themes while Hermes was closed, the stored value differs
-// from the config and the desktop catches up. If nothing changed, the launch
-// only seeds the baseline — it must not stomp a theme picked in the desktop.
+// Launch: the value last seen is remembered in the plugin's own storage under
+// `seenKey`. If Omarchy switched themes while Hermes was closed, the stored
+// value differs and the desktop catches up. If nothing changed, the launch only
+// seeds the baseline — it must not stomp a theme picked in the desktop.
 // Returns a disposer; a host without the bridge gets a no-op.
-function watchLocalSkin(onSkin, store) {
-  const SEEN_KEY = 'last-skin'
+function watchFile(resolvePath, parse, onValue, store, seenKey) {
   const bridge = typeof window === 'undefined' ? undefined : window.hermesDesktop
   if (!bridge?.desktopPluginsRoot || !bridge.readFileText || !bridge.watchPreviewFile || !bridge.onPreviewFileChanged) {
     return () => {}
   }
   let disposed = false
   let watchId = null
-  let configPath = null
-  let lastSkin = null
+  let path = null
+  let last = null
 
   const read = async () => {
-    const file = await bridge.readFileText(configPath)
-    return typeof file?.text === 'string' ? displaySkin(file.text) : null
+    const file = await bridge.readFileText(path)
+    return typeof file?.text === 'string' ? parse(file.text) : null
   }
   const offChanged = bridge.onPreviewFileChanged(async payload => {
     if (disposed || !watchId || payload?.id !== watchId) return
     try {
-      const skin = await read()
-      if (disposed || !skin || skin === lastSkin) return
-      lastSkin = skin
-      store?.set(SEEN_KEY, skin)
-      onSkin(skin)
+      const value = await read()
+      if (disposed || !value || value === last) return
+      last = value
+      store?.set(seenKey, value)
+      onValue(value)
     } catch (_) { /* unreadable mid-write — the next change event retries */ }
   })
 
   ;(async () => {
-    const root = String(await bridge.desktopPluginsRoot())
-    configPath = root.replace(/[\\/]desktop-plugins[\\/]?$/, '') + '/config.yaml'
-    lastSkin = await read()
-    const seen = store?.get(SEEN_KEY, null)
-    if (lastSkin) store?.set(SEEN_KEY, lastSkin)
-    if (!disposed && seen && lastSkin && seen !== lastSkin) onSkin(lastSkin)
-    const watch = await bridge.watchPreviewFile(configPath)
+    path = await resolvePath(bridge)
+    if (!path) return
+    last = await read()
+    const seen = store?.get(seenKey, null)
+    if (last) store?.set(seenKey, last)
+    if (!disposed && seen && last && seen !== last) onValue(last)
+    const watch = await bridge.watchPreviewFile(path)
     if (!watch?.id) return
     if (disposed) bridge.stopPreviewFileWatch?.(watch.id)
     else watchId = watch.id
-  })().catch(() => { /* no local config — the gateway event still syncs */ })
+  })().catch(() => { /* file not there — the other doors still sync */ })
 
   return () => {
     disposed = true
@@ -452,6 +484,14 @@ function watchLocalSkin(onSkin, store) {
     if (watchId) bridge.stopPreviewFileWatch?.(watchId)
   }
 }
+
+// The two file doors: Omarchy's theme.name (written ~0.5 s into
+// `omarchy theme set`, right after the theme swap — the earliest signal) and
+// `display.skin` in the Hermes config (written by the theme-set hook ~2-3 s
+// later via `hermes skin use`; covers `hermes skin use` run by hand).
+const watchOmarchyTheme = (onTheme, store) => watchFile(omarchyThemeNamePath, themeName, onTheme, store, 'last-theme')
+const watchConfigSkin = (onSkin, store) =>
+  watchFile(async b => (await hermesHomeOf(b)) + '/config.yaml', displaySkin, onSkin, store, 'last-skin')
 
 // ---------------------------------------------------------------------------
 // Settings page
@@ -593,23 +633,27 @@ export default {
       }]
     })
 
-    // CLI→Desktop sync, two doors into the same handler:
-    //  1. A watch on this machine's `<HERMES_HOME>/config.yaml` — the hook's
-    //     `hermes skin use` writes `display.skin` there, so it works whichever
-    //     gateway is the active connection.
-    //  2. `skin.changed` from the active gateway — only when it is this machine.
-    //     The host handles the event itself right after the plugins and requests
-    //     the bare-slug backend skin (single palette). Re-apply on the next
-    //     tick so the dual-palette `omarchy-<slug>` theme is what stays painted.
-    // Applying twice is idempotent.
-    let reapply = null
+    // CLI→Desktop sync, three doors into the same handler:
+    //  1. Omarchy's theme.name — fires ~0.5 s into `omarchy theme set`.
+    //  2. `display.skin` in this machine's Hermes config — written ~2-3 s later
+    //     by the hook; also covers a manual `hermes skin use`.
+    //  3. `skin.changed` from the active gateway — only when it is this machine.
+    //     The host handles the event itself right after the plugins (same task)
+    //     and requests the bare-slug backend skin (single palette). Re-apply in
+    //     a microtask, forced: it runs after the host set its request but before
+    //     React renders, so the dual-palette `omarchy-<slug>` request replaces
+    //     the host's and the single-palette skin is never painted.
+    // 1 and 2 work whichever gateway is the active connection. Later doors are
+    // no-ops for the same name (DEDUPE_MS).
+    let epoch = 0
     disposers.push(ctx.onEvent('skin.changed', event => {
       const name = event?.payload?.name
-      clearTimeout(reapply)
-      reapply = setTimeout(() => applySkin(name), 0)
+      const mine = ++epoch
+      Promise.resolve().then(() => { if (mine === epoch) applySkin(name, { force: true }) })
     }))
-    disposers.push(() => clearTimeout(reapply))
-    disposers.push(watchLocalSkin(applySkin, ctx.storage))
+    disposers.push(() => { epoch++ })
+    disposers.push(watchOmarchyTheme(applySkin, ctx.storage))
+    disposers.push(watchConfigSkin(applySkin, ctx.storage))
 
     ctx.onDispose(() => disposers.forEach(d => d && d()))
   }
