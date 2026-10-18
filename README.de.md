@@ -216,12 +216,6 @@ Dieses Projekt wurde von der **Hermes-Bot-Flotte** entworfen und gebaut — Kanb
 
 ---
 
-## 🔒 Privatheit
-
-Das Repo ist derzeit **privat** und bleibt es, bis eine Veröffentlichung ausdrücklich freigegeben wird; das gilt auch für jeden Mirror. Solange es privat ist, funktioniert `hermes plugins install https://github.com/cabroe/omarchy-themes` nur mit Git-Zugangsdaten, die es lesen dürfen.
-
----
-
 ## 📄 Lizenz
 
 [MIT](LICENSE). Änderungen stehen im [Changelog](CHANGELOG.md); siehe [CONTRIBUTING.md](CONTRIBUTING.md) und [SECURITY.md](SECURITY.md).

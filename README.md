@@ -215,12 +215,6 @@ This project was designed and built by the **Hermes bot fleet** — kanban-drive
 
 ---
 
-## 🔒 Privacy
-
-This repository is currently **private** and will remain so until a public release is explicitly authorised; this also applies to any mirror. While it is private, `hermes plugins install https://github.com/cabroe/omarchy-themes` only works with Git credentials that can read it.
-
----
-
 ## 📄 License
 
 [MIT](LICENSE). Changes are listed in the [changelog](CHANGELOG.md); see [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
