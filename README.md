@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/shellcheck-passing-brightgreen?style=for-the-badge" alt="shellcheck">
   <img src="https://img.shields.io/badge/Deploy-SSH-blue?style=for-the-badge" alt="Deploy via SSH">
   <img src="https://img.shields.io/badge/Repo-privat-lightgrey?style=for-the-badge" alt="Privates Repo">
-  <img src="https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml/badge.svg" alt="CI">
+  <img src=".github/badges/ci.svg" alt="CI">
 </p>
 
 ---
@@ -34,7 +34,7 @@ make deploy           # check → Plugin + Hook nach omarchy deployen
 make deploy HOST=foo  # anderen SSH-Host verwenden
 ```
 
-Danach im Hermes-Desktop **⌘K → „Reload desktop plugins"** — das Plugin ist ab Werk aktiv (`defaultEnabled: true`). Wer es deaktivieren will: Settings → Capabilities → Plugins → Omarchy Themes → Toggle.
+Danach im Hermes-Desktop **⌘K → „Reload desktop plugins"** — das Plugin ist ab Werk aktiv (`defaultEnabled: true`). Wer es deaktivieren will: Settings → Capabilities → Plugins → omarchy-themes → Toggle.
 
 **Voraussetzungen lokal:** Node ≥ 22, Python ≥ 3.11, `shellcheck`
 **Voraussetzungen auf dem Host:** SSH-Zugang, Omarchy, Hermes
@@ -45,7 +45,7 @@ Danach im Hermes-Desktop **⌘K → „Reload desktop plugins"** — das Plugin 
 
 - **Theme-Picker:** Die Omarchy-Themes erscheinen neben den eingebauten Hermes-Themes. Namen, die mit einem Built-in kollidieren (`catppuccin`, `everforest` …), bekommen das Suffix `-omarchy`.
 - **⌘K:** `Apply Omarchy Theme: <Name>`
-- **Settings → Plugins → Omarchy Themes:** Kartenansicht mit Farbswatches, Filter (Name/Slug/`dark`/`light`) und *Apply*-Button.
+- **Settings → Plugins → omarchy-themes:** Kartenansicht mit Farbswatches, Filter (Name/Slug/`dark`/`light`) und *Apply*-Button.
 - **CLI/TUI:** `omarchy theme set nord` → Hook schreibt Skin → `hermes skin use nord` (live in ~1 s).
 
 ### Was das Plugin anpasst
