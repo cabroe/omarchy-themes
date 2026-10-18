@@ -58,16 +58,25 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # Generator liest /usr/share/omarchy/themes direkt vom Runner — kein
-      # SSH-Hop nötig. USER_DIR (~/.config/omarchy/themes) wird über den
-      # --include-user-Flag in GEN_ARGS mit eingelesen, falls vorhanden.
+      # SSH-Hop nötig. Der Runner *ist* der Omarchy-Host — kein HOST setzen,
+      # damit der Generator direkt /usr/share/omarchy/themes liest (kein SSH).
+      # `HOST=localhost` wäre falsch: das expandiert zu `--remote localhost`
+      # und öffnet einen SSH-Loop auf sich selbst.
+      # User-Themes (~/.config/omarchy/themes) bleiben absichtlich außen vor
+      # (persönlich); für User-Themes: `make generate --include-user` lokal.
       - name: Run make generate
-        run: make generate HOST=localhost
+        run: make generate
+
+      # Syntaxcheck des generierten Ergebnisses — fängt kaputte Paletten ab,
+      # bevor sie committed werden (node --check + py_compile + shellcheck).
+      # Läuft nur wenn generate erfolgreich war (kein if: always()).
+      - name: Lint generated output
+        run: make lint
 
       # Diff-Check gegen HEAD. `git diff --quiet` exit 0 = clean, exit 1 =
-      # dirty. `if !` invertiert das für die set -e-Semantik des
-      # Default-Bash-Strict-Mode im Runner-Image.
+      # dirty. Kein `if: always()` — bei einem Fehler in den vorherigen
+      # Steps soll kein Commit entstehen.
       - name: Commit and push if changed
-        if: always()
         run: |
           if ! git diff --quiet desktop/plugin.js; then
             echo "plugin.js changed — committing update"
