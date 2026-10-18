@@ -4,9 +4,10 @@
 
 **Omarchy palettes, Hermes-native — one `theme set`, desktop picker + CLI + TUI all switch.**
 
-[![CI status](https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml)
+[![en](https://img.shields.io/badge/lang-en-blue.svg)](README.md)
+[![de](https://img.shields.io/badge/lang-de-blue.svg)](README.de.md)
 
-[🇩🇪 Deutsche Version](README.de.md)
+[![CI status](https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml)
 
 </div>
 
