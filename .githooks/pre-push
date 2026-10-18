@@ -1,0 +1,25 @@
+#!/bin/sh
+# Pre-push hook: warn if desktop/plugin.js is out of date vs. the Omarchy host.
+#
+# Install once:
+#   make install-githooks
+#
+# This hook calls `make generate-check`, which needs SSH access to HOST
+# (default: omarchy). If the host is not reachable the check is skipped with
+# a warning — it never blocks the push.
+
+set -e
+
+HOST="${HOST:-omarchy}"
+
+if ! ssh -o ConnectTimeout=3 -o BatchMode=yes "$HOST" true 2>/dev/null; then
+  echo "omarchy-themes pre-push: $HOST not reachable — generate-check skipped." >&2
+  exit 0
+fi
+
+echo "omarchy-themes pre-push: checking plugin.js against $HOST …" >&2
+if ! make generate-check HOST="$HOST" 2>&1; then
+  echo "" >&2
+  echo "  plugin.js is out of date. Run 'make generate' and commit before pushing." >&2
+  exit 1
+fi

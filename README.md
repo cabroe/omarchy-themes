@@ -43,6 +43,7 @@ For the CLI/TUI hook, run `make install-hook` to install `hooks/hermes-skin-sync
 
 ```bash
 make check            # lint + tests locally
+make install-githooks # activate the pre-push generate-check hook (optional)
 ```
 
 ---

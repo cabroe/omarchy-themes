@@ -41,7 +41,8 @@ Für den CLI/TUI-Hook `make install-hook` ausführen — das installiert `hooks/
 **Voraussetzungen lokal (für Entwicklung):** Node ≥ 22, Python ≥ 3.11, `shellcheck`
 
 ```bash
-make check            # Lint + Tests lokal
+make check              # Lint + Tests lokal
+make install-githooks   # Pre-push-Hook aktivieren, der generate-check ausführt (optional)
 ```
 
 ---
