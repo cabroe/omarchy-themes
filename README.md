@@ -1,112 +1,171 @@
 <div align="center">
 
-# 🎨 omarchy-themes
+# omarchy-themes
 
-**Omarchy palettes, Hermes-native — one `theme set`, desktop picker + CLI + TUI all switch.**
+**Omarchy colour schemes in Hermes Desktop — automatic on every `omarchy theme set`.**
 
 [![en](https://img.shields.io/badge/lang-en-blue.svg)](README.md)
 [![de](https://img.shields.io/badge/lang-de-blue.svg)](README.de.md)
-
-[![CI status](https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml)
+[![CI](https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml)
 
 </div>
 
 ---
 
-## Contents
+## What it does
 
-- [🧩 Components](#-components)
-- [📦 Install & use](#-install--use)
-- [🔄 Updating themes](#-updating-themes)
-- [🧪 Tests](#-tests)
-- [📁 Project structure](#-project-structure)
-- [🔬 Implementation notes](#-implementation-notes)
-- [🗺 Colour mapping](#-colour-mapping)
-- [📄 License](#-license)
+`omarchy theme set nord` — and Hermes Desktop switches palette, light/dark mode, and terminal colours in under a second. No manual step needed.
 
----
+**Three parts, one flow:**
 
-## 🧩 Components
-
-- **Desktop plugin** (`desktop/plugin.js`) — Registers Omarchy themes (stock + user via `--include-user`, minus Hermes built-in collisions) in the theme picker, as ⌘K commands, and on a settings page.
-- **Theme sync hook** (`hooks/hermes-skin-sync.sh`) — Runs on `omarchy theme set <slug>`, writes `~/.hermes/skins/<slug>.yaml` and activates the Hermes skin.
-- **Generator** (`scripts/generate-themes.py`) — Reads `colors.toml` files and rewrites the theme table in the plugin after Omarchy updates.
+| Component | File | Role |
+|---|---|---|
+| Desktop plugin | `desktop/plugin.js` | Theme picker · ⌘K commands · settings page · auto-sync |
+| Theme-set hook | `hooks/hermes-skin-sync.sh` | Writes `~/.hermes/skins/<slug>.yaml`, calls `hermes skin use` |
+| Generator | `scripts/generate-themes.py` | Rebuilds the baked theme table after an Omarchy update |
 
 ---
 
-## 📦 Install & use
-
-`hermes plugins install https://github.com/cabroe/omarchy-themes`, then **⌘K → "Reload desktop plugins"**. Enable once: Settings → Capabilities → Plugins → omarchy-themes → Toggle.
-
-For the CLI/TUI hook: `make install-hook` (idempotent); `make uninstall` removes it.
-
-**Development:** Node ≥ 22, Python ≥ 3.11, `shellcheck`. `make check` = lint + tests; `make install-githooks` activates pre-push check.
-
-**What you get:**
-- Omarchy themes as `omarchy-<slug>` in picker, ⌘K (`Apply Omarchy Theme: <name>`), and Settings card view with swatches/filter/*Apply*.
-- `omarchy theme set nord` switches desktop theme **and** light/dark mode; hook syncs CLI/TUI skin (~3 s delay, 15 s no-op window). `~/.local/state/omarchy/toggles/skip-hermes-theme-changes` disables auto-switching.
-- Each theme ships **both** palettes + **both** terminal palettes + typography — light/dark switching recolours the entire UI. Both palettes share brand `accent`/`primary`/`ring`; opposite palette auto-synthesised (Rec.709 luma ≥ 0.5 contrast).
-- Unknown themes (user-installed or newer than `make generate`): plugin reads `~/.local/state/omarchy/current/theme/colors.toml` and registers one `omarchy-current` fallback.
-
----
-
-## 🔄 Updating themes
-
-After an Omarchy update: `make generate` (`HOST=<ssh host>` reads remotely) or `make generate-check` (detect drift). Include user themes: `python3 scripts/generate-themes.py --include-user`. Generator replaces `// BEGIN GENERATED THEMES` … `// END GENERATED THEMES` block only, deterministic, resolves themes without `colors.toml` via `omarchy-theme-colors-from-alacritty` / `omarchy-theme-color`.
-
----
-
-## 🧪 Tests
+## Install
 
 ```bash
-make check    # = lint + test
-make test     # node tests/smoke.mjs && sh tests/hook.sh
-make lint     # node --check + py_compile + shellcheck
+# 1. Install the desktop plugin
+hermes plugins install https://github.com/cabroe/omarchy-themes
+# then: Settings → Capabilities → Plugins → omarchy-themes → enable
+
+# 2. Install the theme-set hook (CLI/TUI auto-sync)
+make install-hook
 ```
 
-- **`tests/smoke.mjs`** — Plugin loads, registers themes/commands/settings, colours valid, luma/brand/prefix enforced, CLI→desktop sync covered.
-- **`tests/hook.sh`** — Skin YAML (22 keys, 3-digit hex), skip on unknown, exit 0 on failure, fallback to Omarchy-generated `colors.toml`.
-- **`tests/theme-switch-smoke.sh`** — Live `omarchy theme set` over SSH (`make theme-smoke HOST=omarchy`). Mutates user state; not in `make check`.
-
-CI: `.github/workflows/live-theme-smoke.yml` runs smoke on self-hosted omarchy runner (manual `workflow_dispatch`, Sunday 04:00 UTC, `push` to `main` when smoke/hook/workflow changes). Dedicated, label-pinned; start before trigger, stop after.
+Uninstall the hook: `make uninstall`.
 
 ---
 
-## 📁 Project structure
+## Usage
+
+### Auto-sync from the terminal
+
+```bash
+omarchy theme set nord          # switches Hermes Desktop immediately
+omarchy theme set lupine        # light themes flip the UI to light mode
+omarchy theme set omacarchy     # user themes work too
+```
+
+Hermes Desktop picks up the change via `current/theme.name` (written ~0.5 s in), `display.skin` in the config, and the gateway `skin.changed` event — whichever arrives first.
+
+### From inside Hermes Desktop
+
+- **Settings → Plugins → omarchy-themes** — card grid with colour swatches, filter, *Apply* button.
+- **⌘K → "Apply Omarchy Theme: Nord"** — one keystroke per theme.
+
+### Disable auto-switching
+
+```bash
+touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes
+```
+
+The picker and ⌘K rows keep working; only the automatic hook-triggered switch is suppressed.
+
+---
+
+## Themes
+
+27 themes ship baked into the plugin (22 dark, 5 light). Each gets a full dual-palette entry — both light and dark variants, both terminal palettes, typography — so flipping modes recolours the entire UI without loading anything from disk.
+
+**Themes missing from the baked table** (user-installed or added after the last `make generate`) are read from `~/.local/state/omarchy/current/theme/colors.toml` and registered as `omarchy-current`. The picker shows them; the auto-sync follows them.
+
+Built-in Hermes themes (`catppuccin`, `everforest`, `solarized`, …) are never overridden. `omarchy theme set catppuccin` paints Hermes' own built-in and the plugin follows its light/dark mode.
+
+---
+
+## After an Omarchy update
+
+```bash
+make generate               # rebuilds the theme table (system + user themes)
+make generate-system        # system themes only — used by CI
+make generate-check         # detect drift without writing
+# HOST=<ssh-host> reads themes from a remote machine
+```
+
+The generator replaces only the `// BEGIN GENERATED THEMES … // END GENERATED THEMES` block. It resolves themes without `colors.toml` (e.g. `ayaka`) via `omarchy-theme-colors-from-alacritty`.
+
+---
+
+## Development
+
+**Requirements:** Node ≥ 22 · Python ≥ 3.11 · `shellcheck`
+
+```bash
+make check          # lint + tests (CI gate)
+make test           # node tests/smoke.mjs && sh tests/hook.sh
+make lint           # node --check + py_compile + shellcheck
+make install-githooks   # pre-push auto-fix hook
+```
+
+**Tests:**
+
+- `tests/smoke.mjs` — plugin loads, all themes registered, palettes valid, luma/brand/prefix enforced, CLI→desktop sync path covered.
+- `tests/hook.sh` — skin YAML shape (22 keys, 3-digit hex), skip on unknown slug, exit 0 always, fallback to Omarchy-generated `colors.toml`.
+- `tests/theme-switch-smoke.sh` — live `omarchy theme set` over SSH (`make theme-smoke HOST=omarchy`). Mutates state; not in `make check`.
+
+---
+
+## Project layout
 
 ```
 omarchy-themes/
-├── desktop/plugin.js         # Hermes desktop plugin (plain ESM)
-├── hooks/hermes-skin-sync.sh # omarchy theme-set hook → Hermes CLI/TUI skin
-├── scripts/generate-themes.py  # colors.toml → theme table in plugin.js
-├── tests/{smoke.mjs,hook.sh,theme-switch-smoke.sh,stubs/}
-├── .github/workflows/        # CI: ci.yml, live-theme-smoke.yml
-├── .githooks/pre-push        # generate-check guard
+├── desktop/
+│   └── plugin.js                   # Hermes Desktop plugin (plain ESM, no deps)
+├── hooks/
+│   └── hermes-skin-sync.sh         # theme-set hook → CLI/TUI skin
+├── scripts/
+│   └── generate-themes.py          # colors.toml → baked table in plugin.js
+├── tests/
+│   ├── smoke.mjs
+│   ├── hook.sh
+│   ├── theme-switch-smoke.sh
+│   └── stubs/
+├── .github/workflows/              # ci.yml · live-theme-smoke.yml · regen-themes.yml
+├── .githooks/pre-push
+├── plugin.yaml
 └── Makefile
 ```
 
-Install target: `~/.hermes/plugins/omarchy-themes/desktop/plugin.js` (auto), `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh` (manual `make install-hook`).
-
 ---
 
-## 🔬 Implementation notes
+## Colour mapping
 
-Omarchy's `lighter_background` / `darker_background` stay on the wrong side of the renderer's luma threshold (0.5), so UI mode never flips. Plugin synthesises missing palette with `mixHex(c.background, '#000'|'#fff', 0.88)` (see `SURFACE_MIX_AMOUNT` / `ACCENT_TEXT_LUMA` in `desktop/plugin.js`). Brand identity preserved: `accent`/`primary`/`ring`/`midground`/`composerRing` derive from same Omarchy `accent` in both palettes.
+### Desktop palette
 
----
+| Omarchy key | Hermes slots |
+|---|---|
+| `background` | `background` |
+| `foreground` | `foreground`, `mutedForeground` |
+| `accent` | `primary`, `accent`, `ring`, `midground`, `composerRing` |
+| `lighter_background` | `card`, `popover`, `secondary`, `userBubble` |
+| `dark_background` | `border`, `input`, `sidebarBackground`, `sidebarBorder`, `userBubbleBorder` |
+| `selection` | `terminal.selectionBackground` |
+| `muted` | `mutedBackground` |
+| ANSI 0–15 | terminal palette |
 
-## 🗺 Colour mapping
-
-### Desktop theme
-
-`accent` → `primary`/`accent`/`ring`/`midground`/`composerRing` (text on top by luminance); `lighter_background` → `card`/`popover`/`secondary`/`userBubble`; `dark_background` → `border`/`input`/`sidebarBackground`/`sidebarBorder`/`userBubbleBorder`; `selection` → `terminal.selectionBackground`; `mode="light"` → additionally `darkColors`/`darkTerminal`. Other keys (`background`, `foreground`, `muted`, `red`, ANSI) pass through 1:1. Missing keys fall back to `background`/`foreground`/`accent`. If `lighter_background` or `dark_background` equal `background`, lifted a few percent for visibility. Full mapping: see `desktop/plugin.js` (`synthLightFromDark` / `synthDarkFromLight`).
+`lighter_background` and `dark_background` are lifted a few percent when equal to `background` (affects hermarchy, omacarchy, and flat themes). The opposite palette (light↔dark) is auto-synthesised using Rec.709 luma — the synthesised background always lands on the correct side of the 0.5 threshold so UI mode never flips unexpectedly.
 
 ### CLI/TUI skin (hook)
 
-22 keys written; rest inherited from `default` skin. `accent` → `ui_accent`/`banner_accent`/`input_rule`; `dark_background` → `banner_border`/`ui_border`/`status_bar_bg`/`session_border`; `green`/`yellow`/`red` → `ui_ok`/`warn`/`error`, `status_bar_good`/`warn`/`critical`; `cyan` → `response_border`/`session_label`. Other keys 1:1. Pure POSIX `sh`, no Python. User theme beats system theme. Exit 0 always. Fallback: Omarchy-generated `~/.local/state/omarchy/current/theme/colors.toml`.
+22 keys written to `~/.hermes/skins/<slug>.yaml`; the rest inherit from the `default` skin.
+
+| Omarchy key | Hermes skin keys |
+|---|---|
+| `accent` | `ui_accent`, `banner_accent`, `input_rule` |
+| `dark_background` | `banner_border`, `ui_border`, `status_bar_bg`, `session_border` |
+| `green` / `yellow` / `red` | `ui_ok`/`warn`/`error`, `status_bar_good`/`warn`/`critical` |
+| `cyan` | `response_border`, `session_label` |
+
+Pure POSIX `sh`. Exit 0 always. Fallback: `~/.local/state/omarchy/current/theme/colors.toml`.
 
 ---
 
-## 📄 License
+## License
 
-[MIT](LICENSE). Changes in [CHANGELOG.md](CHANGELOG.md); see [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
+[MIT](LICENSE) — Carsten Broeckert.  
+Changes: [CHANGELOG.md](CHANGELOG.md) · Contributing: [CONTRIBUTING.md](CONTRIBUTING.md) · Security: [SECURITY.md](SECURITY.md)
