@@ -1,0 +1,81 @@
+name: regen-themes
+
+# Triggers:
+#  - workflow_dispatch:    manual from the Actions tab / `gh workflow run`
+#  - schedule (Mon 04:00 UTC): weekly catch — runs a day after the Sunday
+#                              smoke. If upstream Omarchy added or removed a
+#                              theme the table is refreshed and committed to
+#                              main automatically.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * 1'
+
+# One regen run per ref at a time. A new commit cancels the previous
+# in-progress run for that ref — regeneration takes ~10 s, no point
+# queueing duplicates.
+concurrency:
+  group: regen-themes-${{ github.ref }}
+  cancel-in-progress: true
+
+# Workflow-weites Default: keine Permissions. Der Job deklariert seine
+# eigenen (least-privilege). OIDC-Token wird nicht angefordert — der Job
+# pusht nur den einen Bot-Commit zurück und braucht keine Cloud-Credentials.
+permissions: {}
+
+jobs:
+  regen:
+    name: regenerate plugin.js from omarchy themes
+    # Label-Match: nur Runner mit allen drei Labels akzeptieren den Job.
+    # Der omarchy-Runner trägt genau diese Labels (config.sh --labels ...),
+    # sodass keine versehentliche Verteilung auf andere Hosts erfolgt.
+    # Gleiches Label-Triple wie live-theme-smoke — beide Workflows laufen
+    # auf demselben Host, nur dass dieser hier nicht testet sondern nur
+    # die Theme-Tabelle neu baut.
+    runs-on: [self-hosted, omarchy, omarchy-themes]
+    # 10 min reicht locker: `make generate` liest ~30 themes via zwei
+    # SSH-Roundtrips (SYSTEM_DIR + USER_DIR). Selbst auf einem lahmen
+    # Laptop bleibt es unter 30 s. Großzügig gepuffert für Runner, die
+    # parallel zum Sonntags-Smoke laufen.
+    timeout-minutes: 10
+
+    # contents: write brauchen wir für den Auto-Push des generierten Commits.
+    # Andere Permissions (issues, pull-requests, id-token, ...) werden
+    # explizit nicht angefordert.
+    permissions:
+      contents: write
+
+    steps:
+      # Externe Actions auf Commit-SHA gepinnt — Tags/Branches sind mutable
+      # und ein einziger Compromised-Tag würde jeden CI-Lauf kompromittieren.
+      # SHA-Pin matched das `live-theme-smoke.yml`-House-Styling.
+      # token: GITHUB_TOKEN konfiguriert git author/credentials für den
+      # späteren `git push` — der Bot darf nur auf main committen und
+      # nichts anderes.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Generator liest /usr/share/omarchy/themes direkt vom Runner — kein
+      # SSH-Hop nötig. USER_DIR (~/.config/omarchy/themes) wird über den
+      # --include-user-Flag in GEN_ARGS mit eingelesen, falls vorhanden.
+      - name: Run make generate
+        run: make generate HOST=localhost
+
+      # Diff-Check gegen HEAD. `git diff --quiet` exit 0 = clean, exit 1 =
+      # dirty. `if !` invertiert das für die set -e-Semantik des
+      # Default-Bash-Strict-Mode im Runner-Image.
+      - name: Commit and push if changed
+        if: always()
+        run: |
+          if ! git diff --quiet desktop/plugin.js; then
+            echo "plugin.js changed — committing update"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git config user.name "github-actions[bot]"
+            git add desktop/plugin.js
+            git commit -m "chore(generated): regenerate theme table from omarchy"
+            git push
+          else
+            echo "plugin.js is up to date — nothing to commit"
+          fi
