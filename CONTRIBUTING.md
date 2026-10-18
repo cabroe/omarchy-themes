@@ -5,6 +5,7 @@ Thanks for helping. The short version:
 ```bash
 make check               # lint + tests, no Omarchy needed (needs Node >= 22, Python >= 3.11, shellcheck)
 make install-githooks    # optional: pre-push check that plugin.js matches the Omarchy themes
+make theme-smoke HOST=omarchy   # live hook-chain test — mutates the active skin, see Tests / SECURITY
 ```
 
 ## Rules of thumb
@@ -15,7 +16,9 @@ make install-githooks    # optional: pre-push check that plugin.js matches the O
   `make generate`, never by hand.
 - Behaviour changes need a test in `tests/smoke.mjs` (plugin) or `tests/hook.sh`
   (hook). Tests must be deterministic and host-free; live checks against a real
-  Omarchy/Hermes belong in the pull request description.
+  Omarchy/Hermes belong in `tests/theme-switch-smoke.sh` (`make theme-smoke`)
+  and require either an omarchy host in `~/.ssh/config` or the omarchy
+  self-hosted GitHub Actions runner (label `omarchy, omarchy-themes`).
 - The hook stays POSIX `sh` without Python and always exits 0.
 - Keep the English and German READMEs in sync.
 - Commit messages: `fix:`, `feat:`, `perf:`, `docs:`, `ci:`, `chore:` prefixes.

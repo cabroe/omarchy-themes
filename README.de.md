@@ -26,7 +26,7 @@
 
 ---
 
-## ⚡ Schnellstart
+## 📦 Installation & Benutzung
 
 **Installation über Hermes:**
 
@@ -34,41 +34,25 @@
 hermes plugins install https://github.com/cabroe/omarchy-themes
 ```
 
-Danach im Hermes-Desktop **⌘K → „Reload desktop plugins"**. Ein so installiertes Plugin ist opt-in — Hermes behandelt die Desktop-Hälfte eines Unified-Packages (Marker `.hermes-package.json`) unabhängig vom Plugin-eigenen Default als `defaultEnabled: false`. Einmal aktivieren: Settings → Capabilities → Plugins → omarchy-themes → Toggle (derselbe Toggle deaktiviert es wieder).
+Danach im Hermes-Desktop **⌘K → „Reload desktop plugins"**. Das Plugin ist opt-in — Hermes behandelt die Desktop-Hälfte eines Unified-Packages (Marker `.hermes-package.json`) unabhängig vom Plugin-eigenen Default als `defaultEnabled: false`. Einmal aktivieren: Settings → Capabilities → Plugins → omarchy-themes → Toggle (derselbe Toggle deaktiviert es wieder).
 
 Für den CLI/TUI-Hook `make install-hook` ausführen — das installiert `hooks/hermes-skin-sync.sh` nach `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh` (idempotent, ein erneuter Lauf aktualisiert die Datei). Entfernen mit `make uninstall`.
 
-**Voraussetzungen lokal (für Entwicklung):** Node ≥ 22, Python ≥ 3.11, `shellcheck`
+**Lokale Voraussetzungen (Entwicklung):** Node ≥ 22, Python ≥ 3.11, `shellcheck`
 
 ```bash
 make check              # Lint + Tests lokal
 make install-githooks   # Pre-push-Hook aktivieren, der generate-check ausführt (optional)
 ```
 
----
+### Was du bekommst
 
-## 🖥 Benutzung
-
-- **Theme-Picker:** Die Omarchy-Themes erscheinen neben den eingebauten Hermes-Themes als `omarchy-<slug>`. Slugs, die mit einem Hermes-Built-in kollidieren (`catppuccin`, `everforest` …), werden übersprungen — das Built-in gewinnt als Source of Truth. Das eingebaute `catppuccin` / `everforest` wird direkt über Hermes benutzt; das Plugin registriert keinen `omarchy-catppuccin`-/`omarchy-everforest`-Klon (ein CLI-Wechsel dorthin folgt nur dem Hell/Dunkel-Modus der Omarchy-Palette).
+- **Theme-Picker:** Die Omarchy-Themes erscheinen neben den eingebauten Hermes-Themes als `omarchy-<slug>`. Slugs, die mit einem Hermes-Built-in kollidieren (`catppuccin`, `everforest` …), werden übersprungen — das Built-in gewinnt als Source of Truth.
 - **⌘K:** `Apply Omarchy Theme: <Name>`
 - **Settings → Plugins → omarchy-themes:** Kartenansicht mit Farbswatches, Filter (Name/Slug/`dark`/`light`) und *Apply*-Button.
-- **CLI/TUI:** `omarchy theme set nord` → der Desktop wechselt Theme **und** Hell/Dunkel-Modus nach ~0,6–0,8 s; der Hook zieht danach den Skin nach (`hermes skin use nord`, CLI/TUI, ~2,5–3,5 s). Vier Türen speisen einen Apply-Pfad: Omarchys `~/.local/state/omarchy/current/theme.name` (~0,5 s nach Start von `omarchy theme set` geschrieben, das früheste Signal; das Plugin beobachtet sie über die Datei-Watch-Brücke des Desktops), `display.skin` in der lokalen `<HERMES_HOME>/config.yaml` (deckt auch ein manuelles `hermes skin use` ab), das Gateway-Event `skin.changed` (wenn der Desktop mit diesem Rechner verbunden ist; per Microtask erneut angewendet, damit Hermes' eigener Ein-Paletten-Skin nie gemalt wird) sowie `current/theme/colors.toml` selbst — ein Paletten-Edit unter dem *selben* unbekannten Slug malt ebenfalls neu (dieser Watcher bewaffnet sich nach jedem Event neu, weil Omarchy `current/theme` per Rename tauscht und eine einfache Datei-Wache nach einem Tausch verstummen würde). Die erste, zweite und vierte Tür funktionieren bei jedem aktiven Gateway; Wiederholungen desselben Namens innerhalb von 15 s sind No-Ops. Das Plugin merkt sich, was es zuletzt gesehen hat: Hast du das Theme gewechselt, während Hermes geschlossen war, holt der Desktop das beim nächsten Start nach; hat sich nichts geändert, lässt ein Start ein im Desktop gewähltes Theme in Ruhe. Der Omarchy-Toggle `skip-hermes-theme-changes` stoppt jedes automatische Umschalten.
-
-### Theme-Namen
-
-Das Plugin registriert seine Themes als `omarchy-<slug>` (z. B. `omarchy-nord`, Label „Omarchy Nord“), der Hook behält den CLI-Skin-Namen `<slug>` (`hermes skin use nord`). Das Präfix ist Absicht: Hermes übernimmt jeden aktivierten CLI-Skin unter dem nackten Slug als Desktop-Theme (`description: "Hermes skin"`, eine Ein-Paletten-Konvertierung, gecacht in `hermes-desktop-backend-themes-v1`), und `resolveTheme` bevorzugt solche Backend-Themes vor Plugin-Themes gleichen Namens. Ohne Präfix würde ein einmal aktiver Slug diese vereinfachte Konvertierung statt des Hell/Dunkel-Paars des Plugins malen. Bei `skin.changed` wendet das Plugin sein Theme einen Tick nach Hermes' eigener Verarbeitung erneut an, damit das Dual-Paletten-Theme stehen bleibt. Nebeneffekt: Nach einem CLI-Wechsel kann der Picker „Nord“ (Hermes-Skin) und „Omarchy Nord“ (dieses Plugin) auflisten — nimm die Omarchy-Variante.
-
-### Themes außerhalb der Tabelle und Abschalten
-
-Ein Omarchy-Theme, das das Plugin nicht kennt (ein Theme unter `~/.config/omarchy/themes/` oder neuer als das letzte `make generate`), wird trotzdem verfolgt: Das Plugin liest `~/.local/state/omarchy/current/theme/colors.toml` (`colorN`-Namen werden wie im Generator abgebildet: `red` = `color1` … `cyan` = `color6`; den Modus liefert `mode` oder die Hintergrund-Helligkeit) und registriert **ein** austauschbares Theme `omarchy-current` (Label „Omarchy <slug>“). Das nächste unbekannte Theme ersetzt es; ein bekanntes Theme nutzt seinen eingebauten Eintrag. Nach einem Hermes-Neustart wird die Palette neu registriert.
-
-Omarchys eigener Skin `omarchy` (`omarchy-theme-set-hermes`) gilt als „das aktuelle Omarchy-Theme“: Der Desktop zeigt den passenden Dual-Paletten-Eintrag statt der Ein-Paletten-Konvertierung des Skins.
-
-Um jedes automatische Umschalten zu stoppen, legst du den Omarchy-Toggle an (Theme-Picker und ⌘K funktionieren weiter):
-
-```bash
-touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes   # wieder an: Datei löschen
-```
+- **CLI/TUI:** `omarchy theme set nord` → der Desktop wechselt Theme **und** Hell/Dunkel-Modus nach ~0,6–0,8 s; der Hook zieht danach den Skin nach (~2,5–3,5 s). Vier Eingangspfade speisen einen Apply-Pfad: `~/.local/state/omarchy/current/theme.name` (Datei-Watch), `display.skin` in der lokalen `<HERMES_HOME>/config.yaml`, das Gateway-Event `skin.changed` sowie `current/theme/colors.toml` selbst (bewaffnet sich nach jedem Event neu). Wiederholungen desselben Namens innerhalb von 15 s sind No-Ops. Das Plugin merkt sich das zuletzt gesehene Theme, sodass ein verspätetes Nachholen beim Start funktioniert; der Omarchy-Toggle `~/.local/state/omarchy/toggles/skip-hermes-theme-changes` stoppt jedes automatische Umschalten (Picker und ⌘K funktionieren weiter).
+- **Plugin-Themes heißen `omarchy-<slug>`, CLI-Skins `<slug>`:** das Präfix verhindert, dass ein einmal aktiver CLI-Skin seine Ein-Paletten-Konvertierung über das Hell/Dunkel-Paar des Plugins zeichnet (`resolveTheme` bevorzugt Backend-Skin-Themes). Nach einem CLI-Wechsel kann der Picker „Nord" und „Omarchy Nord" auflisten — nimm die Omarchy-Variante.
+- **Unbekannte Themes** (User-installiert oder neuer als `make generate`): Das Plugin liest `~/.local/state/omarchy/current/theme/colors.toml` und registriert **einen** austauschbaren `omarchy-current`-Eintrag (Label „Omarchy <slug>"). Omarchys eigener Skin `omarchy` (`omarchy-theme-set-hermes`) zählt ebenfalls als „aktuelles Omarchy-Theme".
 
 ### Was das Plugin anpasst
 
@@ -111,20 +95,7 @@ landen.
 
 ## 🔄 Themes aktualisieren
 
-Die Paletten sind ins Plugin eingebacken (der Desktop-Renderer hat keinen Dateisystemzugriff). Nach einem Omarchy-Update:
-
-```bash
-make generate          # Paletten dieses Rechners neu einlesen und plugin.js überschreiben (HOST=<ssh-Host> liest per SSH)
-make generate-check    # nur prüfen, ob plugin.js aktuell ist (Exit 1 wenn nicht)
-```
-
-Eigene Themes aus `~/.config/omarchy/themes/` einschließen:
-
-```bash
-python3 scripts/generate-themes.py --include-user
-```
-
-Der Generator ersetzt nur den Block zwischen `// BEGIN GENERATED THEMES` und `// END GENERATED THEMES` und ist deterministisch — kein Diff, wenn sich nichts geändert hat. Themes ohne eigene `colors.toml` (nur `alacritty.toml`, z. B. aus einem Git-Repo installiert) löst der Generator mit Omarchys eigenen Werkzeugen `omarchy-theme-colors-from-alacritty` / `omarchy-theme-color` auf — die eingebackene Palette ist damit exakt die, die Omarchy anwendet; dafür braucht der Host die omarchy-CLI.
+Die Paletten sind ins Plugin eingebacken (der Desktop-Renderer hat keinen Dateisystemzugriff). Nach einem Omarchy-Update `make generate` ausführen (`HOST=<ssh-Host>` liest per SSH) oder `make generate-check` für eine Drift-Prüfung ohne Schreiben. Eigene Themes mit `python3 scripts/generate-themes.py --include-user` einbeziehen. Der Generator ersetzt nur den Block zwischen `// BEGIN GENERATED THEMES` und `// END GENERATED THEMES`, ist deterministisch und löst Themes ohne eigene `colors.toml` (nur `alacritty.toml`) über Omarchys eigene CLI-Werkzeuge `omarchy-theme-colors-from-alacritty` / `omarchy-theme-color` auf.
 
 ---
 
@@ -140,7 +111,26 @@ make lint     # node --check + py_compile + shellcheck
 |---|---|
 | `tests/smoke.mjs` | Plugin lädt in Node und registriert alle Themes, ⌘K-Befehle (jeweils mit `label` + `run`, sonst blendet der Host sie aus) und Settings-Seite. Alle Farben sind gültiges `#rrggbb`, kein Name doppelt, alle Desktop-Namen mit `omarchy-`-Präfix. Erzwingt Luma-Differenz ≥ 0,5 zwischen `colors` und `darkColors` (deckungsgleich mit Renderer-Threshold ≥ 0,5), Vollständigkeit von 25 UI-Schlüsseln pro Palette und Markentreue (identischer `accent`/`primary`/`ring`/`midground`/`composerRing` in beiden Paletten). Deckt außerdem den CLI→Desktop-Sync ab: Modus pro Profil, eingebaute und fremde Skins, erneutes Anwenden nach Hermes' eigener Skin-Verarbeitung sowie die `display.skin`-Überwachung (Baseline vs. Nachholen beim Start, Anwenden bei Änderung, Dispose). |
 | `tests/hook.sh` | Skin-YAML (22 Keys, Kleinschreibung, 3-stellige Hex-Expansion), Skip bei unbekanntem Slug, Exit 0 wenn `hermes` fehlschlägt, Fallback auf die von Omarchy erzeugte colors.toml bei Themes ohne eigene, Modus aus der Hintergrund-Helligkeit. |
+| `tests/generate_themes_test.py` | Stdlib-`unittest` für `scripts/generate-themes.py`: `norm_hex` (3-/6-stellig, Kleinschreibung, ungültig), `parse_palette` (kaputtes TOML, fehlendes `background`, fehlende ANSI, 3- und 6-stellige Hex-Normalisierung, `mode`-Behandlung inkl. Default bei Abwesenheit, zusätzliche Keys ignoriert), `read_local` (Slug-Erkennung, fehlendes Verzeichnis, Sortierung), `parse_sections` (einfach, mehrfach, leer), `render` (Marker-Vertrag) und `main()`-Exit-Codes (0/1/2) mit `TemporaryDirectory`-Fixtures — inklusive User-Theme-Override bei Slug-Kollision (`--include-user`). |
 | `tests/theme-switch-smoke.sh` | Live: echtes `omarchy theme set` durch die Hook-Kette per SSH (`make theme-smoke`). Deckt nur die CLI/TUI-Skin-Pipeline ab, nicht das Desktop-Plugin; nicht Teil von `make check`. |
+
+### Live-Theme-Smoke
+
+`tests/theme-switch-smoke.sh` läuft `omarchy theme set` gegen einen echten Omarchy-Host — Stock-Themes, User-Themes, die echte Hook-Kette. Er ist **nicht** Teil von `make check`, weil er User-State mutiert (aktiver Skin, `~/.hermes/skins/*.yaml`).
+
+Lokal:
+
+```bash
+make theme-smoke HOST=omarchy    # omarchy = Host in deiner ~/.ssh/config
+```
+
+In CI: `.github/workflows/live-theme-smoke.yml` ruft dasselbe Target auf dem omarchy-Self-hosted-GitHub-Actions-Runner (`runs-on: [self-hosted, omarchy, omarchy-themes]`) auf. Trigger:
+
+- `workflow_dispatch` — manuell, `gh workflow run live-theme-smoke.yml`
+- `schedule: '0 4 * * 0'` — Sonntag 04:00 UTC, fängt Omarchy-seitige Drift
+- `push` auf `main`, wenn `tests/theme-switch-smoke.sh`, `hooks/hermes-skin-sync.sh` oder die Workflow-Datei selbst geändert wird
+
+Der Runner ist eine **dedizierte, Label-gepinnte** Installation auf der omarchy-Workstation (siehe `SECURITY.md`). Er läuft nicht 24/7: vor dem Trigger starten, danach stoppen. Der Job hat keine Secrets — nur `contents: read`.
 
 Gleiches Ergebnis ohne `make`:
 
@@ -150,6 +140,7 @@ python3 -m py_compile scripts/generate-themes.py
 shellcheck hooks/hermes-skin-sync.sh tests/hook.sh
 node tests/smoke.mjs
 sh tests/hook.sh
+python3 -m unittest tests/generate_themes_test.py
 ```
 
 ---
@@ -219,12 +210,6 @@ Der Hook schreibt 22 Keys; alles Weitere erbt der Skin-Loader vom `default`-Skin
 | `cyan` | `response_border`, `session_label` |
 
 Der Hook ist reines POSIX-`sh` ohne Python. Ein User-Theme hat Vorrang vor dem gleichnamigen System-Theme. Er beendet sich immer mit Exit 0, damit Omarchys Hook-Kette nie abbricht. Für Themes ohne eigene `colors.toml` fällt der Hook auf die `colors.toml` zurück, die Omarchy für das gerade angewendete Theme erzeugt hat (`~/.local/state/omarchy/current/theme/`, nur solange `theme.name` passt), inklusive der `colorN`-Namen.
-
----
-
-## 🤖 Entstehung
-
-Dieses Projekt wurde von der **Hermes-Bot-Flotte** entworfen und gebaut — Kanban-gesteuert mit `coder`, `devops` und `cicd`. Hook, Desktop-Plugin und Generator entstanden in getrennten Tasks mit unabhängiger Verifikation; `tests/hook.sh` ist der Audit-Trail des Hook-Tasks.
 
 ---
 

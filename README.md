@@ -24,10 +24,9 @@
 | **Theme sync hook** | `hooks/hermes-skin-sync.sh` | Runs on `omarchy theme set <slug>`, writes `~/.hermes/skins/<slug>.yaml` and activates the Hermes skin. CLI and TUI follow the desktop theme automatically. |
 | **Generator** | `scripts/generate-themes.py` | Reads `colors.toml` files from the host and rewrites the theme table in the plugin — after Omarchy updates or for custom themes. |
 
-
 ---
 
-## ⚡ Quick start
+## 📦 Install & use
 
 **Install via Hermes:**
 
@@ -35,41 +34,25 @@
 hermes plugins install https://github.com/cabroe/omarchy-themes
 ```
 
-Then: **⌘K → "Reload desktop plugins"**. A plugin installed this way ships opt-in — Hermes treats the desktop half of a unified package (marker `.hermes-package.json`) as `defaultEnabled: false`, regardless of the plugin's own default. Enable it once: Settings → Capabilities → Plugins → omarchy-themes → Toggle (the same toggle disables it).
+Then **⌘K → "Reload desktop plugins"**. The plugin ships opt-in — Hermes treats the desktop half of a unified `.hermes-package.json` as `defaultEnabled: false`, regardless of the plugin's own default. Enable once: Settings → Capabilities → Plugins → omarchy-themes → Toggle (the same toggle disables it).
 
 For the CLI/TUI hook, run `make install-hook` to install `hooks/hermes-skin-sync.sh` to `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh` (idempotent — re-running updates the file in place). `make uninstall` removes it.
 
-**Local requirements (for development):** Node ≥ 22, Python ≥ 3.11, `shellcheck`
+**Local requirements (development):** Node ≥ 22, Python ≥ 3.11, `shellcheck`
 
 ```bash
 make check            # lint + tests locally
 make install-githooks # activate the pre-push generate-check hook (optional)
 ```
 
----
+### What you get
 
-## 🖥 Usage
-
-- **Theme picker:** Omarchy themes appear alongside the built-in Hermes themes as `omarchy-<slug>`. Slugs that collide with a Hermes built-in (`catppuccin`, `everforest` …) are skipped — the built-in wins as the Source of Truth. Use the built-in `catppuccin` / `everforest` directly via Hermes; the plugin registers no `omarchy-catppuccin` / `omarchy-everforest` clone (a CLI switch to them only follows the Omarchy palette's light/dark mode).
+- **Theme picker:** Omarchy themes appear alongside the built-in Hermes themes as `omarchy-<slug>`. Slugs that collide with a Hermes built-in (`catppuccin`, `everforest` …) are skipped — the built-in wins as the Source of Truth.
 - **⌘K:** `Apply Omarchy Theme: <name>`
 - **Settings → Plugins → omarchy-themes:** Card view with colour swatches, filter (name/slug/`dark`/`light`) and an *Apply* button.
-- **CLI/TUI:** `omarchy theme set nord` → the desktop switches theme **and** light/dark mode after ~0.6–0.8 s; the hook follows with the skin (`hermes skin use nord`, CLI/TUI, ~2.5–3.5 s). Four doors feed one apply path: Omarchy's `~/.local/state/omarchy/current/theme.name` (written ~0.5 s into `omarchy theme set`, the earliest signal; the plugin watches it through the desktop's file-watch bridge), `display.skin` in the local `<HERMES_HOME>/config.yaml` (also covers a manual `hermes skin use`), the gateway event `skin.changed` (when the desktop is connected to this machine; re-applied in a microtask so Hermes' own single-palette skin is never painted) and `current/theme/colors.toml` itself — a palette edit under the *same* unknown slug repaints too (that watcher re-arms on every event, because Omarchy swaps `current/theme` by rename and a plain file watch goes silent after one swap). The first, second and fourth work whichever gateway is the active connection; repeats of the same name within 15 s are no-ops. The plugin remembers what it last saw: if you switched themes while Hermes was closed, the desktop catches up at the next launch; if nothing changed, a launch leaves a theme you picked in the desktop alone. The Omarchy toggle `skip-hermes-theme-changes` stops all automatic switching.
-
-### Theme names
-
-The plugin registers its themes under `omarchy-<slug>` (e.g. `omarchy-nord`, label "Omarchy Nord"), while the hook keeps the CLI skin name `<slug>` (`hermes skin use nord`). The prefix is deliberate: Hermes adopts every activated CLI skin as a desktop theme under the bare slug (`description: "Hermes skin"`, a single-palette conversion cached in `hermes-desktop-backend-themes-v1`), and `resolveTheme` prefers those backend themes over plugin themes of the same name. Without the prefix, a slug that had been active once would paint that simplified conversion instead of the plugin's light/dark palette pair. On `skin.changed` the plugin re-applies its theme one tick after Hermes' own handling, so the dual-palette theme is what stays painted. Side effect: after a CLI switch the picker may list both "Nord" (Hermes' skin) and "Omarchy Nord" (this plugin) — pick the Omarchy one.
-
-### Themes not in the table, and switching it off
-
-An Omarchy theme the plugin does not know (a theme under `~/.config/omarchy/themes/`, or one newer than the last `make generate`) still follows: the plugin reads `~/.local/state/omarchy/current/theme/colors.toml` (`colorN` names are mapped like the generator does: `red` = `color1` … `cyan` = `color6`; the mode comes from `mode` or the background's brightness) and registers **one** replaceable theme, `omarchy-current` (label "Omarchy <slug>"). The next unknown theme replaces it; a known theme uses its baked entry. After a Hermes restart the palette is registered again.
-
-Omarchy's own `omarchy` skin (`omarchy-theme-set-hermes`) is treated as "the current Omarchy theme": the desktop shows the matching dual-palette entry instead of the skin's single-palette conversion.
-
-To stop all automatic switching, create the Omarchy toggle (the theme picker and ⌘K keep working):
-
-```bash
-touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes   # off again: rm the file
-```
+- **CLI/TUI:** `omarchy theme set nord` → the desktop switches theme **and** light/dark mode after ~0.6–0.8 s; the hook follows with the skin (~2.5–3.5 s). Four input paths feed one apply path: `~/.local/state/omarchy/current/theme.name` (file-watch), `display.skin` in `<HERMES_HOME>/config.yaml`, the gateway event `skin.changed`, and `current/theme/colors.toml` itself (re-arms on every event). Repeats of the same name within 15 s are no-ops. The plugin remembers the last-seen theme so a delayed catch-up works on launch; Omarchy's toggle `~/.local/state/omarchy/toggles/skip-hermes-theme-changes` stops all automatic switching (picker and ⌘K keep working).
+- **Plugin themes ship as `omarchy-<slug>`, CLI skins as `<slug>`:** the prefix stops a once-active CLI skin from painting its single-palette conversion (`resolveTheme` prefers backend skin themes). After a CLI switch the picker may list both "Nord" and "Omarchy Nord" — pick the Omarchy one.
+- **Unknown themes** (user-installed or newer than `make generate`): the plugin reads `~/.local/state/omarchy/current/theme/colors.toml` and registers one replaceable `omarchy-current` entry (label "Omarchy <slug>"). Omarchy's own `omarchy` skin (`omarchy-theme-set-hermes`) is treated as the current Omarchy theme too.
 
 ### What the plugin customises
 
@@ -110,20 +93,7 @@ one search away from their definition.
 
 ## 🔄 Updating themes
 
-Palettes are baked into the plugin (the desktop renderer has no filesystem access). After an Omarchy update:
-
-```bash
-make generate          # re-read this machine's Omarchy palettes and rewrite plugin.js (HOST=<ssh host> reads remotely)
-make generate-check    # only check whether plugin.js is up to date (exit 1 if not)
-```
-
-To include custom themes from `~/.config/omarchy/themes/`:
-
-```bash
-python3 scripts/generate-themes.py --include-user
-```
-
-The generator only replaces the block between `// BEGIN GENERATED THEMES` and `// END GENERATED THEMES` and is deterministic — no diff if nothing changed. Themes that ship no `colors.toml` (only an `alacritty.toml`, e.g. installed from a git repo) are resolved with Omarchy's own `omarchy-theme-colors-from-alacritty` / `omarchy-theme-color`, so the baked palette is exactly what Omarchy applies; this needs the omarchy CLI on the host.
+Palettes are baked into the plugin (the desktop renderer has no filesystem access). After an Omarchy update, run `make generate` (`HOST=<ssh host>` reads remotely) or `make generate-check` to detect drift without rewriting. Include user themes with `python3 scripts/generate-themes.py --include-user`. The generator only replaces the block between `// BEGIN GENERATED THEMES` and `// END GENERATED THEMES`, is deterministic, and resolves themes without a `colors.toml` (only `alacritty.toml`) via Omarchy's own `omarchy-theme-colors-from-alacritty` / `omarchy-theme-color` CLI tools.
 
 ---
 
@@ -139,7 +109,26 @@ make lint     # node --check + py_compile + shellcheck
 |---|---|
 | `tests/smoke.mjs` | Plugin loads in Node and registers all themes, ⌘K commands (each with `label` + `run`, otherwise the host hides them), and the settings page. All colours are valid `#rrggbb`, no duplicate names, all desktop names `omarchy-` prefixed. Enforces luma difference ≥ 0.5 between `colors` and `darkColors` (aligned with renderer threshold), completeness of 25 UI keys per palette, and brand consistency (identical `accent`/`primary`/`ring`/`midground`/`composerRing` in both palettes). Also covers the CLI→desktop sync: mode persistence per profile, built-in/foreign skins, re-apply after the host's own skin handling, and the `display.skin` config watch (baseline vs. catch-up on launch, apply on change, dispose). |
 | `tests/hook.sh` | Skin YAML (22 keys, lowercase, 3-digit hex expansion), skip on unknown slug, exit 0 when `hermes` fails, fallback to the colors.toml Omarchy generated for themes without their own, mode from background luma. |
+| `tests/generate_themes_test.py` | Stdlib `unittest` for `scripts/generate-themes.py`: `norm_hex` (3-/6-digit, lowercase, invalid), `parse_palette` (corrupt TOML, missing `background`, missing ANSI, 3- and 6-digit hex normalisation, `mode` handling including default-when-absent, extra keys ignored), `read_local` (slug discovery, missing dir, sort order), `parse_sections` (single, multiple, empty), `render` (marker contract), and `main()` exit codes (0/1/2) with `TemporaryDirectory` fixtures — including user-theme override on slug collision (`--include-user`). |
 | `tests/theme-switch-smoke.sh` | Live: real `omarchy theme set` through the hook chain over SSH (`make theme-smoke`). Covers the CLI/TUI skin pipeline only, not the desktop plugin; not part of `make check`. |
+
+### Live theme smoke
+
+`tests/theme-switch-smoke.sh` runs `omarchy theme set` against a real Omarchy host — system themes, user-installed themes, the actual hook chain. It is **not** part of `make check` because it mutates user state (the active skin, `~/.hermes/skins/*.yaml`).
+
+Locally:
+
+```bash
+make theme-smoke HOST=omarchy    # omarchy = a host in your ~/.ssh/config
+```
+
+In CI: `.github/workflows/live-theme-smoke.yml` runs the same target on the omarchy self-hosted GitHub Actions runner (`runs-on: [self-hosted, omarchy, omarchy-themes]`). Triggers:
+
+- `workflow_dispatch` — manual, `gh workflow run live-theme-smoke.yml`
+- `schedule: '0 4 * * 0'` — Sunday 04:00 UTC, catches Omarchy-side drift
+- `push` to `main` when `tests/theme-switch-smoke.sh`, `hooks/hermes-skin-sync.sh`, or the workflow file itself changes
+
+The runner is a **dedicated, label-pinned** install on the omarchy workstation (see `SECURITY.md`). It is not 24/7: start it before triggering, stop it afterwards. The job has no secrets — only `contents: read`.
 
 Without `make`:
 
@@ -149,6 +138,7 @@ python3 -m py_compile scripts/generate-themes.py
 shellcheck hooks/hermes-skin-sync.sh tests/hook.sh
 node tests/smoke.mjs
 sh tests/hook.sh
+python3 -m unittest tests/generate_themes_test.py
 ```
 
 ---
@@ -218,12 +208,6 @@ The hook writes 22 keys; everything else is inherited by the skin loader from th
 | `cyan` | `response_border`, `session_label` |
 
 The hook is pure POSIX `sh` with no Python dependency. A user theme takes precedence over a system theme with the same name. It always exits with code 0 so it never breaks Omarchy's hook chain. For themes without a `colors.toml` of their own the hook falls back to the `colors.toml` Omarchy generated for the theme it just applied (`~/.local/state/omarchy/current/theme/`, only while `theme.name` matches), including the `colorN` names.
-
----
-
-## 🤖 How it was built
-
-This project was designed and built by the **Hermes bot fleet** — kanban-driven with `coder`, `devops`, and `cicd`. The hook, desktop plugin, and generator were developed in separate tasks with independent verification; `tests/hook.sh` is the audit trail of the hook task.
 
 ---
 
