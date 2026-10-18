@@ -14,9 +14,10 @@
 
 ## Reporting a vulnerability
 
-Please do **not** open a public issue. Use GitHub's private vulnerability
-reporting (Security tab → "Report a vulnerability"), or mail the maintainer
-(address on the GitHub profile). You will get an answer within a week.
+Please do **not** open a public issue. Mail the maintainer (address on the
+GitHub profile). Once the repository is public, GitHub's private vulnerability
+reporting (Security tab → "Report a vulnerability") will be enabled as well.
+You will get an answer within a week.
 
 ## Supported versions
 
