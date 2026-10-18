@@ -75,9 +75,9 @@ The hook checks the toggle at startup and exits 0 without writing or activating 
 
 ## Themes
 
-22 system themes ship baked into the plugin (17 dark, 5 light). Each gets a full dual-palette entry — both light and dark variants, both terminal palettes, typography — so flipping modes recolours the entire UI without loading anything from disk.
+The plugin bridges Omarchy's palette catalogue into Hermes Desktop: it recognises every Omarchy theme and makes it selectable from the theme picker and ⌘K, and switches the active Hermes Desktop design automatically whenever you change the Omarchy theme — `omarchy theme set nord` flips both palettes and the light/dark mode in under a second.
 
-**Themes missing from the baked table** (user-installed or added after the last `make generate`) are read from `~/.local/state/omarchy/current/theme/colors.toml` and registered as `omarchy-current`. The picker shows them; the auto-sync follows them.
+Omarchy themes the plugin does **not** already know (user overlays, themes added after the last `make generate`) are read live from `~/.local/state/omarchy/current/theme/colors.toml` and shown as the replaceable entry `omarchy-current`. The picker shows it; the auto-sync follows it.
 
 Built-in Hermes themes (`catppuccin`, `everforest`, `solarized`, …) are never overridden. `omarchy theme set catppuccin` paints Hermes' own built-in and the plugin follows its light/dark mode.
 

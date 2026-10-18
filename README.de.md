@@ -28,7 +28,7 @@
 
 ## 🧩 Komponenten
 
-- **Desktop-Plugin** (`desktop/plugin.js`) — Registriert die 22 System-Themes aus der Baked-Table (minus Hermes-Built-in-Kollisionen wie `catppuccin` / `everforest`) im Theme-Picker, als ⌘K-Befehle und auf einer Settings-Seite. User-Themes werden zusätzlich live aus `current/theme/colors.toml` als `omarchy-current` registriert.
+- **Desktop-Plugin** (`desktop/plugin.js`) — Bridge zwischen Omarchy-Themes und Hermes Desktop: erkennt jedes Omarchy-Theme, macht es im Theme-Picker, in ⌘K und auf der Settings-Seite verfügbar, und schaltet das aktive Hermes-Desktop-Design automatisch um, sobald das Omarchy-Theme wechselt. User-Themes, die nicht in der Baked-Table stehen, werden zusätzlich live aus `current/theme/colors.toml` als `omarchy-current` registriert.
 - **Theme-Sync-Hook** (`hooks/hermes-skin-sync.sh`) — Läuft bei `omarchy theme set <slug>`, prüft den `skip-hermes-theme-changes`-Toggle (Exit 0 ohne Side-Effects wenn aktiv), schreibt `~/.hermes/skins/<slug>.yaml` und aktiviert den Hermes-Skin.
 - **Generator** (`scripts/generate-themes.py`) — Liest `colors.toml`-Dateien und schreibt die Theme-Tabelle im Plugin neu nach Omarchy-Updates. Default = System-Themes; `--include-user` backt zusätzlich User-Themes.
 
@@ -43,7 +43,7 @@
 **Entwicklung:** Node ≥ 22, Python ≥ 3.11, `shellcheck`. `make check` = Lint + Tests; `make install-githooks` aktiviert Pre-push-`generate-check`-Guard (blockt den Push bei Drift — kein Auto-Commit mehr).
 
 **Was du bekommst:**
-- 22 System-Themes (17 dark, 5 light) als `omarchy-<slug>` im Picker, ⌘K (`Apply Omarchy Theme: <Name>`) und Settings-Kartenansicht mit Swatches/Filter/*Apply*. `catppuccin` und `everforest` kollidieren mit Hermes-Built-ins und werden im Picker übersprungen (Hermes ist Source of Truth).
+- Jedes Omarchy-Theme erscheint als `omarchy-<slug>` im Picker, in ⌘K (`Apply Omarchy Theme: <Name>`) und in der Settings-Kartenansicht mit Swatches/Filter/*Apply*. `catppuccin` und `everforest` kollidieren mit Hermes-Built-ins und werden im Picker übersprungen (Hermes ist Source of Truth).
 - `omarchy theme set nord` wechselt Desktop-Theme **und** Hell/Dunkel-Modus; Hook synchronisiert CLI/TUI-Skin (~3 s Verzögerung, 15-s-No-Op-Fenster).
 - `~/.local/state/omarchy/toggles/skip-hermes-theme-changes` stoppt Auto-Switching vollständig: Hook prüft den Toggle, schreibt keinen Skin, beendet mit Exit 0; Plugin stellt die vor dem Toggle gezeigte Palette wieder her. Picker und ⌘K funktionieren weiter (sie sind nutzer-initiiert und umgehen den Toggle).
 - Jedes Theme liefert **beide** Paletten + **beide** Terminal-Paletten + Typography — Light/Dark-Wechsel färbt die ganze UI neu. Beide Paletten teilen Marken-`accent`/`primary`/`ring`; Gegenpalette wird auto-synthetisiert (Rec.709-Luma ≥ 0,5-Kontrast).
