@@ -174,16 +174,17 @@ function buildTheme(slug, c, taken) {
 
   let lighterBg = c.lighter_background || bg
   let darkBg    = c.dark_background    || bg
-  // Cards and popovers painted in the page colour are invisible (Omarchy
-  // derives lighter_background == background when a theme gives no shade:
-  // aetheria, ayaka, cpunk, last-horizon, solitude). Lift them off the page,
-  // toward the foreground (dark) or black (light) like the stock palettes. If
-  // the sidebar/border shade is missing as well, fan that out too.
+  // Surfaces painted in the page colour are invisible. Omarchy derives
+  // lighter_background == background when a theme gives no shade (aetheria,
+  // ayaka, cpunk, last-horizon, solitude), and some themes set dark_background
+  // == background (hermarchy, omacarchy), which flattens sidebar and borders.
+  // Lift them off the page, toward the foreground (dark) or black (light) like
+  // the stock palettes do. A palette with neither shade gets a stronger fan-out.
   const light = modeOf(c) === 'light'
   const pole  = light ? '#000000' : fg
   const fullyFlat = lighterBg === bg && darkBg === bg
   if (lighterBg === bg) lighterBg = mixHex(bg, pole, light ? 0.04 : 0.08)
-  if (fullyFlat)        darkBg    = mixHex(bg, pole, light ? 0.12 : 0.14)
+  if (darkBg === bg)    darkBg    = mixHex(bg, pole, fullyFlat ? (light ? 0.12 : 0.14) : 0.08)
   const darkFg    = c.dark_foreground    || fg
   const mode      = modeOf(c)
   const name      = toName(slug, taken)
