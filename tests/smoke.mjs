@@ -32,7 +32,13 @@ const palette = contributions.filter(c => c.area === 'palette')
 const HEX = /^#[0-9a-f]{6}$/
 
 assert.ok(themes.length >= 1, 'no themes registered')
-assert.equal(palette.length, Math.min(themes.length, 30))
+// One ⌘K row per theme; the host lists a row only with `label` + `run`
+// (apps/desktop/src/app/command-palette/contrib.ts usePaletteContributions).
+assert.equal(palette.length, themes.length)
+for (const { data: row } of palette) {
+  assert.ok(row.label, `${row.id}: palette row without label`)
+  assert.equal(typeof row.run, 'function', `${row.id}: palette row without run() is hidden by the host`)
+}
 assert.equal(settingsPages.length, 1)
 assert.equal(disposers.length, 1)
 
@@ -70,6 +76,107 @@ assert.ok(!names.has('catppuccin'), 'catppuccin should be skipped (Hermes is Sou
 // Plugin subscribes to gateway skin.changed for CLI→Desktop sync.
 const skinListener = eventListeners.find(e => e.type === 'skin.changed')
 assert.ok(skinListener, 'plugin must subscribe to skin.changed')
+
+// ---------------------------------------------------------------------------
+// Mode sync from outside React (⌘K row + skin.changed). Mirrors the host's
+// modePref.assign: only the live profile's slot + the global slot change, and
+// the ThemeProvider is poked via a `storage` event on MODE_KEY.
+// ---------------------------------------------------------------------------
+const { requested } = await import('@hermes/plugin-sdk')
+const store = new Map()
+const storageEvents = []
+globalThis.StorageEvent ??= class StorageEvent { constructor(type, init) { Object.assign(this, init, { type }) } }
+globalThis.window = {
+  localStorage: { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)) },
+  dispatchEvent: e => storageEvents.push(e),
+}
+const MODE_KEY = 'hermes-desktop-mode-v1'
+const PROFILE_MODES_KEY = 'hermes-desktop-profile-modes-v1'
+const LAST_PROFILE_KEY = 'hermes-desktop-active-profile-v1'
+const runRow = slug => palette.find(p => p.data.id === `omarchy-themes.apply.${slug}`).data.run()
+const skinChanged = name => skinListener.listener({ type: 'skin.changed', payload: { name } })
+
+// Named live profile: its own slot + global change, other profiles keep theirs.
+store.set(LAST_PROFILE_KEY, 'work')
+store.set(PROFILE_MODES_KEY, JSON.stringify({ home: 'light', work: 'light' }))
+store.set(MODE_KEY, 'light')
+runRow('nord')
+assert.deepEqual(JSON.parse(store.get(PROFILE_MODES_KEY)), { home: 'light', work: 'dark' })
+assert.equal(store.get(MODE_KEY), 'dark')
+assert.equal(storageEvents.at(-1)?.key, MODE_KEY, 'ThemeProvider must be poked via a storage event')
+assert.equal(requested.at(-1), 'nord')
+
+// Default profile owns the global slot only; the per-profile record is left alone.
+store.delete(LAST_PROFILE_KEY)
+skinChanged('lupine')
+assert.equal(store.get(MODE_KEY), 'light')
+assert.deepEqual(JSON.parse(store.get(PROFILE_MODES_KEY)), { home: 'light', work: 'dark' })
+assert.equal(requested.at(-1), 'lupine')
+
+// Built-in collision: Hermes' own catppuccin, in Omarchy's catppuccin mode (dark).
+skinChanged('catppuccin')
+assert.equal(store.get(MODE_KEY), 'dark')
+assert.equal(requested.at(-1), 'catppuccin')
+const requestedBefore = requested.length
+
+// Foreign skins (non-Omarchy built-in, unknown name) leave the mode untouched.
+store.set(MODE_KEY, 'system')
+const eventsBefore = storageEvents.length
+skinChanged('github')
+skinChanged('no-such-skin')
+assert.equal(store.get(MODE_KEY), 'system')
+assert.equal(storageEvents.length, eventsBefore)
+assert.equal(requested.length, requestedBefore)
+
+// ---------------------------------------------------------------------------
+// Local config watch: `display.skin` in <HERMES_HOME>/config.yaml drives the
+// same apply path — independent of which gateway the desktop is connected to.
+// ---------------------------------------------------------------------------
+const files = new Map()
+const changeListeners = new Set()
+const watches = new Set()
+let nextWatch = 0
+window.hermesDesktop = {
+  desktopPluginsRoot: async () => '/home/u/.hermes/desktop-plugins',
+  readFileText: async p => (files.has(p) ? { text: files.get(p) } : { error: 'ENOENT' }),
+  watchPreviewFile: async p => { const id = `w${++nextWatch}`; watches.add(id); return { id, path: p } },
+  stopPreviewFileWatch: async id => watches.delete(id),
+  onPreviewFileChanged: fn => { changeListeners.add(fn); return () => changeListeners.delete(fn) },
+}
+const CONFIG = '/home/u/.hermes/config.yaml'
+const config = skin => `model:\n  skin: not-this\ndisplay:\n  bell_on_complete: false\n  nested:\n    skin: nor-this\n  skin: "${skin}"  # active\nother: 1\n`
+const tick = () => new Promise(r => setTimeout(r, 0))
+const fileChanged = async id => { for (const fn of changeListeners) fn({ id, path: CONFIG }); await tick(); await tick() }
+files.set(CONFIG, config('nord'))
+const localDisposers = []
+plugin.register({ ...ctx, register: () => () => {}, registerSettingsPage: () => {}, onDispose: fn => localDisposers.push(fn) })
+await tick(); await tick()
+const watchId = [...watches][0]
+assert.ok(watchId, 'plugin must watch the local config.yaml')
+
+// Launch: the current skin is only the baseline, nothing is applied.
+const beforeLocal = requested.length
+store.set(MODE_KEY, 'light')
+await fileChanged(watchId)
+assert.equal(requested.length, beforeLocal, 'unchanged display.skin must not re-apply')
+
+// `omarchy theme set lupine` → hook → display.skin: lupine → light + lupine.
+files.set(CONFIG, config('lupine'))
+store.set(MODE_KEY, 'dark')
+await fileChanged(watchId)
+assert.equal(requested.at(-1), 'lupine')
+assert.equal(store.get(MODE_KEY), 'light')
+
+// Other preview watches' events are ignored.
+files.set(CONFIG, config('nord'))
+await fileChanged('someone-else')
+assert.equal(requested.at(-1), 'lupine')
+
+// Dispose releases the watch.
+localDisposers.forEach(d => d())
+assert.equal(watches.size, 0, 'dispose must stop the file watch')
+assert.equal(changeListeners.size, 0)
+delete globalThis.window
 
 // ---------------------------------------------------------------------------
 // Hard assertions — these are *enforced* on every CI run.

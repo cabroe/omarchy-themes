@@ -7,12 +7,13 @@
  * To update after an Omarchy upgrade, regenerate from a host with Omarchy:
  *   scripts/generate-themes.py --remote <host>
  *
- * CLI→Desktop sync: subscribes to the gateway `skin.changed` event. The
- * Omarchy hook writes ~/.hermes/skins/<slug>.yaml and runs `hermes skin use`,
- * which emits `skin.changed` with the skin name — this plugin maps the name
- * back to a registered theme and calls `requestTheme()`. Hermes Desktop is
- * Source of Truth: built-in collisions are skipped on registration but still
- * applied via the Built-in name when `omarchy theme set catppuccin` runs.
+ * CLI→Desktop sync: the Omarchy hook writes ~/.hermes/skins/<slug>.yaml and
+ * runs `hermes skin use`, which sets `display.skin` in the local config and
+ * emits the gateway `skin.changed` event. The plugin listens to both (the
+ * local config watch also covers a remote active gateway), maps the name back
+ * to a registered theme and switches the UI into that palette's mode.
+ * Hermes Desktop is Source of Truth: built-in collisions are skipped on
+ * registration; `omarchy theme set catppuccin` paints Hermes' own built-in.
  */
 import {
   THEMES_AREA, PALETTE_AREA,
@@ -30,11 +31,10 @@ import { jsx, jsxs } from 'react/jsx-runtime'
 // ---------------------------------------------------------------------------
 // Built-in Hermes theme names (Source of Truth — must not be overridden by
 // an Omarchy palette of the same name).
-//   - At registration (THEMES.flatMap below, ~L274): slugs in this set are
-//     SKIPPED, so they never reach toName() and never receive a `-omarchy`
-//     suffix. The built-in name stays available for the CLI/skin flow.
-//   - In applyThemeFor (~L433): matched by name to apply the built-in
-//     directly when the CLI picks one of these slugs.
+//   - At registration (THEMES below): slugs in this set are SKIPPED, so they
+//     never reach toName(). The built-in name stays available for the CLI flow.
+//   - In the `skin.changed` listener: Hermes paints its own built-in; the
+//     plugin only follows the mode of the Omarchy palette of that name.
 // ---------------------------------------------------------------------------
 const BUILTIN_NAMES = new Set([
   'github', 'nous', 'nous-alt', 'catppuccin', 'everforest', 'solarized',
@@ -61,11 +61,13 @@ const ACCENT_TEXT_LUMA   = 0.55   // luma(accent) below → use #ffffff text on 
 
 function onAccent(accent) { return luma(accent) < ACCENT_TEXT_LUMA ? '#ffffff' : '#000000' }
 
+function modeOf(c) { return (c.mode || 'dark').toLowerCase() === 'light' ? 'light' : 'dark' }
+
 function slugToLabel(slug) {
   return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
-// Built-in slugs are filtered out upstream (THEMES.flatMap, ~L274 — Source of
+// Built-in slugs are filtered out upstream (THEMES.flatMap below — Source of
 // Truth), so `slug` here is always a unique Omarchy palette and never collides
 // with a built-in name. No `-omarchy` suffix branch is needed.
 function toName(slug, taken) {
@@ -171,7 +173,7 @@ function buildTheme(slug, c, taken) {
   const lighterBg = c.lighter_background || bg
   const darkBg    = c.dark_background    || bg
   const darkFg    = c.dark_foreground    || fg
-  const mode      = (c.mode || 'dark').toLowerCase() === 'light' ? 'light' : 'dark'
+  const mode      = modeOf(c)
   const name      = toName(slug, taken)
   const label     = slugToLabel(slug)
   const acFg      = onAccent(ac)
@@ -285,6 +287,10 @@ const RAW = [
 const taken = new Set()
 // Skip Hermes built-in collisions — they are Source of Truth and must not be
 // replaced by Omarchy themes. Only unique Omarchy themes get registered.
+// Known limitation: Hermes adopts every activated CLI skin as a backend theme
+// (themes/backend-sync.ts) and resolveTheme() prefers backend over contributed
+// themes of the same name — once the hook has activated `nord`, the desktop
+// paints the skin's single-palette conversion instead of this entry.
 const THEMES = RAW.flatMap(({ slug, c }) => {
   // Skip Hermes built-in collisions (Source of Truth)
   if (BUILTIN_NAMES.has(slug)) return []
@@ -293,6 +299,135 @@ const THEMES = RAW.flatMap(({ slug, c }) => {
   taken.add(t.theme.name)
   return [t]
 })
+
+// Native mode of every Omarchy palette, including the skipped built-in
+// collisions — the CLI sync still needs to know that Omarchy's `catppuccin`
+// is dark when Hermes paints its own built-in of that name.
+const RAW_MODE = new Map(RAW.map(({ slug, c }) => [slug, modeOf(c)]))
+
+// ---------------------------------------------------------------------------
+// Theme apply from outside React (⌘K row, gateway event, local config watch)
+// ---------------------------------------------------------------------------
+// The SDK exports `requestTheme` but not `requestMode` (defined in
+// apps/desktop/src/themes/request.ts, not re-exported from sdk/index.ts). Until
+// it is, persist the mode exactly like the ThemeProvider's
+// `modePref.assign(liveProfile, mode)` does (themes/context.tsx, profilePref):
+// the "default" profile owns the global slot; a named profile gets its own
+// record entry and mirrors into the global slot. Other profiles stay untouched.
+// Then poke the provider's `storage` listener — it re-resolves the mode from
+// storage and repaints through its own applyTheme, so React state and the
+// painted DOM never disagree.
+const MODE_KEY          = 'hermes-desktop-mode-v1'
+const PROFILE_MODES_KEY = 'hermes-desktop-profile-modes-v1'
+const LAST_PROFILE_KEY  = 'hermes-desktop-active-profile-v1'
+
+function requestMode(mode) {
+  if (typeof window === 'undefined') return
+  try {
+    const ls = window.localStorage
+    const profile = (ls.getItem(LAST_PROFILE_KEY) || '').trim() || 'default'
+    if (profile !== 'default') {
+      let record = {}
+      try {
+        const parsed = JSON.parse(ls.getItem(PROFILE_MODES_KEY) || '{}')
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) record = parsed
+      } catch (_) { /* corrupt record — start fresh like the host does */ }
+      ls.setItem(PROFILE_MODES_KEY, JSON.stringify({ ...record, [profile]: mode }))
+    }
+    ls.setItem(MODE_KEY, mode)
+    window.dispatchEvent(new StorageEvent('storage', { key: MODE_KEY, newValue: mode, storageArea: ls }))
+  } catch (_) { /* storage unavailable — the mode stays as it is */ }
+}
+
+function applyEntry(entry) {
+  requestMode(entry.mode)
+  requestTheme(entry.theme.name)
+}
+
+// A skin name from the CLI side (gateway event or local config) → desktop.
+function applySkin(name) {
+  const entry = THEMES.find(t => t.slug === name)
+  if (entry) {
+    applyEntry(entry)
+    return
+  }
+  // Built-in collision (catppuccin, everforest): paint Hermes' own built-in
+  // in the mode the Omarchy palette of that name ships with. Any other skin
+  // is not ours — leave the user's appearance alone.
+  if (BUILTIN_NAMES.has(name) && RAW_MODE.has(name)) {
+    requestMode(RAW_MODE.get(name))
+    requestTheme(name)
+  }
+}
+
+// `display.skin` from a Hermes config.yaml — only the direct child of the
+// top-level `display:` block, quotes and trailing comments stripped.
+function displaySkin(yaml) {
+  let inDisplay = false
+  let childIndent = null
+  for (const line of yaml.split('\n')) {
+    if (!line.trim() || /^\s*#/.test(line)) continue
+    if (/^\S/.test(line)) {
+      inDisplay = /^display:\s*(#.*)?$/.test(line)
+      childIndent = null
+      continue
+    }
+    if (!inDisplay) continue
+    const indent = line.match(/^ */)[0].length
+    childIndent ??= indent
+    if (indent !== childIndent) continue
+    const m = line.match(/^ +skin:\s*(['"]?)([^'"#\s]+)\1\s*(#.*)?$/)
+    if (m) return m[2]
+  }
+  return null
+}
+
+// Watch this machine's `<HERMES_HOME>/config.yaml` through the desktop's
+// preview file-watch bridge (window.hermesDesktop — the renderer has no fs).
+// `<HERMES_HOME>` is the parent of the desktop-plugins root. The first read
+// only seeds the baseline: a launch must not stomp a theme the user picked in
+// the desktop. Afterwards every change of `display.skin` calls onSkin.
+// Returns a disposer; a host without the bridge gets a no-op.
+function watchLocalSkin(onSkin) {
+  const bridge = typeof window === 'undefined' ? undefined : window.hermesDesktop
+  if (!bridge?.desktopPluginsRoot || !bridge.readFileText || !bridge.watchPreviewFile || !bridge.onPreviewFileChanged) {
+    return () => {}
+  }
+  let disposed = false
+  let watchId = null
+  let configPath = null
+  let lastSkin = null
+
+  const read = async () => {
+    const file = await bridge.readFileText(configPath)
+    return typeof file?.text === 'string' ? displaySkin(file.text) : null
+  }
+  const offChanged = bridge.onPreviewFileChanged(async payload => {
+    if (disposed || !watchId || payload?.id !== watchId) return
+    try {
+      const skin = await read()
+      if (disposed || !skin || skin === lastSkin) return
+      lastSkin = skin
+      onSkin(skin)
+    } catch (_) { /* unreadable mid-write — the next change event retries */ }
+  })
+
+  ;(async () => {
+    const root = String(await bridge.desktopPluginsRoot())
+    configPath = root.replace(/[\\/]desktop-plugins[\\/]?$/, '') + '/config.yaml'
+    lastSkin = await read()
+    const watch = await bridge.watchPreviewFile(configPath)
+    if (!watch?.id) return
+    if (disposed) bridge.stopPreviewFileWatch?.(watch.id)
+    else watchId = watch.id
+  })().catch(() => { /* no local config — the gateway event still syncs */ })
+
+  return () => {
+    disposed = true
+    offChanged?.()
+    if (watchId) bridge.stopPreviewFileWatch?.(watchId)
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Settings page
@@ -396,315 +531,20 @@ export default {
   register(ctx) {
     const disposers = []
 
-    // The plugin's only public theme-apply bridge from @hermes/plugin-sdk
-    // is `requestTheme()`, which switches the palette but leaves the UI
-    // mode (light/dark) untouched. Without an explicit mode flip — which
-    // only lives inside the React tree via `useTheme().setMode()` — a
-    // Light Omarchy theme applied in a Dark Hermes paints the synth-dark
-    // variant of that palette and the user perceives "nothing happened".
-    //
-    // The renderer's `applyTheme(theme, mode)` reads `mode` as its second
-    // arg and uses it to pick darkColors vs colors + darkTerminal vs
-    // terminal, NOT the palette's own .mode field. So a requestTheme() call
-    // alone is incomplete — we must also push the UI into the matching mode.
-    //
-    // Two strategies, run in order:
-    //
-    //   1. STORAGE-EVENT BRIDGE (cheap; sometimes works). The ThemeProvider's
-    //      onStorage listener in apps/desktop/src/themes/context.tsx listens
-    //      on APPEARANCE_KEYS (MODE_KEY + PROFILE_MODES_KEY + …) and drains
-    //      through setModeState + modePref.assign. We mirror the target mode
-    //      into BOTH the legacy slot AND every per-profile slot, so whichever
-    //      ThemeProvider reads first sees our value.
-    //
-    //      Caveat: same-window `window.dispatchEvent(new StorageEvent(...))`
-    //      does NOT trigger addEventListener('storage', …) — that only fires
-    //      for mutations from OTHER windows/tabs/iframes of the same origin.
-    //      So we drop a hidden same-origin iframe, write localStorage inside
-    //      it (which fires a real cross-frame `storage` event in BOTH the
-    //      iframe's window AND the host window per Web-Spec), and let it GC
-    //      itself. Electron's renderer is hit-or-miss on whether it surfaces
-    //      that to the listener — that is exactly the bug strategy 2 covers.
-    //
-    //   2. DIRECT DOM/CSS REPAINT (the fallback that MUST land the visual
-    //      change). Mirror what `applyTheme(theme, mode)` writes to :root in
-    //      context.tsx — the `.dark` class, data-hermes-mode, every CSS
-    //      custom property, the chrome background, and the boot-paint
-    //      localStorage pair. This guarantees the user sees the flip even
-    //      when strategy 1 silently fails. Repeated calls with the same
-    //      inputs write the same values, so it's idempotent.
-    //
-    // Workaround until @hermes/plugin-sdk exports `requestMode` (already
-    // defined internally in apps/desktop/src/themes/request.ts:43 but not
-    // re-exported from sdk/index.ts). Once that export lands, strategy 2
-    // becomes a one-line `requestMode(mode)` and strategy 1 can go away.
-
-    // -- sRGB primitives (mirror of @hermes/shared/color) ----------------
-    // The plugin's published surface is just `requestTheme` / `useTheme` —
-    // anything else we need on the renderer has to ride along in this file.
-    function parseHex6(s) {
-      const h = (s || '').replace('#', '')
-      if (h.length !== 6 || !/^[0-9a-fA-F]{6}$/.test(h)) return null
-      return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
-    }
-    function channelLuma(v) {
-      const x = v / 255
-      return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4)
-    }
-    function relLuma(hex) {
-      const rgb = parseHex6(hex); if (!rgb) return null
-      return 0.2126 * channelLuma(rgb[0]) + 0.7152 * channelLuma(rgb[1]) + 0.0722 * channelLuma(rgb[2])
-    }
-    function contrastRatio(a, b) {
-      const la = relLuma(a), lb = relLuma(b)
-      if (la === null || lb === null) return null
-      const [hi, lo] = la >= lb ? [la, lb] : [lb, la]
-      return (hi + 0.05) / (lo + 0.05)
-    }
-    function ensureContrast(color, bg, min) {
-      const bgL = relLuma(bg)
-      if (bgL === null || !parseHex6(color)) return color
-      const r0 = contrastRatio(color, bg)
-      if (r0 === null || r0 >= min) return color
-      const pole = bgL < 0.5 ? '#ffffff' : '#000000'
-      let best = color
-      for (let s = 0.2; s <= 1.0001; s += 0.2) {
-        best = mixHex(color, pole, Math.min(s, 1))
-        const r = contrastRatio(best, bg)
-        if (r !== null && r >= min) return best
-      }
-      return best
-    }
-    function readableInk(bg) {
-      let best = '#ffffff', bestR = -1
-      for (const ink of ['#161616', '#ffffff']) {
-        const r = contrastRatio(bg, ink)
-        if (r !== null && r >= bestR) { best = ink; bestR = r }
-      }
-      return best
-    }
-
-    function paintModeOnRoot(mode, theme) {
-      if (typeof window === 'undefined' || typeof document === 'undefined') return
-      if (!theme || !theme.colors || !theme.darkColors) return
-      try {
-        const c = mode === 'dark' ? theme.darkColors : theme.colors
-        // Replicate the renderer's renderedModeFor() (context.tsx:251-266):
-        // trust the BT.709-style luma to pick light vs dark. This matches
-        // the renderer's verdict even when the user-requested mode is
-        // ambiguous (e.g. a bright palette called 'dark').
-        const isDark = luma(c.background) < 0.5
-        const rendered = isDark ? 'dark' : 'light'
-        const typo = theme.typography || {}
-        const fontSans = typo.fontSans || DEFAULT_TYPOGRAPHY.fontSans
-        const fontMono = typo.fontMono || DEFAULT_TYPOGRAPHY.fontMono
-        const midground = c.midground || c.ring
-        const root = document.documentElement
-
-        // ── State flags the renderer toggles ──
-        root.classList.toggle('dark', isDark)
-        root.dataset.hermesMode = rendered
-        root.dataset.hermesTheme = theme.name || ''
-        root.style.setProperty('color-scheme', rendered)
-
-        // ── Seed vars (color-mix() inputs in styles.css) ──
-        root.style.setProperty('--theme-foreground', c.foreground)
-        root.style.setProperty('--theme-primary', c.primary)
-        root.style.setProperty('--theme-secondary', c.secondary)
-        root.style.setProperty('--theme-accent-soft', c.accent)
-        root.style.setProperty('--theme-midground', midground)
-        root.style.setProperty('--theme-warm', c.primary)
-        root.style.setProperty('--theme-background-seed', c.background)
-        root.style.setProperty('--theme-sidebar-seed', c.sidebarBackground || c.background)
-        root.style.setProperty('--theme-card-seed', c.card)
-        root.style.setProperty('--theme-elevated-seed', c.popover)
-        root.style.setProperty('--theme-bubble-seed', c.userBubble || c.popover)
-
-        // ── Direct palette tokens (Tailwind/shadcn surface) ──
-        root.style.setProperty('--dt-primary-foreground', c.primaryForeground)
-        root.style.setProperty('--dt-secondary-foreground', c.secondaryForeground)
-        root.style.setProperty('--dt-accent-foreground', c.accentForeground)
-        root.style.setProperty('--dt-border', c.border)
-        root.style.setProperty('--dt-input', c.input)
-        root.style.setProperty('--dt-ring', c.ring)
-        root.style.setProperty('--dt-muted', c.muted)
-        root.style.setProperty('--dt-midground-foreground', c.midgroundForeground || readableInk(midground))
-        root.style.setProperty('--dt-primary-solid', ensureContrast(c.primary, '#fcfcfc', 4.5))
-        root.style.setProperty('--dt-primary-solid-foreground', '#fcfcfc')
-        root.style.setProperty('--dt-composer-ring', c.composerRing || midground)
-        root.style.setProperty('--dt-destructive', c.destructive)
-        root.style.setProperty('--dt-destructive-foreground', c.destructiveForeground)
-        root.style.setProperty('--dt-sidebar-border', c.sidebarBorder || c.border)
-        root.style.setProperty('--dt-user-bubble-border', c.userBubbleBorder || c.border)
-        root.style.setProperty('--dt-font-sans', fontSans)
-        root.style.setProperty('--dt-font-mono', fontMono)
-        root.style.setProperty('--noise-opacity-mul', isDark ? 'calc(0.04 / 0.21)' : 'calc(0.34 / 0.21)')
-
-        // ── Chrome mix vars (translucency knobs in styles.css) ──
-        root.style.setProperty('--theme-mix-chrome', isDark ? '74%' : '92%')
-        root.style.setProperty('--theme-mix-sidebar', '100%')
-        root.style.setProperty('--theme-mix-card', isDark ? '38%' : '22%')
-        root.style.setProperty('--theme-mix-elevated', isDark ? '46%' : '28%')
-        root.style.setProperty('--theme-mix-bubble', isDark ? '46%' : '0%')
-
-        // ── Native titlebar (Electron chrome via context-isolation bridge) ──
-        // Mirrors context.tsx's chromeBackground(): background pulled 26% toward
-        // #0d0d0e in dark, 8% toward #f3f3f3 in light.
-        const NEUTRAL_CHROME = { light: '#f3f3f3', dark: '#0d0d0e' }
-        const chromeBg = mixHex(
-          c.background,
-          NEUTRAL_CHROME[isDark ? 'dark' : 'light'],
-          isDark ? 0.26 : 0.08,
-        )
-        try {
-          window.hermesDesktop?.setTitleBarTheme?.({ background: chromeBg, foreground: c.foreground })
-        } catch (_) { /* IPC not available in test contexts */ }
-
-        // ── Boot-paint localStorage (read by the inline pre-paint script in
-        // index.html so a fresh window paints the themed background on its
-        // very first frame) ──
-        try {
-          window.localStorage.setItem('hermes-boot-background', chromeBg)
-          window.localStorage.setItem('hermes-boot-color-scheme', rendered)
-        } catch (_) { /* storage may be unavailable */ }
-      } catch (_) { /* private mode / quota — best-effort */ }
-    }
-
-    function syncModeFromOutside(mode, theme) {
-      if (typeof window === 'undefined' || typeof document === 'undefined') return
-      try {
-        const LEGACY_KEY = 'hermes-desktop-mode-v1'
-        const RECORD_KEY = 'hermes-desktop-profile-modes-v1'
-        const raw = window.localStorage.getItem(RECORD_KEY)
-        let profiles = {}
-        try {
-          const parsed = raw == null ? {} : JSON.parse(raw)
-          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) profiles = parsed
-        } catch (_) { profiles = {} }
-        profiles.default = mode
-        for (const k of Object.keys(profiles)) profiles[k] = mode
-        const profilesJson = JSON.stringify(profiles)
-
-        // Strategy 1: direct localStorage write — ThemeProvider would read
-        // this on its next render even if the storage-event bridge never
-        // fires. Cheap, and persists across reloads.
-        window.localStorage.setItem(LEGACY_KEY, mode)
-        window.localStorage.setItem(RECORD_KEY, profilesJson)
-
-        // Strategy 1a: clean StorageEvent dispatch via window.dispatchEvent.
-        // The ThemeProvider's onStorage listener in apps/desktop/src/themes/context.tsx
-        // listens on APPEARANCE_KEYS (SKIN_KEY, PROFILE_SKINS_KEY, MODE_KEY,
-        // PROFILE_MODES_KEY). Per Web-Spec § Web Storage, same-window writes
-        // don't fire `storage` events natively — but Electron's renderer
-        // (Chromium) honours a manually-constructed StorageEvent dispatched
-        // via dispatchEvent on the same window, provided it carries the right
-        // `key` / `newValue` / `storageArea` fields. Cheaper than the iframe
-        // trampoline and dodges cross-frame suppression. Re-dispatch via RAF
-        // + setTimeout(50) to dodge React-batching timing and any first-commit
-        // gap. The 'storage' event has bubbles=false / cancelable=false per
-        // spec, so we mirror that. If `new StorageEvent` is unsupported in
-        // some future runtime, the try/catch keeps the other strategies alive.
-        const fireStorage = () => {
-          try {
-            const url = window.location.href
-            const ls = window.localStorage
-            window.dispatchEvent(new StorageEvent('storage', {
-              key: LEGACY_KEY,
-              newValue: mode,
-              oldValue: null,
-              storageArea: ls,
-              url,
-              bubbles: false,
-              cancelable: false,
-            }))
-            window.dispatchEvent(new StorageEvent('storage', {
-              key: RECORD_KEY,
-              newValue: profilesJson,
-              oldValue: null,
-              storageArea: ls,
-              url,
-              bubbles: false,
-              cancelable: false,
-            }))
-          } catch (_) { /* StorageEvent ctor unsupported — keep going */ }
-        }
-        fireStorage()
-        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(fireStorage)
-        setTimeout(fireStorage, 50)
-
-        // Strategy 1b: cross-frame dispatch via hidden iframe. Inside the
-        // iframe's window we touch localStorage, which fires a real
-        // `storage` event on the host window per Web-Spec § Web Storage.
-        // Electron's renderer is hit-or-miss on whether it actually
-        // surfaces that to addEventListener('storage', ...) — strategy 2
-        // covers the cases where it doesn't.
-        const iframe = document.createElement('iframe')
-        iframe.setAttribute('aria-hidden', 'true')
-        iframe.style.cssText = 'position:absolute;left:-99999px;top:-99999px;width:0;height:0;border:0;visibility:hidden'
-        document.body.appendChild(iframe)
-        const cleanup = () => { try { iframe.remove() } catch (_) {} }
-        const run = () => {
-          let idoc
-          try {
-            idoc = iframe.contentDocument
-            if (!idoc) { setTimeout(run, 16); return }
-            idoc.open()
-            idoc.write(
-              '<!doctype html><html><body><script>' +
-              'try{' +
-                'var ls=localStorage;' +
-                'ls.setItem(' + JSON.stringify(LEGACY_KEY) + ',' + JSON.stringify(mode) + ');' +
-                'ls.setItem(' + JSON.stringify(RECORD_KEY) + ',' + JSON.stringify(profilesJson) + ');' +
-              '}catch(e){}</script></body></html>'
-            )
-            idoc.close()
-          } catch (_) { /* ignore */ }
-        }
-        run()
-        setTimeout(cleanup, 1500)
-
-        // Strategy 2: direct DOM/CSS repaint — guaranteed visual flip. Runs
-        // regardless of whether the React state catches up; if React DOES
-        // catch up later, it paints the same numbers over the inline values.
-        //
-        // Race: ThemeProvider's `applyTheme(paintedTheme, paintedMode)`
-        // useEffect fires after the current task and OVERWRITES our inline
-        // CSS. If the onStorage bridge fired and React's mode already
-        // matches ours, this is a harmless no-op. If React's mode is still
-        // wrong, React paints `theme.colors` (the light-side palette) and
-        // our values are clobbered — so we re-paint a few more times to
-        // outlast the React rerender chain (useEffect on paintedTheme →
-        // applyTheme; useEffect on [themeName, …] → setModeState; profile
-        // switch effects; chatFontFamily effect). The last retry is well
-        // past every plausible React commit, so the final visible state
-        // matches what we wrote.
-        const repaint = () => paintModeOnRoot(mode, theme)
-        repaint()
-        if (typeof requestAnimationFrame === 'function') {
-          requestAnimationFrame(repaint)
-          requestAnimationFrame(() => requestAnimationFrame(repaint))
-        }
-        setTimeout(repaint, 50)
-        setTimeout(repaint, 250)
-        setTimeout(repaint, 800)
-      } catch (_) { /* private mode / quota — best-effort */ }
-    }
-
     THEMES.forEach(entry => {
       disposers.push(ctx.register({ id: 'theme-' + entry.slug, area: THEMES_AREA, data: entry.theme }))
     })
 
-    THEMES.slice(0, 30).forEach(entry => {
+    // The host lists a palette row only when it carries `run` — `action` is
+    // a keybind id (apps/desktop/src/app/command-palette/contrib.ts).
+    THEMES.forEach(entry => {
       disposers.push(ctx.register({
         id: 'palette-' + entry.slug,
         area: PALETTE_AREA,
         data: {
           id: 'omarchy-themes.apply.' + entry.slug,
           label: 'Apply Omarchy Theme: ' + entry.label,
-          action: () => {
-            requestTheme(entry.theme.name)
-            syncModeFromOutside(entry.mode, entry.theme)
-          },
+          run: () => applyEntry(entry),
         },
       }))
     })
@@ -729,74 +569,15 @@ export default {
       }]
     })
 
-    // --- CLI→Desktop theme sync (skin.changed event + RPC polling) --
-// BOTH mechanisms run together. The gateway *does* dispatch skin.changed to
-    // the renderer's internal ThemeProvider (apps/desktop/dist/index-*.js,
-    // Swt dispatcher), but the SDK's plugin-event broadcaster (`Ib` / `Sn` in
-    // apps/desktop/dist/assets/sdk-*.js) is never invoked for `skin.changed`
-    // specifically — verified by grep on the unpacked app.asar. So
-    // `ctx.onEvent('skin.changed', …)` registers a listener that sits in the
-    // Map forever and never fires. Polling is the only working path; we run
-    // it always (not as a fallback) so the CLI→Desktop mode flip actually
-    // happens. 1 RPC/sec against the local gateway is negligible.
-    const slugToThemeName = new Map(THEMES.map(t => [t.slug, t.theme.name]))
-    let lastSkin = null  // track to avoid duplicate applyThemeFor calls
-
-    function applyThemeFor(skinName) {
-      if (!skinName || skinName === lastSkin) return
-      lastSkin = skinName
-      // Resolve the full entry so we can read .mode below. requestTheme alone
-      // paints the synth-dark variant of a LIGHT Omarchy theme when the UI is
-      // already in dark mode — mode has to flip too, which only the React tree
-      // can do natively (syncModeFromOutside bridges from out here).
-      const entry = THEMES.find(t => t.slug === skinName)
-      // 1) Omarchy unique theme registered by this plugin
-      const omTheme = slugToThemeName.get(skinName)
-      if (omTheme) {
-        requestTheme(omTheme)
-        if (entry) syncModeFromOutside(entry.mode, entry.theme)
-        return
-      }
-      // 2) Hermes built-in (slug == theme name, e.g. catppuccin, nord) —
-      //    all entries of BUILTIN_NAMES are dark, default to 'dark'.
-      if (BUILTIN_NAMES.has(skinName)) {
-        requestTheme(skinName)
-        // Built-in palette is owned by Hermes (BUILTIN_NAMES are filtered
-        // out of THEMES), so we don't have its colors here — the storage
-        // bridge is the only mechanism, and the React tree paints the
-        // built-in once it catches up. Without an entry, paintModeOnRoot
-        // early-returns on the missing theme; only strategy 1 runs.
-        syncModeFromOutside(entry?.mode ?? 'dark', entry?.theme)
-        return
-      }
-      // 3) Unknown skin — ignore silently (user-authored, not Omarchy)
-    }
-
-    // Mechanism 1: gateway skin.changed event (kept for completeness — known to
-    // not fire for skin.changed specifically; see the comment block above).
-    if (typeof ctx.onEvent === 'function') {
-      const off = ctx.onEvent('skin.changed', event => {
-        const skin = event?.payload
-        applyThemeFor(skin?.name)
-      })
-      if (off) disposers.push(off)
-    }
-
-    // Mechanism 2: 1-second polling via config.get RPC — the path that
-    // actually delivers skin.changed to this plugin. Runs unconditionally
-    // (not just when ctx.onEvent is missing) because the event subscription
-    // is broken for this specific event type. Skip the first poll so we
-    // don't re-apply the skin we already saw during registration.
-    let pollCount = 0
-    const timerId = setInterval(async () => {
-      try {
-        const result = await ctx.requestGateway?.('config.get', { key: 'display.skin' })
-        const skin = result?.skin || result?.value
-        if (skin) applyThemeFor(skin)
-      } catch (_) { /* ignore polling errors */ }
-      pollCount++
-    }, 1000)
-    disposers.push(() => clearInterval(timerId))
+    // CLI→Desktop sync, two doors into the same handler:
+    //  1. `skin.changed` from the ACTIVE gateway — only fires when the desktop
+    //     is connected to the machine the hook ran on.
+    //  2. A watch on this machine's `<HERMES_HOME>/config.yaml` — the hook's
+    //     `hermes skin use` writes `display.skin` there, so the sync also works
+    //     while a remote gateway is the active connection.
+    // Applying twice (local connection: both doors fire) is idempotent.
+    disposers.push(ctx.onEvent('skin.changed', event => applySkin(event?.payload?.name)))
+    disposers.push(watchLocalSkin(applySkin))
 
     ctx.onDispose(() => disposers.forEach(d => d && d()))
   }
