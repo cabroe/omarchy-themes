@@ -118,8 +118,10 @@ for (const { data: t } of themes) {
 }
 
 // B) Vollständigkeit — every theme must ship every UI variable. 26 themes ×
-// 2 palettes × 25 keys = 1300 assertions. A theme missing e.g. `composerRing`
-// would silently inherit the renderer's default and lose brand identity.
+// 2 palettes × 25 keys × 2 = 2600 assertions
+//   (26 × 2 palettes × 25 keys; each key fires 2 asserts: existence + Hex-Match).
+//   A theme missing e.g. `composerRing` would silently inherit the renderer's
+//   default and lose brand identity.
 for (const { data: t } of themes) {
   for (const pal of ['colors', 'darkColors']) {
     for (const k of REQUIRED_KEYS) {
