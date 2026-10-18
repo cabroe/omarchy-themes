@@ -185,7 +185,11 @@ function synthDarkFromLight(c, ac, acFg) {
 // ---------------------------------------------------------------------------
 function buildTheme(slug, c, taken) {
   const bg = c.background, fg = c.foreground, ac = c.accent
-  if (!bg || !fg || !ac) return null
+  if (!bg || !fg || !ac) {
+    const missing = [!bg && 'background', !fg && 'foreground', !ac && 'accent'].filter(Boolean)
+    console.warn(`[omarchy-themes] skip theme '${slug}': missing required ${missing.join(', ')}`)
+    return null
+  }
 
   let lighterBg = c.lighter_background || bg
   let darkBg    = c.dark_background    || bg

@@ -73,12 +73,13 @@ toml_hex() {
 }
 
 # Extract a quoted string for $1 (used for `mode`). Empty on miss.
+# Tries quoted form first, then unquoted (matching plugin.js paletteFromToml).
 toml_string() {
     key=$1
     grep -E "^[[:space:]]*${key}[[:space:]]*=" "$COLORS" 2>/dev/null \
         | grep -v "^[[:space:]]*#" \
         | head -n 1 \
-        | sed -E 's/.*=[[:space:]]*"([^"]+)".*/\1/'
+        | sed -E 's/.*=[[:space:]]*"([^"]+)".*/\1/; t; s/.*=[[:space:]]*([A-Za-z0-9_-]+).*/\1/'
 }
 
 # Normalize a hex value to #rrggbb lowercase. Empty on invalid input.
