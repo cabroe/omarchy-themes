@@ -185,7 +185,7 @@ Zielpfade nach Installation:
 | `red…magenta`, `bright_*` | `terminal.*` / `terminal.bright*` |
 | `mode = "light"` | zusätzlich `darkColors`/`darkTerminal` aus `dark_background`/`darker_background` |
 
-Fehlende Keys fallen auf `background`/`foreground`/`accent` zurück. Fehlt einer dieser drei, wird das Theme übersprungen.
+Fehlende Keys fallen auf `background`/`foreground`/`accent` zurück. Fehlt einer dieser drei, wird das Theme übersprungen. Ist `lighter_background` gleich `background` (Omarchy leitet das für Themes ohne Flächentöne so ab, z. B. aetheria, ayaka, cpunk, last-horizon, solitude), werden Karten und Popover um wenige Prozent vom Seitenhintergrund abgehoben; fehlt auch der Sidebar-/Border-Ton, wird er ebenfalls aufgefächert.
 
 ### CLI/TUI-Skin (Hook)
 

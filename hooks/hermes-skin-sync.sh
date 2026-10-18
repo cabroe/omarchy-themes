@@ -151,7 +151,18 @@ read_key cyan color6 bright_cyan && cyan=$val_norm
 mode=$(toml_string mode)
 case "$mode" in
     dark|light) ;;
-    *) mode="dark" ;;
+    *)
+        # No usable `mode` (e.g. a colors.toml generated from alacritty.toml):
+        # decide by background luma like Omarchy does (Rec.709, integer maths).
+        mode="dark"
+        if [ -n "$background" ]; then
+            bg_hex=${background#\#}
+            r=$((0x$(printf '%s' "$bg_hex" | cut -c1-2)))
+            g=$((0x$(printf '%s' "$bg_hex" | cut -c3-4)))
+            b=$((0x$(printf '%s' "$bg_hex" | cut -c5-6)))
+            [ $((2126 * r + 7152 * g + 722 * b)) -ge $((5000 * 255)) ] && mode="light"
+        fi
+        ;;
 esac
 
 # Validate required keys — Hermes skin needs at least background/foreground/accent

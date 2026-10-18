@@ -184,7 +184,7 @@ Target paths after install:
 | `red…magenta`, `bright_*` | `terminal.*` / `terminal.bright*` |
 | `mode = "light"` | additionally `darkColors`/`darkTerminal` from `dark_background`/`darker_background` |
 
-Missing keys fall back to `background`/`foreground`/`accent`. If any of these three is missing, the theme is skipped.
+Missing keys fall back to `background`/`foreground`/`accent`. If any of these three is missing, the theme is skipped. If `lighter_background` equals `background` (Omarchy derives that for themes without surface shades, e.g. aetheria, ayaka, cpunk, last-horizon, solitude), cards and popovers are lifted off the page colour by a few percent; if the sidebar/border shade is missing too, that is fanned out as well.
 
 ### CLI/TUI skin (hook)
 

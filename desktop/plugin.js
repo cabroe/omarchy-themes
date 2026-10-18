@@ -172,8 +172,18 @@ function buildTheme(slug, c, taken) {
   const bg = c.background, fg = c.foreground, ac = c.accent
   if (!bg || !fg || !ac) return null
 
-  const lighterBg = c.lighter_background || bg
-  const darkBg    = c.dark_background    || bg
+  let lighterBg = c.lighter_background || bg
+  let darkBg    = c.dark_background    || bg
+  // Cards and popovers painted in the page colour are invisible (Omarchy
+  // derives lighter_background == background when a theme gives no shade:
+  // aetheria, ayaka, cpunk, last-horizon, solitude). Lift them off the page,
+  // toward the foreground (dark) or black (light) like the stock palettes. If
+  // the sidebar/border shade is missing as well, fan that out too.
+  const light = modeOf(c) === 'light'
+  const pole  = light ? '#000000' : fg
+  const fullyFlat = lighterBg === bg && darkBg === bg
+  if (lighterBg === bg) lighterBg = mixHex(bg, pole, light ? 0.04 : 0.08)
+  if (fullyFlat)        darkBg    = mixHex(bg, pole, light ? 0.12 : 0.14)
   const darkFg    = c.dark_foreground    || fg
   const mode      = modeOf(c)
   const name      = toName(slug, taken)

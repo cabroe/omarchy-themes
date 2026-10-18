@@ -82,4 +82,12 @@ rm -f "$LEGACY"
 HOME="$SANDBOX" HERMES_BIN="$SANDBOX/bin/hermes-ok" sh "$ROOT/hooks/hermes-skin-sync.sh" legacy
 test ! -e "$LEGACY"                               || fail "foreign theme.name must not be trusted"
 
-echo "ok — hook: skin generation, skip path, failure path, current-theme fallback"
+# 5. No `mode` key → decided by background luma (here: light background).
+echo bright > "$SANDBOX/.local/state/omarchy/current/theme.name"
+sed 's/#000000/#fffcf0/' "$SANDBOX/.local/state/omarchy/current/theme/colors.toml" > "$SANDBOX/c.toml"
+mv "$SANDBOX/c.toml" "$SANDBOX/.local/state/omarchy/current/theme/colors.toml"
+HOME="$SANDBOX" HERMES_BIN="$SANDBOX/bin/hermes-ok" sh "$ROOT/hooks/hermes-skin-sync.sh" bright
+grep -q 'description: Omarchy theme · bright (light)' "$SANDBOX/.hermes/skins/bright.yaml" || fail "mode from light background"
+grep -q 'description: Omarchy theme · legacy (dark)' "$LEGACY" 2>/dev/null || true
+
+echo "ok — hook: skin generation, skip path, failure path, current-theme fallback, mode from luma"

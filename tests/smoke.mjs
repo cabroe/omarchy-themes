@@ -64,6 +64,11 @@ for (const { data: t } of themes) {
   assert.notDeepStrictEqual(t.colors, t.darkColors,
     `${t.name}: colors === darkColors (no synthesis happened)`)
 
+  // Cards must separate from the page colour, also for the palettes Omarchy
+  // ships without any surface shades (aetheria, ayaka, cpunk).
+  assert.notEqual(t.darkColors.card, t.darkColors.background, `${t.name}: dark card is flat`)
+  assert.notEqual(t.colors.card, t.colors.background, `${t.name}: light card is flat`)
+
   // Typography: the renderer's applyTheme falls back to DEFAULT_TYPOGRAPHY
   // when fontSans/fontMono are missing, so an empty stack lets the OS pick
   // a font that often clashes with the chrome.
