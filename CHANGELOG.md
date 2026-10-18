@@ -4,6 +4,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-10-18
+
 ### Added
 - Omarchy themes missing from the baked table (user overlays, themes newer than
   the last `make generate`) now follow too: the palette is read from
