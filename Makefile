@@ -6,11 +6,12 @@ GEN_ARGS = --include-user $(if $(HOST),--remote $(HOST))
 INSTALL_HOOK_DIR ?= $(HOME)/.config/omarchy/hooks/theme-set.d
 INSTALL_HOOK     ?= $(INSTALL_HOOK_DIR)/hermes-skin-sync.sh
 
-.PHONY: help check test lint generate generate-check install-hook uninstall install-githooks theme-smoke
+.PHONY: help check test lint generate generate-system generate-check install-hook uninstall install-githooks theme-smoke
 
 help:
 	@echo "make check              lint + tests (local, no Omarchy needed)"
-	@echo "make generate           regenerate theme table from this machine's Omarchy themes (HOST=<ssh host> to read remotely)"
+	@echo "make generate           regenerate theme table (system + user themes; HOST=<ssh host> to read remotely)"
+	@echo "make generate-system    regenerate theme table (system themes only — used by CI to avoid publishing user themes)"
 	@echo "make generate-check     fail if plugin.js is out of date (same sources as 'generate')"
 	@echo "make install-hook       install hooks/hermes-skin-sync.sh into \$$INSTALL_HOOK_DIR (idempotent)"
 	@echo "make uninstall          remove the hook installed by install-hook"
@@ -30,6 +31,12 @@ test:
 
 generate:
 	python3 scripts/generate-themes.py $(GEN_ARGS)
+
+# generate-system: same as generate but without --include-user.
+# Used by the regen-themes CI workflow so the self-hosted runner's personal
+# ~/.config/omarchy/themes are never published to main automatically.
+generate-system:
+	python3 scripts/generate-themes.py $(if $(HOST),--remote $(HOST))
 
 generate-check:
 	python3 scripts/generate-themes.py $(GEN_ARGS) --check
