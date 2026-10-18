@@ -18,6 +18,23 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - A disposed plugin instance no longer registers into the next one while its
   file reads are still in flight; failing async doors no longer escape as
   unhandled rejections.
+- `requestMode` is probed from `@hermes/plugin-sdk` at module load and used
+  when present; repeat calls with the same `(profile, mode)` short-circuit
+  before the storage-event dispatch so a double click on Apply no longer
+  triggers a second `ThemeProvider` paint.
+- Disposed instance resets its `lastApplied` / `lastRequest` so a fresh
+  register's first apply is not silently dropped in the dedupe window.
+
+### Removed
+- The plugin is back to a single `desktop/plugin.js` file. Hermes-Desktop
+  runtime plugins may only import `@hermes/plugin-sdk` and `react` — relative
+  imports on sibling files make the plugin fail to load
+  (`unsupported imports: ./sync.js, ./lib/...`). The `desktop/lib/`,
+  `desktop/sync.js`, `desktop/settings-page.js`, `desktop/sdk-probe.js`,
+  `desktop/types.d.ts`, `desktop/runtime-modules.d.ts`, `desktop/tsconfig.json`
+  and `tests/generate_themes_test.py` files from the broken module split are
+  gone; the `make typecheck` CI step that required `tsconfig.json` is also
+  removed.
 
 ## [1.2.0] — 2026-10-18
 
