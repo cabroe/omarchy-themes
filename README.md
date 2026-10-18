@@ -84,6 +84,11 @@ Brand identity is preserved because `accent` / `primary` / `ring` / `midground` 
 is always lupine-blue and `nord` is always nord-cyan, regardless of mode. See
 `desktop/plugin.js` (`synthLightFromDark` / `synthDarkFromLight`).
 
+The only knobs this plugin exposes are `SURFACE_MIX_AMOUNT` (0.88) and
+`ACCENT_TEXT_LUMA` (0.55) at the top of the color-helpers section in
+`plugin.js` — both are named constants so the renderer-facing numbers stay
+one search away from their definition.
+
 ---
 
 ## 🔄 Updating themes

@@ -84,6 +84,12 @@ abgeleitet werden — `lupine` ist immer lupine-blau und `nord` immer nord-cyan,
 egal in welchem Modus. Siehe `desktop/plugin.js` (`synthLightFromDark` /
 `synthDarkFromLight`).
 
+Die einzigen Stellschrauben, die dieses Plugin nach außen legt, sind
+`SURFACE_MIX_AMOUNT` (0,88) und `ACCENT_TEXT_LUMA` (0,55) am Anfang der
+Color-Helpers-Sektion in `plugin.js` — beides benannte Konstanten, damit
+die renderer-seitigen Zahlen per Code-Suche direkt bei ihrer Definition
+landen.
+
 ---
 
 ## 🔄 Themes aktualisieren

@@ -52,7 +52,14 @@ function luma(hex) {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b
 }
 
-function onAccent(accent) { return luma(accent) < 0.55 ? '#ffffff' : '#000000' }
+// Single-source-of-truth tuning constants for palette synthesis. The renderer
+// threshold (>= 0.5 = light, < 0.5 = dark) is Hermes-internal and lives in
+// apps/desktop/src/themes/context.tsx::renderedModeFor; tests/smoke.mjs
+// mirrors it. These two constants are the only knobs this plugin exposes.
+const SURFACE_MIX_AMOUNT = 0.88   // native background pulled this far toward #000 / #fff
+const ACCENT_TEXT_LUMA   = 0.55   // luma(accent) below → use #ffffff text on accent
+
+function onAccent(accent) { return luma(accent) < ACCENT_TEXT_LUMA ? '#ffffff' : '#000000' }
 
 function slugToLabel(slug) {
   return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -103,7 +110,7 @@ const DEFAULT_TYPOGRAPHY = {
 // paints a dark UI in a light context. Accent stays the native Omarchy accent
 // so brand identity is preserved across the mode toggle.
 function synthLightFromDark(c, ac, acFg) {
-  const surface = mixHex(c.background, '#ffffff', 0.88)
+  const surface = mixHex(c.background, '#ffffff', SURFACE_MIX_AMOUNT)
   const card    = mixHex(surface, '#ffffff', 0.6)
   return {
     background: surface, foreground: '#1a1a1a',
@@ -133,7 +140,7 @@ function synthLightFromDark(c, ac, acFg) {
 // black is the only way to produce a surface the renderer accepts as dark.
 // Accent stays native Omarchy so brand identity is preserved.
 function synthDarkFromLight(c, ac, acFg) {
-  const surface = mixHex(c.background, '#000000', 0.88)
+  const surface = mixHex(c.background, '#000000', SURFACE_MIX_AMOUNT)
   return {
     background: surface, foreground: '#e6e6e6',
     card:       mixHex(surface, '#ffffff', 0.04), cardForeground: '#e6e6e6',
