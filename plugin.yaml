@@ -1,5 +1,5 @@
 name: omarchy-themes
-version: "1.0.0"
+version: "1.1.0"
 description: >
   Brings Omarchy colour schemes to Hermes — desktop theme picker and
   CLI/TUI skin in one. Pure desktop plugin, no agent-side registration.

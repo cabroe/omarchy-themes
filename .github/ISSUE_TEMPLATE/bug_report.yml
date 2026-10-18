@@ -1,0 +1,32 @@
+name: Bug report
+description: A theme does not switch, looks wrong, or the hook misbehaves
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Which `omarchy theme set <name>` call, what you expected in Hermes Desktop / CLI, what you got.
+    validations:
+      required: true
+  - type: input
+    id: theme
+    attributes:
+      label: Theme slug
+      placeholder: tokyo-night
+  - type: dropdown
+    id: connection
+    attributes:
+      label: Active Hermes Desktop connection
+      options: [This device, Remote gateway (SSH / VPS), Not sure]
+  - type: textarea
+    id: versions
+    attributes:
+      label: Versions
+      description: "Hermes Desktop version (Settings → About), `omarchy version`, plugin commit (`git -C ~/.hermes/plugins/omarchy-themes log -1 --oneline`)."
+  - type: textarea
+    id: logs
+    attributes:
+      label: Hook log
+      description: "Last lines of `~/.hermes/logs/omarchy-theme-sync.log`."
+      render: text

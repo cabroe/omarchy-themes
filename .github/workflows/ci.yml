@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 # Cancel in-progress runs for the same ref on new commits.
 concurrency:
@@ -17,21 +18,27 @@ permissions: {}
 
 jobs:
   check:
-    name: make check
+    name: make check (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # 22 = the documented minimum (registerHooks needs >= 22.15), lts/* = what
+        # a user installing today gets. Catches Node behaviour changes early.
+        node: ['22', 'lts/*']
     steps:
       # Externe Actions auf Commit-SHA gepinnt — Tags/Branches sind mutable
       # und ein einziger Compromised-Tag würde jeden CI-Lauf kompromittieren.
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Setup Node 22
+      - name: Setup Node ${{ matrix.node }}
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: '22'
+          node-version: ${{ matrix.node }}
 
       - name: Setup Python 3.11
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -47,59 +54,3 @@ jobs:
         # = lint (node --check, py_compile, shellcheck) + test (smoke.mjs, hook.sh)
         # Kein Netz, keine Secrets — rein lokale Checks.
         run: make check
-
-  badge:
-    name: Update CI badge
-    runs-on: ubuntu-latest
-    needs: check
-    # Nur auf main-Push, nicht auf PRs; läuft auch wenn check fehlschlägt.
-    if: always() && github.ref == 'refs/heads/main'
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - name: Generate badge SVG
-        env:
-          CHECK_RESULT: ${{ needs.check.result }}
-        run: |
-          mkdir -p .github/badges
-
-          if [ "$CHECK_RESULT" = "success" ]; then
-            COLOR="#4b0"
-            LABEL="PASSING"
-            # Shields.io-Maße für "PASSING" (7 Zeichen, Verdana, for-the-badge)
-            RIGHT_W="83.75"
-            TOTAL_W="121.25"
-            TEXT_X="793.75"
-            TEXT_LEN="597.5"
-          else
-            COLOR="#e05d44"
-            LABEL="FAILING"
-            # "FAILING" hat dieselbe Zeichenzahl wie "PASSING" → gleiche Breiten
-            RIGHT_W="83.75"
-            TOTAL_W="121.25"
-            TEXT_X="793.75"
-            TEXT_LEN="597.5"
-          fi
-
-          cat > .github/badges/ci.svg << SVGEOF
-          <svg xmlns="http://www.w3.org/2000/svg" width="${TOTAL_W}" height="28" role="img" aria-label="CI: ${LABEL}"><title>CI: ${LABEL}</title><g shape-rendering="crispEdges"><rect width="37.5" height="28" fill="#555"/><rect x="37.5" width="${RIGHT_W}" height="28" fill="${COLOR}"/></g><g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="100"><text transform="scale(.1)" x="187.5" y="175" textLength="135">CI</text><text transform="scale(.1)" x="${TEXT_X}" y="175" textLength="${TEXT_LEN}" font-weight="bold">${LABEL}</text></g></svg>
-          SVGEOF
-
-          # Whitespace am Zeilenanfang vom Heredoc entfernen
-          sed -i 's/^[[:space:]]*//' .github/badges/ci.svg
-
-      - name: Commit and push badge
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .github/badges/ci.svg
-          # Nur committen wenn sich etwas geändert hat
-          if git diff --cached --quiet; then
-            echo "Badge unchanged — nothing to commit."
-          else
-            git commit -m "ci: update badge [skip ci]"
-            git push
-          fi

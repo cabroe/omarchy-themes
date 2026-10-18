@@ -5,10 +5,10 @@
 </p>
 
 <p align="center">
-  <a href=".github/workflows/ci.yml"><img src=".github/badges/ci.svg" alt="CI status"></a>
+  <a href="https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml"><img src="https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
 </p>
 
-<p align="center"><sub>Single live badge: <code>make check</code> (lint + tests + shellcheck) on <code>main</code>, updated automatically by the <a href=".github/workflows/ci.yml"><code>badge</code> job</a>. The theme count is build-dependent (it grows with Omarchy releases and with <code>--include-user</code>) and is therefore deliberately not shown as a static badge — the live number for the current <code>desktop/plugin.js</code> is printed by <code>node tests/smoke.mjs</code>.</sub></p>
+<p align="center"><sub>Badge: <code>make check</code> (lint + tests + shellcheck, Node 22 and LTS) on <code>main</code>, straight from GitHub Actions. The theme count depends on the build (it grows with Omarchy releases and with <code>--include-user</code>) and is therefore deliberately not shown as a static badge — <code>node tests/smoke.mjs</code> prints the live number for the current <code>desktop/plugin.js</code>.</sub></p>
 
 <p align="center">
   <a href="README.de.md">🇩🇪 Deutsche Version</a>
@@ -101,7 +101,7 @@ one search away from their definition.
 Palettes are baked into the plugin (the desktop renderer has no filesystem access). After an Omarchy update:
 
 ```bash
-make generate          # re-read palettes and rewrite plugin.js
+make generate          # re-read this machine's Omarchy palettes and rewrite plugin.js (HOST=<ssh host> reads remotely)
 make generate-check    # only check whether plugin.js is up to date (exit 1 if not)
 ```
 
@@ -126,7 +126,8 @@ make lint     # node --check + py_compile + shellcheck
 | Test | Checks |
 |---|---|
 | `tests/smoke.mjs` | Plugin loads in Node and registers all themes, ⌘K commands (each with `label` + `run`, otherwise the host hides them), and the settings page. All colours are valid `#rrggbb`, no duplicate names, all desktop names `omarchy-` prefixed. Enforces luma difference ≥ 0.5 between `colors` and `darkColors` (aligned with renderer threshold), completeness of 25 UI keys per palette, and brand consistency (identical `accent`/`primary`/`ring`/`midground`/`composerRing` in both palettes). Also covers the CLI→desktop sync: mode persistence per profile, built-in/foreign skins, re-apply after the host's own skin handling, and the `display.skin` config watch (baseline vs. catch-up on launch, apply on change, dispose). |
-| `tests/hook.sh` | Skin YAML (22 keys, lowercase, 3-digit hex expansion), skip on unknown slug, exit 0 when `hermes` fails. |
+| `tests/hook.sh` | Skin YAML (22 keys, lowercase, 3-digit hex expansion), skip on unknown slug, exit 0 when `hermes` fails, fallback to the colors.toml Omarchy generated for themes without their own, mode from background luma. |
+| `tests/theme-switch-smoke.sh` | Live: real `omarchy theme set` through the hook chain over SSH (`make theme-smoke`). Covers the CLI/TUI skin pipeline only, not the desktop plugin; not part of `make check`. |
 
 Without `make`:
 
@@ -151,8 +152,12 @@ omarchy-themes/
 ├── tests/
 │   ├── smoke.mjs             # plugin in Node with SDK stubs
 │   ├── hook.sh               # hook against fixture in sandbox $HOME
+│   ├── theme-switch-smoke.sh # live hook-chain test over SSH (`make theme-smoke`, not in `make check`)
 │   └── stubs/                # @hermes/plugin-sdk, react, react/jsx-runtime
+├── .github/                  # CI workflow, issue/PR templates, Dependabot
+├── .githooks/pre-push        # generate-check before every push (`make install-githooks`)
 ├── Makefile
+├── CHANGELOG.md  LICENSE  SECURITY.md  CONTRIBUTING.md
 └── README.md
 ```
 
@@ -212,4 +217,10 @@ This project was designed and built by the **Hermes bot fleet** — kanban-drive
 
 ## 🔒 Privacy
 
-This repository is **private** and will remain so until a public release is explicitly authorised. This also applies to any mirror.
+This repository is currently **private** and will remain so until a public release is explicitly authorised; this also applies to any mirror. While it is private, `hermes plugins install https://github.com/cabroe/omarchy-themes` only works with Git credentials that can read it.
+
+---
+
+## 📄 License
+
+[MIT](LICENSE). Changes are listed in the [changelog](CHANGELOG.md); see [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
