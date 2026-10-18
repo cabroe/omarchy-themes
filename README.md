@@ -1,7 +1,7 @@
 # 🎨 omarchy-themes
 
 <p align="center">
-  <b>Bringt die Omarchy-Farbschemata in Hermes — Desktop-Theme-Picker und CLI/TUI-Skin in einem.</b>
+  <b>Brings Omarchy colour schemes to Hermes — desktop theme picker and CLI/TUI skin in one.</b>
 </p>
 
 <p align="center">
@@ -9,82 +9,86 @@
   <img src="https://img.shields.io/badge/Tests-passing-brightgreen?style=for-the-badge" alt="Tests passing">
   <img src="https://img.shields.io/badge/shellcheck-passing-brightgreen?style=for-the-badge" alt="shellcheck">
   <img src="https://img.shields.io/badge/Deploy-SSH-blue?style=for-the-badge" alt="Deploy via SSH">
-  <img src="https://img.shields.io/badge/Repo-privat-lightgrey?style=for-the-badge" alt="Privates Repo">
+  <img src="https://img.shields.io/badge/Repo-private-lightgrey?style=for-the-badge" alt="Private repo">
   <img src=".github/badges/ci.svg" alt="CI">
+</p>
+
+<p align="center">
+  <a href="README.de.md">🇩🇪 Deutsche Version</a>
 </p>
 
 ---
 
-## 🧩 Komponenten
+## 🧩 Components
 
-| Komponente | Datei | Was sie tut |
+| Component | File | What it does |
 |---|---|---|
-| **Desktop-Plugin** | `desktop/plugin.js` | Registriert 25 Themes (22 Omarchy-Stock-Themes + 3 eigene mit vollständiger Palette) im Hermes-Theme-Picker, als ⌘K-Befehle und auf einer eigenen Settings-Seite. Rein lokal, kein Backend, kein Netzwerk. |
-| **Theme-Sync-Hook** | `hooks/hermes-skin-sync.sh` | Läuft bei `omarchy theme set <slug>`, schreibt `~/.hermes/skins/<slug>.yaml` und aktiviert den Hermes-Skin. CLI und TUI folgen dem Desktop-Theme automatisch. |
-| **Generator** | `scripts/generate-themes.py` | Liest `colors.toml`-Dateien vom Host und schreibt die Theme-Tabelle im Plugin neu — nach Omarchy-Updates oder für eigene Themes. |
-| **Deploy-Script** | `scripts/deploy.sh` | Kopiert Plugin + Hook per `scp` auf den Zielhost und vergleicht Byte für Byte. |
+| **Desktop plugin** | `desktop/plugin.js` | Registers 25 themes (22 Omarchy stock themes + 3 custom ones with full palettes) in the Hermes theme picker, as ⌘K commands, and on a dedicated settings page. Purely local — no backend, no network. |
+| **Theme sync hook** | `hooks/hermes-skin-sync.sh` | Runs on `omarchy theme set <slug>`, writes `~/.hermes/skins/<slug>.yaml` and activates the Hermes skin. CLI and TUI follow the desktop theme automatically. |
+| **Generator** | `scripts/generate-themes.py` | Reads `colors.toml` files from the host and rewrites the theme table in the plugin — after Omarchy updates or for custom themes. |
+| **Deploy script** | `scripts/deploy.sh` | Copies the plugin and hook via `scp` to the target host and verifies byte by byte. |
 
 ---
 
-## ⚡ Schnellstart
+## ⚡ Quick start
 
 ```bash
-make check            # Lint + Tests lokal (kein Host nötig)
-make deploy           # check → Plugin + Hook nach omarchy deployen
-make deploy HOST=foo  # anderen SSH-Host verwenden
+make check            # lint + tests locally (no host required)
+make deploy           # check → deploy plugin + hook to omarchy
+make deploy HOST=foo  # use a different SSH host
 ```
 
-Danach im Hermes-Desktop **⌘K → „Reload desktop plugins"** — das Plugin ist ab Werk aktiv (`defaultEnabled: true`). Wer es deaktivieren will: Settings → Capabilities → Plugins → omarchy-themes → Toggle.
+Afterwards, in the Hermes desktop: **⌘K → "Reload desktop plugins"** — the plugin is active out of the box (`defaultEnabled: true`). To disable it: Settings → Capabilities → Plugins → omarchy-themes → Toggle.
 
-**Voraussetzungen lokal:** Node ≥ 22, Python ≥ 3.11, `shellcheck`
-**Voraussetzungen auf dem Host:** SSH-Zugang, Omarchy, Hermes
+**Local requirements:** Node ≥ 22, Python ≥ 3.11, `shellcheck`  
+**Host requirements:** SSH access, Omarchy, Hermes
 
 ---
 
-## 🖥 Benutzung
+## 🖥 Usage
 
-- **Theme-Picker:** Die Omarchy-Themes erscheinen neben den eingebauten Hermes-Themes. Namen, die mit einem Built-in kollidieren (`catppuccin`, `everforest` …), bekommen das Suffix `-omarchy`.
-- **⌘K:** `Apply Omarchy Theme: <Name>`
-- **Settings → Plugins → omarchy-themes:** Kartenansicht mit Farbswatches, Filter (Name/Slug/`dark`/`light`) und *Apply*-Button.
-- **CLI/TUI:** `omarchy theme set nord` → Hook schreibt Skin → `hermes skin use nord` (live in ~1 s).
+- **Theme picker:** Omarchy themes appear alongside the built-in Hermes themes. Names that collide with a built-in (`catppuccin`, `everforest` …) get the suffix `-omarchy`.
+- **⌘K:** `Apply Omarchy Theme: <name>`
+- **Settings → Plugins → omarchy-themes:** Card view with colour swatches, filter (name/slug/`dark`/`light`) and an *Apply* button.
+- **CLI/TUI:** `omarchy theme set nord` → hook writes skin → `hermes skin use nord` (live in ~1 s).
 
-### Was das Plugin anpasst
+### What the plugin customises
 
-Jedes registrierte Theme liefert **beide** Paletten + **beide** Terminal-Paletten + **Typography**, damit der Wechsel zwischen Light- und Dark-Mode in Hermes die ganze UI neu einfärbt — nicht nur die Border:
+Every registered theme ships **both** palettes + **both** terminal palettes + **typography**, so switching between light and dark mode in Hermes recolours the entire UI — not just the border:
 
-| Feld | Wofür |
+| Field | Purpose |
 |---|---|
-| `colors` / `darkColors` | Hintergrund, Card, Popover, Sidebar, Input, Border, Primary/Accent, Muted, Destructive, User-Bubble |
-| `terminal` / `darkTerminal` | ANSI-Palette (schwarz/weiß + 8 Farben + Bright-Varianten) fürs integrierte Terminal |
-| `typography` | `fontSans` (System-Stack mit Emoji-Fallback), `fontMono` (JetBrains Mono-Stack) |
+| `colors` / `darkColors` | Background, card, popover, sidebar, input, border, primary/accent, muted, destructive, user bubble |
+| `terminal` / `darkTerminal` | ANSI palette (black/white + 8 colours + bright variants) for the integrated terminal |
+| `typography` | `fontSans` (system stack with emoji fallback), `fontMono` (JetBrains Mono stack) |
 
-Für die **Gegenrichtung** (Light-Variante eines Dark-Themes oder umgekehrt) wird die fehlende Palette im Plugin synthetisiert. **Surface-Seed** ist jeweils `mixHex(c.background, '#ffffff' | '#000000', 0.88)` — also die native BG-Farbe um 88 % Richtung Weiß oder Schwarz gezogen. Das stellt sicher, dass beide Paletten echten Hell/Dunkel-Kontrast haben und der Renderer (`renderedModeFor` in `apps/desktop/src/themes/context.tsx`, Rec.709-Luma > 0.5) zuverlässig die richtige Palette wählt — selbst bei Omarchy-Light-Themes wie `lupine` (für die `darker_background` nur leichtes Grau ist) und Omarchy-Dark-Themes wie `nord` (für die `lighter_background` nur leicht helleres Schwarz ist). Omarchy's `lighter_background` / `darker_background` werden bewusst ignoriert, weil sie für den Renderer-Schwellwert zu nah am Original liegen.
+For the **opposite direction** (light variant of a dark theme or vice versa), the missing palette is synthesised in the plugin. The **surface seed** is `mixHex(c.background, '#ffffff' | '#000000', 0.88)` — the native background colour pulled 88% towards white or black. This ensures both palettes have genuine light/dark contrast and the renderer (`renderedModeFor` in `apps/desktop/src/themes/context.tsx`, Rec.709 luma > 0.5) reliably picks the right palette — even for Omarchy light themes like `lupine` (where `darker_background` is only a light grey) and dark themes like `nord` (where `lighter_background` is only slightly brighter black). Omarchy's `lighter_background` / `darker_background` are intentionally ignored because they sit too close to the original to cross the renderer threshold.
 
-**Marken-Identität** bleibt erhalten: `accent`, `primary`, `ring`, `midground`, `composerRing` werden in beiden Paletten identisch aus `c.accent` abgeleitet — `lupine` ist also immer lupine-blau, `nord` immer nord-cyan, egal ob Light- oder Dark-Mode.
+**Brand identity** is preserved: `accent`, `primary`, `ring`, `midground`, and `composerRing` are derived identically from `c.accent` in both palettes — so `lupine` is always lupine-blue and `nord` is always nord-cyan, regardless of light or dark mode.
 
-Seit **Plugin-Hardening** ([t_3ca941bc]) + **Theme-Mode-Sync** (diese Task) erzwingt jeder Apply den passenden UI-Modus: `lupine` flipt zu Light, `nord` bleibt Dark. `setMode(entry.mode)` läuft zusätzlich zu `requestTheme(name)` im Apply-Pfad der Settings-Karte. Damit das auch außerhalb von React-Komponenten funktioniert (⌘K-Palette-`palette.action`, `applyThemeFor(skin.changed)`), braucht es `requestMode` im `@hermes/plugin-sdk` — Folge-Task für nach dem Hermes-SDK-Update. Bis dahin zeigen ⌘K und CLI→Desktop-Sync das Hardening-Verhalten (kein Mode-Flip, aber auch kein Lupine-als-Dark mehr).
+Since **plugin hardening** ([t_3ca941bc]) + **theme mode sync**, every apply enforces the correct UI mode: `lupine` flips to light, `nord` stays dark. `setMode(entry.mode)` runs in addition to `requestTheme(name)` in the settings card apply path. For this to work outside React components (⌘K palette `palette.action`, `applyThemeFor(skin.changed)`), `requestMode` is needed in `@hermes/plugin-sdk` — follow-up task after the Hermes SDK update. Until then, ⌘K and CLI→desktop sync show hardening behaviour (no mode flip, but no lupine-as-dark either).
 
-Der Test prüft das (siehe `tests/smoke.mjs`): für jedes registrierte Theme muss die Luma-Differenz zwischen `colors.background` und `darkColors.background` ≥ 0,5 sein (deckungsgleich mit dem Renderer-Threshold).
+The test verifies this (see `tests/smoke.mjs`): for every registered theme, the luma difference between `colors.background` and `darkColors.background` must be ≥ 0.5 (aligned with the renderer threshold).
 
 ---
 
-## 🔄 Themes aktualisieren
+## 🔄 Updating themes
 
-Die Paletten sind ins Plugin eingebacken (der Desktop-Renderer hat keinen Dateisystemzugriff). Nach einem Omarchy-Update:
+Palettes are baked into the plugin (the desktop renderer has no filesystem access). After an Omarchy update:
 
 ```bash
-make generate          # Paletten vom Host neu einlesen und plugin.js überschreiben
-make generate-check    # nur prüfen, ob plugin.js aktuell ist (Exit 1 wenn nicht)
+make generate          # re-read palettes from the host and rewrite plugin.js
+make generate-check    # only check whether plugin.js is up to date (exit 1 if not)
 make deploy
 ```
 
-Eigene Themes aus `~/.config/omarchy/themes/` einschließen:
+To include custom themes from `~/.config/omarchy/themes/`:
 
 ```bash
 python3 scripts/generate-themes.py --remote omarchy --include-user
 ```
 
-Der Generator ersetzt nur den Block zwischen `// BEGIN GENERATED THEMES` und `// END GENERATED THEMES` und ist deterministisch — kein Diff, wenn sich nichts geändert hat.
+The generator only replaces the block between `// BEGIN GENERATED THEMES` and `// END GENERATED THEMES` and is deterministic — no diff if nothing changed.
 
 ---
 
@@ -96,12 +100,12 @@ make test     # node tests/smoke.mjs && sh tests/hook.sh
 make lint     # node --check + py_compile + shellcheck
 ```
 
-| Test | Prüft |
+| Test | Checks |
 |---|---|
-| `tests/smoke.mjs` | Plugin lädt in Node und registriert alle Themes, ⌘K-Befehle und Settings-Seite. Alle Farben sind gültiges `#rrggbb`, kein Name doppelt. Erzwingt Luma-Differenz ≥ 0,5 zwischen `colors` und `darkColors` (deckungsgleich mit Renderer-Threshold ≥ 0,5), Vollständigkeit von 25 UI-Schlüsseln pro Palette und Markentreue (identischer `accent`/`primary`/`ring`/`midground`/`composerRing` in beiden Paletten). |
-| `tests/hook.sh` | Skin-YAML (22 Keys, Kleinschreibung, 3-stellige Hex-Expansion), Skip bei unbekanntem Slug, Exit 0 wenn `hermes` fehlschlägt. |
+| `tests/smoke.mjs` | Plugin loads in Node and registers all themes, ⌘K commands, and the settings page. All colours are valid `#rrggbb`, no duplicate names. Enforces luma difference ≥ 0.5 between `colors` and `darkColors` (aligned with renderer threshold), completeness of 25 UI keys per palette, and brand consistency (identical `accent`/`primary`/`ring`/`midground`/`composerRing` in both palettes). |
+| `tests/hook.sh` | Skin YAML (22 keys, lowercase, 3-digit hex expansion), skip on unknown slug, exit 0 when `hermes` fails. |
 
-Gleiches Ergebnis ohne `make`:
+Without `make`:
 
 ```bash
 node --check desktop/plugin.js
@@ -113,60 +117,56 @@ sh tests/hook.sh
 
 ---
 
-## 📁 Projektstruktur
+## 📁 Project structure
 
 ```
 omarchy-themes/
-├── desktop/plugin.js         # Hermes-Desktop-Plugin (plain ESM, kein Build)
-├── hooks/hermes-skin-sync.sh # Omarchy-theme-set-Hook → Hermes CLI/TUI-Skin
+├── desktop/plugin.js         # Hermes desktop plugin (plain ESM, no build step)
+├── hooks/hermes-skin-sync.sh # omarchy theme-set hook → Hermes CLI/TUI skin
 ├── scripts/
-│   ├── generate-themes.py    # colors.toml → Theme-Tabelle in plugin.js
-│   └── deploy.sh             # scp + Byte-Vergleich auf dem Zielhost
+│   ├── generate-themes.py    # colors.toml → theme table in plugin.js
+│   └── deploy.sh             # scp + byte comparison on the target host
 ├── tests/
-│   ├── smoke.mjs             # Plugin in Node mit SDK-Stubs
-│   ├── hook.sh               # Hook gegen Fixture in Sandbox-$HOME
+│   ├── smoke.mjs             # plugin in Node with SDK stubs
+│   ├── hook.sh               # hook against fixture in sandbox $HOME
 │   └── stubs/                # @hermes/plugin-sdk, react, react/jsx-runtime
 ├── Makefile
 └── README.md
 ```
 
-Der Desktop-Plugin-Pfad (`desktop/plugin.js`) entspricht dem, was der Hermes-Plugin-Loader beim
-`hermes plugins install <url>` sucht (siehe `findDesktopEntry` in
-`desktop-plugin-install.ts`). Früher lag das Plugin unter `plugin/desktop/plugin.js` — der
-Loader hat dort nichts erkannt und brach mit „No agent or desktop plugin artifacts found"
-ab.
+The desktop plugin path (`desktop/plugin.js`) matches what the Hermes plugin loader looks for on `hermes plugins install <url>` (see `findDesktopEntry` in `desktop-plugin-install.ts`). Previously the plugin lived at `plugin/desktop/plugin.js` — the loader did not find it there and failed with "No agent or desktop plugin artifacts found".
 
-Zielpfade auf dem Host (per `make deploy`):
+Target paths on the host (via `make deploy`):
 
-| Datei | Ziel |
+| File | Destination |
 |---|---|
 | `desktop/plugin.js` | `~/.hermes/plugins/omarchy-themes/desktop/plugin.js` |
 | `hooks/hermes-skin-sync.sh` | `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh` |
 
 ---
 
-## 🗺 Farb-Mapping
+## 🗺 Colour mapping
 
-### Desktop-Theme
+### Desktop theme
 
 | `colors.toml` | Hermes `DesktopTheme` |
 |---|---|
 | `background` | `background`, `terminal.black`, `terminal.brightBlack` |
-| `foreground` | `foreground` + alle `*Foreground`, `terminal.foreground/cursor/brightWhite` |
-| `accent` | `primary`, `accent`, `ring`, `midground`, `composerRing`; Textfarbe darauf (weiß/schwarz) per Luminanz |
+| `foreground` | `foreground` + all `*Foreground`, `terminal.foreground/cursor/brightWhite` |
+| `accent` | `primary`, `accent`, `ring`, `midground`, `composerRing`; text colour on top (white/black) by luminance |
 | `lighter_background` | `card`, `popover`, `secondary`, `userBubble` |
 | `dark_background` | `border`, `input`, `sidebarBackground`, `sidebarBorder`, `userBubbleBorder` |
 | `muted` / `dark_foreground` | `muted` / `mutedForeground` |
 | `red` | `destructive` |
 | `selection` | `terminal.selectionBackground` |
 | `red…magenta`, `bright_*` | `terminal.*` / `terminal.bright*` |
-| `mode = "light"` | zusätzlich `darkColors`/`darkTerminal` aus `dark_background`/`darker_background` |
+| `mode = "light"` | additionally `darkColors`/`darkTerminal` from `dark_background`/`darker_background` |
 
-Fehlende Keys fallen auf `background`/`foreground`/`accent` zurück. Fehlt einer dieser drei, wird das Theme übersprungen.
+Missing keys fall back to `background`/`foreground`/`accent`. If any of these three is missing, the theme is skipped.
 
-### CLI/TUI-Skin (Hook)
+### CLI/TUI skin (hook)
 
-Der Hook schreibt 22 Keys; alles Weitere erbt der Skin-Loader vom `default`-Skin.
+The hook writes 22 keys; everything else is inherited by the skin loader from the `default` skin.
 
 | `colors.toml` | `~/.hermes/skins/<slug>.yaml` |
 |---|---|
@@ -178,16 +178,16 @@ Der Hook schreibt 22 Keys; alles Weitere erbt der Skin-Loader vom `default`-Skin
 | `green` / `yellow` / `red` | `ui_ok/warn/error`, `status_bar_good/warn/critical` |
 | `cyan` | `response_border`, `session_label` |
 
-Der Hook ist reines POSIX-`sh` ohne Python. Ein User-Theme hat Vorrang vor dem gleichnamigen System-Theme. Er beendet sich immer mit Exit 0, damit Omarchys Hook-Kette nie abbricht.
+The hook is pure POSIX `sh` with no Python dependency. A user theme takes precedence over a system theme with the same name. It always exits with code 0 so it never breaks Omarchy's hook chain.
 
 ---
 
-## 🤖 Entstehung
+## 🤖 How it was built
 
-Dieses Projekt wurde von der **Hermes-Bot-Flotte** entworfen und gebaut — Kanban-gesteuert mit `coder`, `devops` und `cicd`. Hook, Desktop-Plugin und Generator entstanden in getrennten Tasks mit unabhängiger Verifikation; `tests/hook.sh` ist der Audit-Trail des Hook-Tasks.
+This project was designed and built by the **Hermes bot fleet** — kanban-driven with `coder`, `devops`, and `cicd`. The hook, desktop plugin, and generator were developed in separate tasks with independent verification; `tests/hook.sh` is the audit trail of the hook task.
 
 ---
 
-## 🔒 Privatheit
+## 🔒 Privacy
 
-Das Repo ist **privat** und bleibt es, bis eine Veröffentlichung ausdrücklich freigegeben wird. Das gilt auch für jeden Mirror.
+This repository is **private** and will remain so until a public release is explicitly authorised. This also applies to any mirror.
