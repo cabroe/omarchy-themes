@@ -164,11 +164,12 @@ const files = new Map()
 const changeListeners = new Set()
 const watchPaths = new Map()
 let nextWatch = 0
+const delays = new Map() // per-path artificial latency for race tests
 window.hermesDesktop = {
   desktopPluginsRoot: async () => '/home/u/.hermes/desktop-plugins',
   getMachineProfile: async () => ({ username: 'u' }),
-  readFileText: async p => (files.has(p) ? { text: files.get(p) } : { error: 'ENOENT' }),
   watchPreviewFile: async p => { const id = `w${++nextWatch}`; watchPaths.set(id, p); return { id, path: p } },
+  readFileText: async p => { if (delays.has(p)) await new Promise(r => setTimeout(r, delays.get(p))); return files.has(p) ? { text: files.get(p) } : { error: 'ENOENT' } },
   stopPreviewFileWatch: async id => watchPaths.delete(id),
   onPreviewFileChanged: fn => { changeListeners.add(fn); return () => changeListeners.delete(fn) },
 }
@@ -187,8 +188,8 @@ setSkin('nord')
 const localDisposers = []
 plugin.register(isolated({ onDispose: fn => localDisposers.push(fn) }))
 await settle()
-assert.deepEqual([...watchPaths.values()].sort(), [CONFIG, THEME_NAME].sort(),
-  'plugin must watch Omarchy theme.name and the local config.yaml')
+assert.deepEqual([...watchPaths.values()].sort(), [CONFIG, THEME_NAME, '/home/u/.local/state/omarchy/current/theme/colors.toml'].sort(),
+  'plugin must watch Omarchy theme.name, colors.toml and the local config.yaml')
 
 // Launch: the current theme is only the baseline, nothing is applied.
 const beforeLocal = requested.length
@@ -275,15 +276,28 @@ assert.equal(await launch('lupine'), 0, 'caught up once, not on every launch')
 // the palette comes from current/theme/colors.toml, as ONE replaceable theme.
 const COLORS = '/home/u/.local/state/omarchy/current/theme/colors.toml'
 const TOGGLE = '/home/u/.local/state/omarchy/toggles/skip-hermes-theme-changes'
-const toml = (bg, fg) => `accent = "#BE3F50"\nforeground = "${fg}"\nbackground = "${bg}"\n\ncolor1 = "#c8e967"\ncolor2 = "#E20342"\ncolor8 = "#c53253"\n`
+const toml = (bg, fg) => `accent = "#BE3F50"\nselection = "#abcdef"\nforeground = "${fg}"\nbackground = "${bg}"\n\ncolor1 = "#c8e967"\ncolor2 = "#E20342"\ncolor8 = "#c53253"\n`
 const registered = new Map()
 const dynDisposers = []
-const dynCtx = () => ({
-  ...ctx,
-  register: c => { registered.set(c.id, c.data); return () => { if (registered.get(c.id) === c.data) registered.delete(c.id) } },
-  registerSettingsPage: () => {},
-  onDispose: fn => dynDisposers.push(fn),
-})
+const regLog = []
+let ctxSeq = 0
+const dynCtx = (storage) => {
+  const id = ++ctxSeq
+  return {
+    ...ctx,
+    storage,
+    register: c => { regLog.push([id, c.id]); registered.set(c.id, c.data); return () => { if (registered.get(c.id) === c.data) registered.delete(c.id) } },
+    registerSettingsPage: () => {},
+    onEvent: (type, listener) => { dynListeners.push({ type, listener }); return () => {} },
+    onDispose: fn => dynDisposers.push(fn),
+    __id: id,
+  }
+}
+const dynListeners = []
+const fireSkin = async name => {
+  dynListeners.filter(e => e.type === 'skin.changed').forEach(e => e.listener({ type: 'skin.changed', payload: { name } }))
+  await new Promise(r => setTimeout(r, 0))
+}
 const disposeDyn = () => dynDisposers.splice(0).forEach(d => d())
 
 clock += 20000
@@ -301,7 +315,7 @@ assert.ok(dyn, 'unknown Omarchy theme must be registered from colors.toml')
 assert.equal(dyn.name, 'omarchy-current')
 assert.equal(dyn.label, 'Omarchy My Custom')
 assert.equal(dyn.darkColors.background, '#0e091d')
-assert.equal(dyn.darkColors.destructive, '#c8e967', 'named colors map from color1 (red)')
+assert.equal(dyn.darkTerminal.selectionBackground, '#abcdef', 'selection maps from the official colors.toml key')
 assert.equal(requested.at(-1), 'omarchy-current')
 assert.equal(store.get(MODE_KEY), 'dark')
 
@@ -325,26 +339,113 @@ await changed(THEME_NAME)
 assert.equal(requested.length, beforeMissing)
 
 // Omarchy's own `omarchy` skin stands for the current Omarchy theme: the
-// host's single-palette paint is replaced by the dual-palette entry.
+// host's single-palette paint is replaced by the dual-palette entry. The host
+// requests the skin itself right after the plugins — the alias must win after it.
 clock += 20000
-files.set(THEME_NAME, 'lupine\n')
+files.set(COLORS, toml('#0e091d', '#14b9b5'))
+files.set(THEME_NAME, 'my-custom\n')
 await changed(THEME_NAME)
-await skinChanged('omarchy')
-assert.equal(requested.at(-1), 'omarchy-lupine')
+const hostRequested = requested.length
+requested.push('omarchy') // what the host's ingestBackendSkin → ThemeProvider does
+await fireSkin('omarchy')
+assert.ok(requested.length > hostRequested + 1, 'the omarchy alias must re-apply after the host')
+assert.equal(requested.at(-1), 'omarchy-current')
 
-// Toggle skip-hermes-theme-changes stops every automatic switch.
+// An unknown theme named like a Hermes built-in never becomes a dynamic theme.
+const beforeBuiltin = requested.length
+clock += 20000
+files.set(THEME_NAME, 'solarized\n')
+await changed(THEME_NAME)
+await fireSkin('solarized')
+assert.equal(requested.length, beforeBuiltin, 'built-in names stay Hermes’ own')
+
+// The palette changed under the SAME unknown slug (edited custom theme,
+// `omarchy theme set` re-run): the colors.toml door re-registers and repaints.
+clock += 20000
+files.set(THEME_NAME, 'my-custom\n')
+await changed(THEME_NAME)
+const beforeEdit = requested.length
+files.set(COLORS, toml('#123456', '#abcdef'))
+await changed(COLORS)
+await new Promise(r => setTimeout(r, 400)) // door 4 debounces 250 ms (real timer)
+await settle()
+assert.equal(registered.get('theme-current').darkColors.background, '#123456', 'edited palette is re-read')
+assert.equal(requested.at(-1), 'omarchy-current', 'edited palette is repainted')
+assert.ok(requested.length > beforeEdit)
+
+// Same-slug edit, but the colors.toml watch is already dead (Omarchy swaps
+// current/theme by rename): Omarchy's republished `omarchy` skin is the
+// fallback signal — the listener re-reads the palette and repaints after the
+// host's own single-palette paint.
+clock += 20000
+files.set(COLORS, toml('#0f2a1e', '#e8f0e8'))
+const hostReq2 = requested.length
+requested.push('omarchy') // what the host's ingestBackendSkin does with the republished skin
+await fireSkin('omarchy')
+assert.ok(requested.length > hostReq2 + 1, 'the republished omarchy skin must re-apply after the host')
+assert.equal(registered.get('theme-current').darkColors.background, '#0f2a1e', 'republished skin re-reads the palette')
+assert.equal(requested.at(-1), 'omarchy-current')
+
+// Toggle skip-hermes-theme-changes stops every automatic switch — the watcher
+// and the gateway event alike.
 const beforeToggle = requested.length
 files.set(TOGGLE, '')
 clock += 20000
 files.set(THEME_NAME, 'tokyo-night\n')
-await changed(THEME_NAME)
-await skinChanged('tokyo-night')
+await changed(THEME_NAME)          // refreshSkip ran here → the cache is fresh
+await fireSkin('tokyo-night')      // this listener decides on the cached toggle
 assert.equal(requested.length, beforeToggle, 'toggle on: no automatic switching')
+
+// Launch under the toggle restores the palette shown before, not Omarchy's
+// current one (my-custom #0f2a1e was shown; Omarchy moved on to my-light).
+disposeDyn()
+const persistent = new Map()
+const pstore = { get: (k, d) => persistent.get(k) ?? d, set: (k, v) => persistent.set(k, v) }
+// An instance WITH storage sees my-custom/#0f2a1e once (toggle off), so the
+// palette is persisted.
+files.delete(TOGGLE)
+files.set(THEME_NAME, 'my-custom\n')
+plugin.register(dynCtx(pstore))
+await settle()
+await changed(THEME_NAME)
+disposeDyn()
+files.set(TOGGLE, '')
+files.set(COLORS, toml('#fafafa', '#212121'))
+files.set(THEME_NAME, 'my-light\n')
+const beforeSkipLaunch = requested.length
+plugin.register(dynCtx(pstore))
+await settle()
+assert.equal(registered.get('theme-current').darkColors.background, '#0f2a1e', 'skip launch restores the palette shown before')
+assert.equal(requested.length, beforeSkipLaunch, 'skip launch must not switch the theme')
+disposeDyn()
 files.delete(TOGGLE)
 clock += 20000
+plugin.register(dynCtx())
+await settle()
 files.set(THEME_NAME, 'nord\n')
 await changed(THEME_NAME)
 assert.equal(requested.at(-1), 'omarchy-nord', 'toggle off: switching resumes')
+disposeDyn()
+
+// A disposed instance must not register into the next one while its file
+// reads are still in flight (register/dispose/register).
+regLog.length = 0
+delays.set(COLORS, 80)
+files.set(COLORS, toml('#0e091d', '#14b9b5'))
+files.set(THEME_NAME, 'my-custom\n')
+const instA = dynCtx()
+plugin.register(instA)
+await tick()                    // primeCurrent is now awaiting the delayed read
+disposeDyn()
+const instB = dynCtx()
+plugin.register(instB)
+await new Promise(r => setTimeout(r, 200))
+await settle()
+const stale = regLog.filter(([i, id]) => id === 'theme-current' && i === instA.__id).length
+assert.equal(stale, 0, 'a disposed instance must not register theme-current')
+assert.ok(regLog.some(([i, id]) => id === 'theme-current' && i === instB.__id), 'the live instance registers theme-current')
+delays.delete(COLORS)
+disposeDyn()
 
 // Launch: the dynamic palette is registered again (it is not persisted), but
 // registering is no theme switch.

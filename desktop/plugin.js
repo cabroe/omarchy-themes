@@ -378,9 +378,13 @@ const DYNAMIC_NAME = 'omarchy-current'
 let dynamic = null       // { slug, entry, sig, stop }
 let omarchySlug = null   // theme.name as last seen
 let skipSync = false     // Omarchy toggle skip-hermes-theme-changes, cached
+let dynStore = null      // ctx.storage of the live instance (palette persistence)
+let INSTANCE = 0        // bumped on dispose — in-flight handlers of a dead instance stop touching shared state
 
+// `isKnown` also claims every Hermes built-in name: an Omarchy theme called
+// e.g. `solarized` must not override Hermes' own built-in of that name.
 const isKnown = name =>
-  THEMES.some(t => t.slug === name) || (BUILTIN_NAMES.has(name) && RAW_MODE.has(name))
+  THEMES.some(t => t.slug === name) || BUILTIN_NAMES.has(name)
 
 function applySkin(name, { force = false } = {}) {
   // Omarchy's own `omarchy` skin (omarchy-theme-set-hermes) always stands for
@@ -484,7 +488,7 @@ function paletteFromToml(text) {
   const c = {
     mode: t.mode ?? (luma(t.background) > 0.5 ? 'light' : 'dark'),
     accent, background: t.background, foreground: t.foreground,
-    selection: t.selection_background, muted: t.muted ?? t.color8, dark_foreground: t.dark_foreground ?? t.color8,
+    selection: t.selection ?? t.selection_background, muted: t.muted ?? t.color8, dark_foreground: t.dark_foreground ?? t.color8,
     dark_background: t.dark_background, darker_background: t.darker_background, lighter_background: t.lighter_background,
     bright_foreground: t.bright_foreground,
   }
@@ -495,30 +499,46 @@ function paletteFromToml(text) {
   return c
 }
 
-// Register the current Omarchy theme from colors.toml. True when the dynamic
-// theme now matches `slug`.
-async function registerCurrent(ctx, bridge, slug) {
+// Register the current Omarchy theme from colors.toml. Returns 'new' when the
+// dynamic theme changed, 'same' when it already matches, null when colors.toml
+// gave no palette. `alive` aborts a disposed instance before it touches shared
+// state. The palette is persisted so a launch under the skip toggle can restore
+// exactly what was shown before.
+async function registerCurrent(ctx, bridge, slug, alive = () => true) {
   const text = await readText(bridge, await omarchyFile(bridge, 'current/theme/colors.toml'))
+  if (!alive()) return null
   const c = text && paletteFromToml(text)
   const entry = c && buildTheme(slug, c, new Set())
-  if (!entry) return false
+  if (!entry) return null
   entry.theme.name = DYNAMIC_NAME
   const sig = slug + JSON.stringify(entry.theme)
-  if (dynamic?.sig === sig) return true
+  if (dynamic?.sig === sig) return 'same'
   dynamic?.stop?.()
   dynamic = { slug, entry, sig, stop: ctx.register({ id: 'theme-current', area: THEMES_AREA, data: entry.theme }) }
-  return true
+  dynStore?.set('last-dynamic', JSON.stringify({ slug, label: entry.label, mode: entry.mode, theme: entry.theme }))
+  return 'new'
 }
 
-// Launch: make the palette available again (it is not persisted) and learn
-// the current theme name and toggle. Registering is not a theme switch.
-async function primeCurrent(ctx, bridge) {
+// Launch: make the palette available again (the host does not persist it) and
+// learn the current theme name and toggle. Registering is not a theme switch —
+// and under the skip toggle the palette shown BEFORE is restored, not the one
+// Omarchy has switched to since.
+async function primeCurrent(ctx, bridge, alive) {
   try {
     const name = themeName((await readText(bridge, await omarchyThemeNamePath(bridge))) ?? '')
-    if (!name) return
+    if (!name || !alive()) return
     omarchySlug ??= name
     await refreshSkip(bridge)
-    if (!isKnown(name)) await registerCurrent(ctx, bridge, name)
+    if (!alive() || isKnown(name)) return
+    if (!skipSync) { await registerCurrent(ctx, bridge, name, alive); return }
+    const saved = dynStore?.get('last-dynamic', null)
+    let parsed = null
+    try { parsed = JSON.parse(saved || 'null') } catch (_) { /* corrupt — nothing to restore */ }
+    if (!parsed?.theme) return
+    const sig = parsed.slug + JSON.stringify(parsed.theme)
+    if (dynamic?.sig === sig) return
+    dynamic?.stop?.()
+    dynamic = { slug: parsed.slug, entry: parsed, sig, stop: ctx.register({ id: 'theme-current', area: THEMES_AREA, data: parsed.theme }) }
   } catch (_) { /* Omarchy not here — the baked themes still work */ }
 }
 
@@ -552,7 +572,7 @@ function watchFile(resolvePath, parse, onValue, store, seenKey) {
       if (disposed || !value || value === last) return
       last = value
       store?.set(seenKey, value)
-      onValue(value)
+      Promise.resolve(onValue(value)).catch(() => { /* a failing door must not kill the watcher */ })
     } catch (_) { /* unreadable mid-write — the next change event retries */ }
   })
 
@@ -562,7 +582,7 @@ function watchFile(resolvePath, parse, onValue, store, seenKey) {
     last = await read()
     const seen = store?.get(seenKey, null)
     if (last) store?.set(seenKey, last)
-    if (!disposed && seen && last && seen !== last) onValue(last)
+    if (!disposed && seen && last && seen !== last) Promise.resolve(onValue(last)).catch(() => {})
     const watch = await bridge.watchPreviewFile(path)
     if (!watch?.id) return
     if (disposed) bridge.stopPreviewFileWatch?.(watch.id)
@@ -738,29 +758,90 @@ export default {
     // 1 and 2 work whichever gateway is the active connection. Later doors are
     // no-ops for the same name (DEDUPE_MS).
     let epoch = 0
+    let colorsTimer = 0
+    const myInstance = ++INSTANCE
+    const alive = () => myInstance === INSTANCE
     const bridge = typeof window === 'undefined' ? undefined : window.hermesDesktop
+    dynStore = ctx.storage ?? null
     disposers.push(ctx.onEvent('skin.changed', event => {
       const name = event?.payload?.name
       const mine = ++epoch
       // Same task as the host's handler, so the cached toggle decides; refresh it for the next one.
-      if (bridge?.readFileText) void refreshSkip(bridge)
-      Promise.resolve().then(() => { if (mine === epoch) applySkin(name, { force: true }) })
+      if (bridge?.readFileText) refreshSkip(bridge).catch(() => {})
+      Promise.resolve().then(async () => {
+        if (mine !== epoch) return
+        // Omarchy republishes its `omarchy` skin on EVERY theme set (it touches
+        // the skin file, so the gateway broadcasts even an unchanged name).
+        // That is the reliable signal for a palette edit under the SAME
+        // unknown slug: Omarchy swaps current/theme by rename, which silences
+        // the colors.toml watch after its first event.
+        if (name === 'omarchy' && !skipSync && bridge?.readFileText && omarchySlug && !isKnown(omarchySlug)) {
+          if (await registerCurrent(ctx, bridge, omarchySlug, alive) === 'new' && mine === epoch && alive()) {
+            return applySkin(omarchySlug, { force: true })
+          }
+        }
+        applySkin(name, { force: true })
+      })
     }))
     disposers.push(() => { epoch++ })
     if (bridge?.readFileText) {
       disposers.push(watchOmarchyTheme(async name => {
         omarchySlug = name
         await refreshSkip(bridge)
-        if (!skipSync && !isKnown(name)) await registerCurrent(ctx, bridge, name)
-        applySkin(name)
+        if (!alive()) return
+        if (!skipSync && !isKnown(name)) await registerCurrent(ctx, bridge, name, alive)
+        if (alive()) applySkin(name)
       }, ctx.storage))
       disposers.push(watchConfigSkin(async name => {
         await refreshSkip(bridge)
-        applySkin(name)
+        if (alive()) applySkin(name)
       }, ctx.storage))
-      void primeCurrent(ctx, bridge)
+      // Fourth door: colors.toml itself. It catches the case no other door
+      // sees — the palette changed under the SAME unknown slug (edited custom
+      // theme, `omarchy theme set` re-run): re-register and force the repaint.
+      // Omarchy swaps current/theme by rename, which orphans a file watch
+      // after one event, so this watcher re-arms on every event instead of
+      // trusting a single watch to survive the swap.
+      let colorsStop = () => {}
+      const colorsArrived = () => {
+        clearTimeout(colorsTimer)
+        colorsTimer = setTimeout(() => {
+          colorsTimer = 0
+          ;(async () => {
+            await refreshSkip(bridge)
+            if (!alive() || skipSync || !omarchySlug || isKnown(omarchySlug)) return
+            if (await registerCurrent(ctx, bridge, omarchySlug, alive) === 'new' && alive()) {
+              applySkin(omarchySlug, { force: true })
+            }
+          })().catch(() => {})
+        }, 250)
+      }
+      const armColors = async () => {
+        const path = await omarchyFile(bridge, 'current/theme/colors.toml')
+        if (!path || !alive()) return
+        let id = null
+        const off = bridge.onPreviewFileChanged(async payload => {
+          if (!id || payload?.id !== id) return
+          off()
+          void bridge.stopPreviewFileWatch?.(id)
+          if (!alive()) return
+          void armColors() // the swap orphaned this watch — watch the path again
+          colorsArrived()
+        })
+        const watch = await bridge.watchPreviewFile(path).catch(() => null)
+        if (!watch?.id) { off(); return }
+        id = watch.id
+        colorsStop = () => { off(); void bridge.stopPreviewFileWatch?.(id) }
+      }
+      void armColors().catch(() => {})
+      disposers.push(() => colorsStop())
+      void primeCurrent(ctx, bridge, alive)
     }
-    disposers.push(() => { dynamic?.stop?.(); dynamic = null; omarchySlug = null; skipSync = false })
+    disposers.push(() => {
+      INSTANCE++
+      clearTimeout(colorsTimer)
+      dynamic?.stop?.(); dynamic = null; omarchySlug = null; skipSync = false; dynStore = null
+    })
 
     ctx.onDispose(() => disposers.forEach(d => d && d()))
   }

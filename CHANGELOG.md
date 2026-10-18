@@ -4,6 +4,21 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Fixed
+- A palette edit under the same unknown slug (`omarchy theme set` re-run on an
+  edited custom theme) repaints: `current/theme/colors.toml` is watched as a
+  fourth door whose watcher re-arms on every event, because Omarchy swaps the
+  theme directory by rename and a plain file watch goes silent after one swap.
+- `selection` (the key official theme `colors.toml` files use) is read again
+  besides `selection_background`.
+- An Omarchy theme named like a Hermes built-in (`solarized`, …) no longer
+  overrides that built-in.
+- Launch under the `skip-hermes-theme-changes` toggle restores the palette
+  shown before instead of Omarchy's current one.
+- A disposed plugin instance no longer registers into the next one while its
+  file reads are still in flight; failing async doors no longer escape as
+  unhandled rejections.
+
 ## [1.2.0] — 2026-10-18
 
 ### Added
