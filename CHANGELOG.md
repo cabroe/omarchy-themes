@@ -18,12 +18,39 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - A disposed plugin instance no longer registers into the next one while its
   file reads are still in flight; failing async doors no longer escape as
   unhandled rejections.
-- `requestMode` is probed from `@hermes/plugin-sdk` at module load and used
-  when present; repeat calls with the same `(profile, mode)` short-circuit
-  before the storage-event dispatch so a double click on Apply no longer
-  triggers a second `ThemeProvider` paint.
+- `requestMode` is probed from `@hermes/plugin-sdk` at call time (lazy, so a
+  future SDK re-export of `requestMode` is picked up without a page reload);
+  repeat calls with the same `(profile, mode)` short-circuit before the
+  storage-event dispatch so a double click on Apply no longer triggers a
+  second `ThemeProvider` paint.
 - Disposed instance resets its `lastApplied` / `lastRequest` so a fresh
   register's first apply is not silently dropped in the dedupe window.
+- `ThemeCard` *Apply* sets `lastApplied` before calling `requestTheme`, so a
+  background `skin.changed` event or `watchConfigSkin` tick does not
+  ghost-reapply the same theme within `DEDUPE_MS` after a UI-triggered apply.
+- The `register()` bridge guard for the file-watcher block now also requires
+  `onPreviewFileChanged` and `watchPreviewFile` (besides `readFileText`),
+  so `armColors` no longer risks calling a missing method when the SDK
+  ships only a subset.
+- `armColors` file-watch re-arm: three bugs fixed — (1) the listener is
+  registered after `watch.id` is known, so the first event after a
+  rename-swap is no longer silently dropped because the payload's `id`
+  could not be matched yet; (2) an `alive()` check follows the second
+  `await` (`bridge.watchPreviewFile`) so neither listener nor bridge watch
+  leaks on dispose-during-await; (3) the previous `armingColors` guard
+  skipped a concurrent re-arm entirely and left the watcher without a live
+  watch after a burst — replaced by a `pendingRearm` flag that schedules
+  a fresh arm in `finally` once the guard clears.
+- `paletteFromToml`: `dark_foreground` no longer defaults to `color8`
+  (ANSI bright-black); if `muted` also resolves to `color8`, the
+  `mutedForeground` was equal to the muted background and rendered
+  invisible — `buildTheme` now falls back to `foreground` instead.
+- `paletteFromToml` regex extended from `{6}` to `{6}(?:[0-9A-Fa-f]{2})?`,
+  so an 8-digit `#RRGGBBAA` hex (with alpha) is no longer silently
+  ignored; the alpha byte is stripped before parsing.
+- `displaySkin`: tab-indented `config.yaml` yielded `indent=0` for every
+  child line, breaking the `display:` block detection; tabs are
+  normalized to spaces before the indent pass.
 
 ### Removed
 - The plugin is back to a single `desktop/plugin.js` file. Hermes-Desktop
