@@ -11,15 +11,15 @@ GEN_ARGS = $(if $(HOST),--remote $(HOST))
 INSTALL_HOOK_DIR ?= $(HOME)/.config/omarchy/hooks/theme-set.d
 INSTALL_HOOK     ?= $(INSTALL_HOOK_DIR)/hermes-skin-sync.sh
 
-.PHONY: help check test lint generate generate-system generate-check install-hook uninstall install-githooks theme-smoke
+.PHONY: help check test lint generate generate-system generate-check install-hook uninstall-hook uninstall install-githooks theme-smoke
 
 help:
 	@echo "make check              lint + tests (local, no Omarchy needed)"
 	@echo "make generate           regenerate theme table (system themes; HOST=<ssh host> to read remotely; pass --include-user to bake user themes too)"
-	@echo "make generate-system    regenerate theme table (system themes only — same as 'make generate' since the default already excludes user themes)"
+	@echo "make generate-system    regenerate theme table (system themes only — same as 'generate' since the default already excludes user themes)"
 	@echo "make generate-check     fail if plugin.js is out of date (same sources as 'generate')"
 	@echo "make install-hook       install hooks/hermes-skin-sync.sh into \$$INSTALL_HOOK_DIR (idempotent)"
-	@echo "make uninstall          remove the hook installed by install-hook"
+	@echo "make uninstall-hook     remove the hook installed by install-hook (alias: make uninstall)"
 	@echo "make install-githooks   activate .githooks/ (pre-push generate-check) for this clone"
 	@echo "make theme-smoke        run end-to-end theme-switch test over SSH (HOST=<ssh host>, default 'omarchy')"
 
@@ -50,7 +50,7 @@ install-hook:
 	mkdir -p $(INSTALL_HOOK_DIR)
 	install -m 755 hooks/hermes-skin-sync.sh $(INSTALL_HOOK)
 
-uninstall:
+uninstall-hook uninstall:
 	rm -f $(INSTALL_HOOK)
 
 install-githooks:

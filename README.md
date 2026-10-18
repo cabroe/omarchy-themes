@@ -39,7 +39,21 @@ hermes plugins install https://github.com/cabroe/omarchy-themes
 make install-hook
 ```
 
-Uninstall the hook: `make uninstall`.
+---
+
+## Uninstall
+
+```bash
+# 1. Disable the theme-set hook (CLI/TUI auto-sync stops immediately)
+make uninstall-hook
+# Equivalent: rm -f ~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh
+
+# 2. Remove the desktop plugin
+hermes plugins remove omarchy-themes
+# then restart Hermes Desktop so the plugin stops registering its themes
+```
+
+Both steps are independent — leaving one in place is safe.
 
 ---
 
