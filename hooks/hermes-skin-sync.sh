@@ -7,8 +7,10 @@
 # the active skin.
 #
 # Robustness: POSIX /bin/sh, no Python, grep+sed only. Missing files or
-# partial palettes must produce a graceful log entry and exit 0 — Omarchy
-# treats hook errors as fatal and aborts the rest of the hook chain.
+# partial palettes must produce a graceful log entry and exit 0. Omarchy's
+# `omarchy-hook` runs each script with `|| echo "Hook failed: …"` and
+# continues with the sibling hooks — we still exit 0 to keep the log line
+# clean.
 
 set -u
 
@@ -21,7 +23,7 @@ set -u
 SLUG="${1:-}"
 if [ -z "$SLUG" ]; then
     printf 'usage: %s <theme-slug>\n' "$0" >&2
-    exit 64
+    exit 0
 fi
 
 # Honour Omarchy's "skip automatic Hermes skin changes" toggle. Must be
@@ -176,14 +178,16 @@ case "$mode" in
     dark|light) ;;
     *)
         # No usable `mode` (e.g. a colors.toml generated from alacritty.toml):
-        # decide by background luma like Omarchy does (Rec.709, integer maths).
+        # mirror Omarchy's `resolve_theme_mode` — raw R+G+B > 382 = light,
+        # else dark. The result only feeds the `description:` line in the
+        # skin YAML; the desktop plugin makes its own luma call.
         mode="dark"
         if [ -n "$background" ]; then
             bg_hex=${background#\#}
             r=$((0x$(printf '%s' "$bg_hex" | cut -c1-2)))
             g=$((0x$(printf '%s' "$bg_hex" | cut -c3-4)))
             b=$((0x$(printf '%s' "$bg_hex" | cut -c5-6)))
-            [ $((2126 * r + 7152 * g + 722 * b)) -ge $((5000 * 255)) ] && mode="light"
+            [ $((r + g + b)) -gt 382 ] && mode="light"
         fi
         ;;
 esac

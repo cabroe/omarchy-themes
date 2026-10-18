@@ -120,6 +120,26 @@ snapshotted the refs.
   flag was only honoured by `generate`, so a `generate-check` with overrides
   always disagreed with `generate`.
 
+#### Fixed (follow-up)
+- **Hook (header + usage exit)** — Header comment no longer claims Omarchy
+  treats hook errors as fatal; `omarchy-hook` only logs the failure and
+  continues. `exit 64` on missing argument is now `exit 0` so the script
+  matches the documented "Exit 0 always" contract.
+- **Hook (mode fallback)** — Rec.709 luma replaced with Omarchy's raw
+  R+G+B > 382 threshold for the `description:` line, so the hook agrees
+  with `omarchy-theme-color` for alacritty-derived themes.
+- **theme-switch-smoke.sh** — Captures the real `rc` of `omarchy theme set`
+  (the old `if ! out=$(…); then … "$?"` always read 0). Saves the current
+  Omarchy theme as `THEME_BEFORE` and restores it; restoring only the
+  Hermes skin left the workstation on whatever theme the test happened to
+  end on. The log is no longer truncated — a `LOG_OFFSET` byte marker
+  scopes the per-run ERR/WARN/SKIP report to this run.
+- **tests/hook.sh** — Test 5 re-runs the legacy fixture so the dark-path
+  assertion has a file to look at; previously `$LEGACY` was deleted by
+  test 4 and the dark-path check was masked by `|| true`.
+- **.gitignore** — `auth.jsondocs/` was a single line (no newline) so
+  neither `auth.json` nor `docs/` were ignored. Split into two lines.
+
 ## [1.2.0] — 2026-10-18
 
 ### Added

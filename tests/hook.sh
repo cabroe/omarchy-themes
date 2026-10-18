@@ -82,12 +82,26 @@ rm -f "$LEGACY"
 HOME="$SANDBOX" HERMES_BIN="$SANDBOX/bin/hermes-ok" sh "$ROOT/hooks/hermes-skin-sync.sh" legacy
 test ! -e "$LEGACY"                               || fail "foreign theme.name must not be trusted"
 
-# 5. No `mode` key → decided by background luma (here: light background).
+# 5. No `mode` key → decided by background luma (light here, dark for legacy).
 echo bright > "$SANDBOX/.local/state/omarchy/current/theme.name"
 sed 's/#000000/#fffcf0/' "$SANDBOX/.local/state/omarchy/current/theme/colors.toml" > "$SANDBOX/c.toml"
 mv "$SANDBOX/c.toml" "$SANDBOX/.local/state/omarchy/current/theme/colors.toml"
 HOME="$SANDBOX" HERMES_BIN="$SANDBOX/bin/hermes-ok" sh "$ROOT/hooks/hermes-skin-sync.sh" bright
 grep -q 'description: Omarchy theme · bright (light)' "$SANDBOX/.hermes/skins/bright.yaml" || fail "mode from light background"
-grep -q 'description: Omarchy theme · legacy (dark)' "$LEGACY" 2>/dev/null || true
+# Re-run the dark path against the legacy fixture so the assertion has a file
+# to look at — test 4 deleted $LEGACY before this point.
+echo legacy > "$SANDBOX/.local/state/omarchy/current/theme.name"
+cat > "$SANDBOX/.local/state/omarchy/current/theme/colors.toml" <<'EOF'
+accent = "#6699ff"
+background = "#000000"
+foreground = "#e6e6e6"
+color1 = "#e65c5c"
+color2 = "#66cc66"
+color3 = "#ffcc66"
+color6 = "#66cccc"
+color8 = "#404040"
+EOF
+HOME="$SANDBOX" HERMES_BIN="$SANDBOX/bin/hermes-ok" sh "$ROOT/hooks/hermes-skin-sync.sh" legacy
+grep -q 'description: Omarchy theme · legacy (dark)' "$SANDBOX/.hermes/skins/legacy.yaml" || fail "mode from dark background"
 
 echo "ok — hook: skin generation, skip path, failure path, current-theme fallback, mode from luma"

@@ -57,14 +57,23 @@ LOG="${HOME}/.hermes/logs/omarchy-theme-sync.log"
 SKIN_DIR="${HOME}/.hermes/skins"
 mkdir -p "$(dirname "$LOG")" "$SKIN_DIR" || true
 
-# Capture the currently active skin so we can restore at the end.
+# Capture the currently active skin AND Omarchy theme so we can restore at
+# the end. ACTIVE_BEFORE is the Hermes skin; THEME_BEFORE is the Omarchy
+# theme slug. Without THEME_BEFORE, restoring only the Hermes skin leaves
+# the workstation on whatever Omarchy theme the test happened to end on.
 ACTIVE_BEFORE=$(hermes skin list 2>/dev/null | awk '/^\*/{print $2}')
+THEME_BEFORE=$(cat "${OMARCHY_PATH}/../local/state/omarchy/current/theme.name" 2>/dev/null \
+               || cat "$HOME/.local/state/omarchy/current/theme.name" 2>/dev/null || true)
 printf 'ACTIVE_BEFORE=%s\n' "${ACTIVE_BEFORE:-<none>}"
+printf 'THEME_BEFORE=%s\n' "${THEME_BEFORE:-<none>}"
 printf 'OMARCHY_PATH=%s\n' "$OMARCHY_PATH"
 printf 'TEST_THEMES=%s\n' "${TEST_THEMES[*]}"
 
-# Fresh log so this run's entries are easy to grep.
-: > "$LOG"
+# Note the byte offset of the existing log so this run's entries are easy
+# to grep without destroying history. The summary section below uses
+# `tail -c +$LOG_OFFSET` to scope its ERR/WARN/SKIP report to this run.
+LOG_OFFSET=$(stat -c %s "$LOG" 2>/dev/null || echo 0)
+printf 'LOG_OFFSET=%s\n' "$LOG_OFFSET"
 
 # --- Per-theme loop ----------------------------------------------------------
 PASS=0
@@ -72,8 +81,9 @@ FAIL=0
 for slug in "${TEST_THEMES[@]}"; do
   printf '\n========================================\nTEST: %s\n========================================\n' "$slug"
 
-  if ! out=$(omarchy theme set "$slug" 2>&1); then
-    printf 'FAIL: omarchy theme set exited %s: %s\n' "$?" "$out"
+  out=$(omarchy theme set "$slug" 2>&1); rc=$?
+  if [ "$rc" -ne 0 ]; then
+    printf 'FAIL: omarchy theme set exited %d: %s\n' "$rc" "$out"
     FAIL=$((FAIL + 1))
     continue
   fi
@@ -124,18 +134,25 @@ printf 'SUMMARY: PASS=%d FAIL=%d of %d\n' "$PASS" "$FAIL" "$TOTAL"
 printf '=========================================\n\n'
 
 printf '=== ERR / WARN / SKIP in this run ===\n'
-if grep -E '\b(ERR|WARN|SKIP)\b' "$LOG"; then :; else printf '(none)\n'; fi
+if tail -c "+$LOG_OFFSET" "$LOG" | grep -E '\b(ERR|WARN|SKIP)\b'; then :; else printf '(none)\n'; fi
 
 # --- Restore -----------------------------------------------------------------
-if [ -n "${ACTIVE_BEFORE:-}" ]; then
-  printf '\n=== Restoring ACTIVE_BEFORE=%s ===\n' "$ACTIVE_BEFORE"
-  if ! omarchy theme set "$ACTIVE_BEFORE" >/dev/null 2>&1; then
-    printf 'omarchy rejected %s — falling back to direct hermes skin use\n' "$ACTIVE_BEFORE"
-    hermes skin use "$ACTIVE_BEFORE" 2>&1 | tail -2 || true
+# Restore BOTH the Omarchy theme and the Hermes skin. The Omarchy theme is
+# restored first because the hook chain sets the Hermes skin as a side
+# effect, so a single `omarchy theme set` rebuilds both at once.
+if [ -n "${THEME_BEFORE:-}" ]; then
+  printf '\n=== Restoring THEME_BEFORE=%s ===\n' "$THEME_BEFORE"
+  if ! omarchy theme set "$THEME_BEFORE" >/dev/null 2>&1; then
+    printf 'omarchy rejected %s — falling back to direct hermes skin use\n' "$THEME_BEFORE"
+    hermes skin use "$THEME_BEFORE" 2>&1 | tail -2 || true
   fi
-  ACTIVE_AFTER=$(hermes skin list 2>/dev/null | awk '/^\*/{print $2}')
-  printf 'ACTIVE_AFTER=%s\n' "$ACTIVE_AFTER"
+elif [ -n "${ACTIVE_BEFORE:-}" ]; then
+  printf '\n=== Restoring ACTIVE_BEFORE=%s (no Omarchy theme) ===\n' "$ACTIVE_BEFORE"
+  hermes skin use "$ACTIVE_BEFORE" 2>&1 | tail -2 || true
 fi
+ACTIVE_AFTER=$(hermes skin list 2>/dev/null | awk '/^\*/{print $2}')
+THEME_AFTER=$(cat "$HOME/.local/state/omarchy/current/theme.name" 2>/dev/null || true)
+printf 'ACTIVE_AFTER=%s THEME_AFTER=%s\n' "${ACTIVE_AFTER:-<none>}" "${THEME_AFTER:-<none>}"
 
 # Exit non-zero on any FAIL so `make theme-smoke` surfaces a hard error.
 [ "$FAIL" -eq 0 ]
