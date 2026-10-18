@@ -764,6 +764,109 @@ function BrowsePage({ ctx }) {
 }
 
 // ---------------------------------------------------------------------------
+// About page
+// ---------------------------------------------------------------------------
+// Keep in sync with `version` in plugin.yaml — Hermes reads the manifest, the
+// UI renders this constant.
+const PLUGIN_VERSION = '1.2.0'
+
+const CODE_STYLE = {
+  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+  fontSize: '11.5px',
+  padding: '1px 5px',
+  borderRadius: '4px',
+  background: 'var(--ui-muted)',
+  color: 'var(--ui-text-primary)',
+}
+
+const Code = ({ children }) => jsx('code', { style: CODE_STYLE, children })
+
+function Section({ title, children }) {
+  return jsxs('div', {
+    style: { display: 'flex', flexDirection: 'column', gap: '6px' },
+    children: [
+      jsx('div', { style: { fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ui-text-secondary)' }, children: title }),
+      children,
+    ]
+  })
+}
+
+function StatCard({ value, label }) {
+  return jsxs('div', {
+    style: {
+      flex: 1, padding: '10px 12px', borderRadius: '8px',
+      border: '1px solid var(--ui-border)',
+      display: 'flex', flexDirection: 'column', gap: '2px',
+    },
+    children: [
+      jsx('div', { style: { fontSize: '20px', fontWeight: 600, color: 'var(--ui-text-primary)' }, children: value }),
+      jsx('div', { style: { fontSize: '11px', color: 'var(--ui-text-secondary)' }, children: label }),
+    ]
+  })
+}
+
+function Row({ children }) {
+  return jsx('div', {
+    style: { display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap', fontSize: '13px', color: 'var(--ui-text-secondary)' },
+    children,
+  })
+}
+
+function AboutPage() {
+  const dark = THEMES.filter(t => t.mode === 'dark').length
+  const light = THEMES.length - dark
+  return jsxs('div', {
+    style: { padding: '16px', display: 'flex', flexDirection: 'column', gap: '18px', maxWidth: '640px' },
+    children: [
+      // Header
+      jsxs('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' }, children: [
+        jsx('span', { style: { fontSize: '17px', fontWeight: 600, color: 'var(--ui-text-primary)' }, children: 'omarchy-themes' }),
+        jsx('span', {
+          style: { fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: 'var(--ui-muted)', color: 'var(--ui-text-secondary)' },
+          children: 'v' + PLUGIN_VERSION,
+        }),
+      ]}),
+      jsx('div', { style: { fontSize: '13px', color: 'var(--ui-text-secondary)' }, children:
+        'Bridges Omarchy\u2019s theme catalogue into Hermes Desktop: every Omarchy theme becomes selectable here, and switching the Omarchy theme switches the desktop design with it.' }),
+
+      // Stats
+      jsxs('div', { style: { display: 'flex', gap: '10px' }, children: [
+        jsx(StatCard, { key: 'total', value: THEMES.length, label: 'Omarchy themes' }),
+        jsx(StatCard, { key: 'dark', value: dark, label: 'dark' }),
+        jsx(StatCard, { key: 'light', value: light, label: 'light' }),
+      ]}),
+
+      // How it works
+      jsx(Section, { title: 'How switching works', children: jsxs('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px' }, children: [
+        jsx(Row, { children: ['1. ', jsx(Code, { key: 'c1', children: 'omarchy theme set <slug>' }), ' writes Omarchy\u2019s state file \u2014 the plugin picks it up first (~0.5 s).'] }),
+        jsx(Row, { children: ['2. The theme-set hook writes ', jsx(Code, { key: 'c2', children: '~/.hermes/skins/<slug>.yaml' }), ' and runs ', jsx(Code, { key: 'c3', children: 'hermes skin use' }), ' (~2\u20133 s).'] }),
+        jsx(Row, { children: ['3. A ', jsx(Code, { key: 'c4', children: 'skin.changed' }), ' event from the gateway is the final confirmation \u2014 the plugin re-applies its dual-palette version on top.'] }),
+      ]}) }),
+
+      // Unknown themes
+      jsx(Section, { title: 'Unknown themes', children: jsx(Row, { children: [
+        'Themes the baked table does not know (user overlays, post-generate additions) are read live from ',
+        jsx(Code, { key: 'c5', children: '~/.local/state/omarchy/current/theme/colors.toml' }),
+        ' and shown as ',
+        jsx(Code, { key: 'c6', children: 'omarchy-current' }),
+        '.',
+      ]}) }),
+
+      // Troubleshooting
+      jsx(Section, { title: 'Troubleshooting', children: jsxs('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px' }, children: [
+        jsx(Row, { children: ['Auto-switching off: ', jsx(Code, { key: 'c7', children: 'touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes' })] }),
+        jsx(Row, { children: ['Hook log: ', jsx(Code, { key: 'c8', children: '~/.hermes/logs/omarchy-theme-sync.log' })] }),
+        jsx(Row, { children: ['Rebuild the baked table after an Omarchy update: ', jsx(Code, { key: 'c9', children: 'make generate' })] }),
+      ]}) }),
+
+      // Footer
+      jsx('div', { style: { fontSize: '11px', color: 'var(--ui-text-secondary)', opacity: 0.7 }, children:
+        'Hermes built-in themes are never overridden \u2014 Hermes stays the source of truth for names it already owns.' }),
+    ]
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Plugin export
 // ---------------------------------------------------------------------------
 export default {
@@ -801,15 +904,7 @@ export default {
       children: [{
         id: 'about',
         title: 'About',
-        render: () => jsxs('div', {
-          style: { padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', color: 'var(--ui-text-secondary)', fontSize: '13px' },
-          children: [
-            jsx('p', { children: THEMES.length + ' Omarchy themes \u2014 Hermes built-in collisions skipped (Source of Truth).' }),
-            jsx('p', { children: 'Colors baked in from /usr/share/omarchy/themes on a host running Omarchy.' }),
-            jsx('p', { children: 'To update: scripts/generate-themes.py --remote <host>.' }),
-            jsx('p', { children: 'Omarchy themes not in this list are read from current/theme/colors.toml and shown as "omarchy-current". Switching off: touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes.' }),
-          ]
-        })
+        render: () => jsx(AboutPage, {}),
       }]
     })
 

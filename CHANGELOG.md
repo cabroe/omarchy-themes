@@ -4,6 +4,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Changed
+- The About settings page is a proper page now: header with version badge,
+  theme-count stat cards, sections for how switching works, unknown themes,
+  and troubleshooting (toggle, hook log, `make generate`).
+
 ### Fixed
 - A palette edit under the same unknown slug (`omarchy theme set` re-run on an
   edited custom theme) repaints: `current/theme/colors.toml` is watched as a
