@@ -24,6 +24,7 @@ Requires Python 3.11+ (tomllib).
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -38,6 +39,9 @@ USER_DIR = "~/.config/omarchy/themes"
 
 BEGIN = "// BEGIN GENERATED THEMES"
 END = "// END GENERATED THEMES"
+# Section marker in remote/derived output. Long enough to never appear inside
+# an omarchy-theme-color value (which prints a single key per line).
+SECTION_MARKER = "@@@OMARCHY-THEMES-START"
 
 # Keys copied from colors.toml, in output order. Anything else is ignored.
 KEYS = [
@@ -51,6 +55,32 @@ REQUIRED = ("background", "foreground", "accent")
 # Themes missing these would render with placeholder/fallback colors for
 # half the UI — not worth including even if --include-user finds them.
 REQUIRED_ANSI = ("red", "yellow", "green", "cyan", "blue", "magenta")
+
+# Aliases some themes use instead of the canonical names. The plugin's
+# `paletteFromToml` already applies the same fallbacks for the live
+# `current/theme/colors.toml` path; the generator must produce a baked
+# table that matches what the live path would render for the same theme.
+ALIASES: dict[str, tuple[str, ...]] = {
+    "accent": ("color4",),
+    "selection": ("selection_background",),
+    "muted": ("color8",),
+    "background": ("color0",),
+    "foreground": ("color7",),
+    "dark_foreground": ("color8",),
+    "bright_foreground": ("color15",),
+    "red":     ("color1", "orange"),
+    "green":   ("color2",),
+    "yellow":  ("color3",),
+    "blue":    ("color4", "color12"),
+    "magenta": ("color5", "color13"),
+    "cyan":    ("color6", "color14"),
+    "bright_red":     ("color9",),
+    "bright_green":   ("color10",),
+    "bright_yellow":  ("color11",),
+    "bright_blue":    ("color12",),
+    "bright_magenta": ("color13",),
+    "bright_cyan":    ("color14",),
+}
 HEX = re.compile(r"^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
 
@@ -64,6 +94,13 @@ def norm_hex(value: str) -> str | None:
     return "#" + h
 
 
+def luma(hex_color: str) -> float:
+    """Rec.709 luma in [0, 1]. Mirrors plugin.js luma() so mode fallback agrees."""
+    h = hex_color.lstrip("#")
+    r, g, b = (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
 def parse_palette(slug: str, text: str) -> dict[str, str] | None:
     try:
         data = tomllib.loads(text)
@@ -73,12 +110,19 @@ def parse_palette(slug: str, text: str) -> dict[str, str] | None:
     out: dict[str, str] = {}
     for key in KEYS:
         val = data.get(key)
-        if not isinstance(val, str):
-            continue
-        if key == "mode":
-            out[key] = "light" if val.strip().lower() == "light" else "dark"
-        elif (h := norm_hex(val)) is not None:
-            out[key] = h
+        if isinstance(val, str):
+            if key == "mode":
+                out[key] = "light" if val.strip().lower() == "light" else "dark"
+                continue
+            if (h := norm_hex(val)) is not None:
+                out[key] = h
+                continue
+        # Fall back to aliases when the canonical key is missing or not a hex
+        for alias in ALIASES.get(key, ()):
+            val = data.get(alias)
+            if isinstance(val, str) and (h := norm_hex(val)) is not None:
+                out[key] = h
+                break
     missing = [k for k in REQUIRED if k not in out]
     if missing:
         print(f"  skip {slug}: missing {', '.join(missing)}", file=sys.stderr)
@@ -87,7 +131,11 @@ def parse_palette(slug: str, text: str) -> dict[str, str] | None:
     if missing_ansi:
         print(f"  skip {slug}: incomplete palette, missing {', '.join(missing_ansi)}", file=sys.stderr)
         return None
-    out.setdefault("mode", "dark")
+    # Mode fallback: missing/invalid `mode` keys default to luma of the background.
+    # Mirrors Omarchy's own resolve_theme_mode (raw R+G+B > 382 = light) and the
+    # plugin's luma() > 0.5 branch in paletteFromToml.
+    if "mode" not in out:
+        out["mode"] = "light" if luma(out["background"]) > 0.5 else "dark"
     return out
 
 
@@ -101,14 +149,31 @@ def read_local(directory: str) -> dict[str, str]:
     }
 
 
+def _ssh_cmd(host: str, script: str) -> list[str]:
+    return [
+        "ssh",
+        "-o", "BatchMode=yes",
+        "-o", "ConnectTimeout=3",
+        host,
+        script,
+    ]
+
+
 def read_remote(host: str, directory: str) -> dict[str, str]:
-    # One SSH round-trip per directory: emit "@@@ <slug>" headers + file bodies.
+    # One SSH round-trip per directory: emit section headers + file bodies.
     script = (
         f'cd {directory} 2>/dev/null || exit 0; '
         'for f in */colors.toml; do [ -f "$f" ] || continue; '
-        'printf "@@@ %s\\n" "${f%/colors.toml}"; cat "$f"; echo; done'
+        f'printf "{SECTION_MARKER} %s\\n" "${{f%/colors.toml}}"; cat "$f"; echo; done'
     )
-    res = subprocess.run(["ssh", host, script], capture_output=True, text=True, check=True)
+    try:
+        res = subprocess.run(_ssh_cmd(host, script), capture_output=True, text=True, check=False)
+    except FileNotFoundError as exc:
+        print(f"ssh not available: {exc}", file=sys.stderr)
+        return {}
+    if res.returncode != 0:
+        print(f"ssh {host} {directory!r} failed (rc={res.returncode}): {res.stderr.strip()}", file=sys.stderr)
+        return {}
     return parse_sections(res.stdout)
 
 
@@ -123,7 +188,8 @@ DERIVE_SCRIPT = (
     'for d in */; do d=${{d%/}}; [ -f "$d/colors.toml" ] && continue; [ -f "$d/alacritty.toml" ] || continue; '
     't=$(mktemp -d); cp "$d/alacritty.toml" "$t/"; '
     'omarchy-theme-colors-from-alacritty "$t" >/dev/null 2>&1; '
-    'if [ -f "$t/colors.toml" ]; then printf "@@@ %s\\n" "$d"; '
+    'if [ -f "$t/colors.toml" ]; then '
+    f'printf "{SECTION_MARKER} %s\\n" "$d"; '
     'omarchy-theme-color --file "$t/colors.toml" --all | awk -F"\\t" \'{{printf "%s = \\"%s\\"\\n", $1, $2}}\'; echo; fi; '
     'rm -rf "$t"; done'
 )
@@ -131,8 +197,15 @@ DERIVE_SCRIPT = (
 
 def read_derived(host: str | None, directory: str) -> dict[str, str]:
     script = DERIVE_SCRIPT.format(directory=directory)
-    cmd = ["ssh", host, script] if host else ["bash", "-c", script]
-    res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    cmd = _ssh_cmd(host, script) if host else ["bash", "-c", script]
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    except FileNotFoundError as exc:
+        print(f"shell not available: {exc}", file=sys.stderr)
+        return {}
+    if res.returncode != 0:
+        # Non-fatal: a host without omarchy CLI simply yields no derived themes.
+        return {}
     return parse_sections(res.stdout)
 
 
@@ -140,8 +213,9 @@ def parse_sections(stdout: str) -> dict[str, str]:
     files: dict[str, str] = {}
     slug = None
     for line in stdout.splitlines(keepends=True):
-        if line.startswith("@@@ "):
-            slug = line[4:].strip()
+        marker = SECTION_MARKER + " "
+        if line.startswith(marker):
+            slug = line[len(marker):].strip()
             files[slug] = ""
         elif slug is not None:
             files[slug] += line
@@ -149,7 +223,13 @@ def parse_sections(stdout: str) -> dict[str, str]:
 
 
 def render(palettes: dict[str, dict[str, str]], sources: list[str]) -> str:
-    width = max(len(s) for s in palettes) + 4  # quotes + comma + one space
+    # JSON-encode every value (slug + colors) so user-supplied slugs cannot
+    # break the generated JS — a slug containing a single quote would
+    # otherwise inject a SyntaxError that only `node --check` would catch
+    # after `make generate` already wrote it. Keys stay bare (all are safe
+    # ASCII identifiers, never a reserved word).
+    width = max(len(s) for s in palettes) + 2
+    mode_width = 9
     lines = [
         BEGIN + " — do not edit by hand, run scripts/generate-themes.py",
         f"// {len(palettes)} themes from {', '.join(sources)}",
@@ -157,10 +237,10 @@ def render(palettes: dict[str, dict[str, str]], sources: list[str]) -> str:
     ]
     for slug in sorted(palettes):
         c = palettes[slug]
-        slug_field = f"'{slug}',".ljust(width)
-        mode_field = f"'{c['mode']}',".ljust(9)  # aligns 'dark' and 'light'
-        rest = ", ".join(f"{k}:'{c[k]}'" for k in KEYS[1:] if k in c)
-        lines.append(f"  {{ slug:{slug_field}c:{{ mode:{mode_field}{rest} }} }},")
+        slug_field = json.dumps(slug).ljust(width)
+        mode_field = json.dumps(c["mode"]).ljust(mode_width)
+        rest = ", ".join(f"{k}:{json.dumps(c[k])}" for k in KEYS[1:] if k in c)
+        lines.append(f"  {{ slug:{slug_field}, c:{{ mode:{mode_field}, {rest} }} }},")
     lines += ["]", END]
     return "\n".join(lines)
 
@@ -175,14 +255,27 @@ def main() -> int:
     args = ap.parse_args()
 
     dirs = [SYSTEM_DIR] + ([USER_DIR] if args.include_user else [])
+    # First pass: read raw `colors.toml` from every directory. User themes win
+    # on a slug clash because the loop iterates dirs in order and dict.update
+    # keeps the latest write.
     raw: dict[str, str] = {}
-    for d in dirs:  # later dirs override earlier ones
+    for d in dirs:
         found = read_remote(args.remote, d) if args.remote else read_local(d)
-        derived = {s: t for s, t in read_derived(args.remote, d).items() if s not in found}
-        print(f"{len(found):3d} colors.toml in {d}"
-              + (f" (+{len(derived)} resolved from alacritty.toml)" if derived else ""), file=sys.stderr)
+        if not found:
+            print(f"  no colors.toml in {d}", file=sys.stderr)
         raw.update(found)
-        raw.update(derived)
+
+    # Second pass: derive palettes from alacritty.toml for themes that ship
+    # NO `colors.toml` in ANY of the scanned directories. Doing it per-dir
+    # (the old behaviour) would let a User alacritty-only overlay shadow the
+    # System colors.toml of the same slug.
+    derived_total = 0
+    for d in dirs:
+        derived = {s: t for s, t in read_derived(args.remote, d).items() if s not in raw}
+        if derived:
+            print(f"  +{len(derived)} derived from alacritty.toml in {d}", file=sys.stderr)
+            derived_total += len(derived)
+            raw.update(derived)
 
     palettes = {s: p for s, t in raw.items() if (p := parse_palette(s, t)) is not None}
     if not palettes:

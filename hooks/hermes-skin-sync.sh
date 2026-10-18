@@ -12,10 +12,23 @@
 
 set -u
 
+# Defensive default for $HOME: Omarchy passes an unset/empty HOME on some
+# bootstrapping paths (e.g. systemd --user before userdb is up), and `set -u`
+# would otherwise abort the hook before we ever reach a log line. /tmp is
+# always writable and the resulting log file is still discoverable.
+: "${HOME:=/tmp}"
+
 SLUG="${1:-}"
 if [ -z "$SLUG" ]; then
     printf 'usage: %s <theme-slug>\n' "$0" >&2
     exit 64
+fi
+
+# Honour Omarchy's "skip automatic Hermes skin changes" toggle. Must be
+# checked before any side effects (mkdir, log writes) so the toggle truly
+# silences this hook without leaving half-written state behind.
+if [ -e "$HOME/.local/state/omarchy/toggles/skip-hermes-theme-changes" ]; then
+    exit 0
 fi
 
 HERMES_BIN="${HERMES_BIN:-$HOME/.local/bin/hermes}"
@@ -42,15 +55,19 @@ OMARCHY_STATE="$HOME/.local/state/omarchy/current"
 CURRENT_THEME="$OMARCHY_STATE/theme/colors.toml"
 
 COLORS=""
-if [ -s "$USER_THEME" ]; then
+# `current/theme/colors.toml` is what `omarchy-theme-set` just wrote — the
+# authoritative resolved palette. Prefer it whenever theme.name matches the
+# slug we were invoked with, falling back to the user's overlay and the
+# shipped system theme otherwise.
+if [ -s "$CURRENT_THEME" ] && [ "$(cat "$OMARCHY_STATE/theme.name" 2>/dev/null)" = "$SLUG" ]; then
+    COLORS="$CURRENT_THEME"
+    SOURCE_DESC="current"
+elif [ -s "$USER_THEME" ]; then
     COLORS="$USER_THEME"
     SOURCE_DESC="user"
 elif [ -s "$SYSTEM_THEME" ]; then
     COLORS="$SYSTEM_THEME"
     SOURCE_DESC="system"
-elif [ -s "$CURRENT_THEME" ] && [ "$(cat "$OMARCHY_STATE/theme.name" 2>/dev/null)" = "$SLUG" ]; then
-    COLORS="$CURRENT_THEME"
-    SOURCE_DESC="current"
 fi
 
 if [ -z "$COLORS" ]; then
@@ -64,12 +81,17 @@ fi
 # quotes (the format Omarchy ships).
 
 # Extract a hex value for $1 (e.g. "background") and print it. Empty on miss.
+# - Grep uses a word-boundary look-around so `red` doesn't match `redder`.
+# - Sed anchors on the first `=` (via `[^=]*=` instead of greedy `.*=`) so a
+#   trailing comment like `# was = "#000000"` is consumed by `.*` instead of
+#   being parsed as the value. A greedy `.*=` would otherwise pull the last
+#   quoted token in the line — the bug extracted `#000000` for `red`.
 toml_hex() {
     key=$1
-    grep -E "^[[:space:]]*${key}[[:space:]]*=" "$COLORS" 2>/dev/null \
+    grep -E "(^|[^A-Za-z0-9_])${key}([[:space:]]+|[[:space:]]*=|[[:space:]]*$)" "$COLORS" 2>/dev/null \
         | grep -v "^[[:space:]]*#" \
         | head -n 1 \
-        | sed -E 's/.*=[[:space:]]*"([^"]+)".*/\1/; t; s/.*=[[:space:]]*([#0-9a-fA-F]+).*/\1/'
+        | sed -E 's/^[^=]*=[[:space:]]*"([^"]+)".*/\1/; t; s/^[^=]*=[[:space:]]*([#0-9a-fA-F]+).*/\1/'
 }
 
 # Extract a quoted string for $1 (used for `mode`). Empty on miss.
@@ -192,7 +214,15 @@ mkdir -p "$SKIN_DIR"
 
 q() { printf '"%s"' "$1"; }
 
-{
+# Serialise skin write + activation so racing theme sets don't interleave a
+# half-written file with `hermes skin use`. The lock file lives in $SKIN_DIR
+# so it stays alongside the skin files (which are the contended resource).
+LOCK_FILE="$SKIN_DIR/.lock"
+SKIN_TMP=""
+
+write_skin() {
+    SKIN_TMP=$(mktemp "$SKIN_DIR/.${SLUG}.XXXXXX.tmp") || return 1
+    {
         printf 'name: %s\n' "$SLUG"
         printf 'description: Omarchy theme · %s (%s)\n' "$SLUG" "$mode"
         printf 'colors:\n'
@@ -218,23 +248,65 @@ q() { printf '"%s"' "$1"; }
         printf '  status_bar_critical: %s\n' "$(q "$red")"
         printf '  session_label: %s\n' "$(q "$cyan")"
         printf '  session_border: %s\n' "$(q "$dark_bg")"
-    } > "$SKIN_FILE"
+    } > "$SKIN_TMP" || { rm -f "$SKIN_TMP"; return 1; }
+    # Atomic replace: mv -T is the same primitive Omarchy's
+    # omarchy-theme-set-hermes uses to swap palettes without races.
+    mv -T "$SKIN_TMP" "$SKIN_FILE" || { rm -f "$SKIN_TMP"; return 1; }
+}
 
-log "OK: slug='${SLUG}' skin written → $SKIN_FILE (mode=$mode, source=$SOURCE_DESC, colors=$COLORS)"
+# `flock -n` skips silently if another hook already holds the lock — Omarchy
+# treats a slow hook as fatal and we must never block the chain. The lock
+# covers both the skin write AND `hermes skin use` so two quick theme-set
+# hooks can't interleave a half-written file with a config activation that
+# points at the old palette.
+if command -v flock >/dev/null 2>&1; then
+    (
+        flock -n 9 || { log "SKIP: slug='${SLUG}' — another skin sync in progress"; exit 0; }
+        if ! write_skin; then
+            log "ERR: slug='${SLUG}' — failed to write skin"
+            exit 0
+        fi
+        log "OK: slug='${SLUG}' skin written → $SKIN_FILE (mode=$mode, source=$SOURCE_DESC, colors=$COLORS)"
 
-# --- Active skin switch --------------------------------------------------
-# `hermes skin use` is idempotent (running with the active skin is a no-op
-# apart from a config write). If the binary is missing we log and exit 0.
-if [ ! -x "$HERMES_BIN" ]; then
-    log "WARN: hermes binary not found at $HERMES_BIN — skin file written but not activated"
-    exit 0
-fi
-
-if "$HERMES_BIN" skin use "$SLUG" >> "$LOG_FILE" 2>&1; then
-    log "OK: hermes skin use $SLUG succeeded"
-    exit 0
+        if [ ! -x "$HERMES_BIN" ]; then
+            log "WARN: hermes binary not found at $HERMES_BIN — skin file written but not activated"
+            exit 0
+        fi
+        # Capture the exit code BEFORE the if — POSIX `fi` resets `$?` to the
+        # last command in the chosen branch, masking the original status.
+        "$HERMES_BIN" skin use "$SLUG" >> "$LOG_FILE" 2>&1
+        rc=$?
+        if [ "$rc" -eq 0 ]; then
+            log "OK: hermes skin use $SLUG succeeded"
+        else
+            log "ERR: hermes skin use $SLUG exited $rc"
+        fi
+        exit 0  # Never break the hook chain on Hermes-side failure.
+    ) 9>"$LOCK_FILE"
 else
+    # No flock available — fall back to a plain write, but still trap the
+    # temp file so a crash mid-write doesn't litter $SKIN_DIR.
+    trap 'rm -f "$SKIN_TMP"' EXIT
+    if write_skin; then
+        log "OK: slug='${SLUG}' skin written → $SKIN_FILE (mode=$mode, source=$SOURCE_DESC, colors=$COLORS)"
+    else
+        log "ERR: slug='${SLUG}' — failed to write skin"
+        exit 0
+    fi
+    trap - EXIT
+
+    # Active skin switch (no serialisation possible without flock).
+    if [ ! -x "$HERMES_BIN" ]; then
+        log "WARN: hermes binary not found at $HERMES_BIN — skin file written but not activated"
+        exit 0
+    fi
+    # Capture rc before the if — POSIX fi resets $? to the branch's last cmd.
+    "$HERMES_BIN" skin use "$SLUG" >> "$LOG_FILE" 2>&1
     rc=$?
-    log "ERR: hermes skin use $SLUG exited $rc"
+    if [ "$rc" -eq 0 ]; then
+        log "OK: hermes skin use $SLUG succeeded"
+    else
+        log "ERR: hermes skin use $SLUG exited $rc"
+    fi
     exit 0  # Never break the hook chain on Hermes-side failure.
 fi

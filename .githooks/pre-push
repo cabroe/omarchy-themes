@@ -6,49 +6,39 @@
 #
 # Source of the themes:
 #   - HOST set (HOST=omarchy git push): read them over SSH. If the host is not
-#     reachable the regen is skipped with a warning.
+#     reachable the check is skipped with a warning.
 #   - otherwise, on a machine with Omarchy installed: read them locally.
 #   - otherwise: skipped with a warning.
 #
-# Behaviour:
-#   - Themes reachable: regenerate plugin.js from them. If the file changed,
-#     commit it (--no-verify so we don't recurse into this hook) and let the
-#     push continue normally.
-#   - Themes not reachable: skipped with a warning. A skipped regen never
-#     blocks the push.
-#   - Regeneration itself failing (Python error, no usable themes, missing
-#     markers in plugin.js, ...): the push is blocked — that's a real
-#     problem, not drift.
+# Behaviour: drift between the live themes and the baked table blocks the push
+# (the developer should run `make generate` and commit the updated
+# desktop/plugin.js). The hook intentionally does NOT auto-commit: a commit
+# created here would be added to HEAD AFTER git already computed the refs to
+# push, so the regeneration would land only in the next push — leaving the
+# remote temporarily out of date and the local branch one commit ahead.
 
 set -e
 
 if [ -n "${HOST:-}" ]; then
   if ! ssh -o ConnectTimeout=3 -o BatchMode=yes "$HOST" true 2>/dev/null; then
-    echo "omarchy-themes pre-push: $HOST not reachable — regeneration skipped." >&2
+    echo "omarchy-themes pre-push: $HOST not reachable — generate-check skipped." >&2
     exit 0
   fi
   where="$HOST"
 elif [ -d /usr/share/omarchy/themes ]; then
   where="this machine"
 else
-  echo "omarchy-themes pre-push: no Omarchy themes available — regeneration skipped." >&2
+  echo "omarchy-themes pre-push: no Omarchy themes available — generate-check skipped." >&2
   exit 0
 fi
 
-echo "omarchy-themes pre-push: regenerating plugin.js from $where …" >&2
-if ! make generate HOST="${HOST:-}" 2>&1; then
+echo "omarchy-themes pre-push: checking desktop/plugin.js against $where …" >&2
+if ! make generate-check HOST="${HOST:-}" 2>&1; then
   echo "" >&2
-  echo "  make generate failed — fix and retry the push." >&2
+  echo "  desktop/plugin.js is out of date." >&2
+  echo "  Run 'make generate' to regenerate it, review the diff, and commit it." >&2
+  echo "  Then retry the push." >&2
   exit 1
-fi
-
-# `git diff --quiet` exit 0 = clean, exit 1 = dirty. `if !` invertiert das
-# für die set -e-Semantik. Bei Drift: --no-verify, damit sich der Hook nicht
-# selbst rekursiv auslöst.
-if ! git diff --quiet desktop/plugin.js; then
-  git add desktop/plugin.js
-  git commit --no-verify -m "chore(generated): regenerate theme table"
-  echo "omarchy-themes pre-push: plugin.js regenerated and committed" >&2
 fi
 
 exit 0

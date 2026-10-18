@@ -4,8 +4,8 @@ name: regen-themes
 #  - workflow_dispatch:    manual from the Actions tab / `gh workflow run`
 #  - schedule (Mon 04:00 UTC): weekly catch — runs a day after the Sunday
 #                              smoke. If upstream Omarchy added or removed a
-#                              theme the table is refreshed and committed to
-#                              main automatically.
+#                              theme the table is refreshed and a PR opened
+#                              for the owner to review and merge.
 on:
   workflow_dispatch:
   schedule:
@@ -19,71 +19,68 @@ concurrency:
   cancel-in-progress: true
 
 # Workflow-weites Default: keine Permissions. Der Job deklariert seine
-# eigenen (least-privilege). OIDC-Token wird nicht angefordert — der Job
-# pusht nur den einen Bot-Commit zurück und braucht keine Cloud-Credentials.
+# eigenen (least-privilege). OIDC-Token wird nicht angefordert.
 permissions: {}
 
 jobs:
   regen:
     name: regenerate plugin.js from omarchy themes
     # Label-Match: nur Runner mit allen drei Labels akzeptieren den Job.
-    # Der omarchy-Runner trägt genau diese Labels (config.sh --labels ...),
-    # sodass keine versehentliche Verteilung auf andere Hosts erfolgt.
-    # Gleiches Label-Triple wie live-theme-smoke — beide Workflows laufen
-    # auf demselben Host, nur dass dieser hier nicht testet sondern nur
-    # die Theme-Tabelle neu baut.
+    # Der omarchy-Runner trägt genau diese Labels (config.sh --labels ...).
     runs-on: [self-hosted, omarchy, omarchy-themes]
     # 10 min reicht locker: `make generate` liest ~30 themes via zwei
     # SSH-Roundtrips (SYSTEM_DIR + USER_DIR). Selbst auf einem lahmen
-    # Laptop bleibt es unter 30 s. Großzügig gepuffert für Runner, die
-    # parallel zum Sonntags-Smoke laufen.
+    # Laptop bleibt es unter 30 s.
     timeout-minutes: 10
 
-    # contents: write brauchen wir für den Auto-Push des generierten Commits.
-    # Andere Permissions (issues, pull-requests, id-token, ...) werden
-    # explizit nicht angefordert.
+    # contents: write brauchen wir für das Pushen eines feature-Branches
+    # und das Öffnen eines PRs. pull-requests: write für create-pull-request.
     permissions:
       contents: write
+      pull-requests: write
 
     steps:
       # Externe Actions auf Commit-SHA gepinnt — Tags/Branches sind mutable
       # und ein einziger Compromised-Tag würde jeden CI-Lauf kompromittieren.
-      # SHA-Pin matched das `live-theme-smoke.yml`-House-Styling.
-      # token: GITHUB_TOKEN konfiguriert git author/credentials für den
-      # späteren `git push` — der Bot darf nur auf main committen und
-      # nichts anderes.
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # `make lint` ruft shellcheck — sicherstellen, dass es installiert ist,
+      # bevor der lint-Step sonst mit "command not found" abbricht.
+      - name: Install shellcheck
+        run: |
+          if ! command -v shellcheck >/dev/null; then
+            sudo pacman -S --noconfirm --needed shellcheck
+          fi
+          shellcheck --version
 
       # Generator liest /usr/share/omarchy/themes direkt — der Runner *ist*
-      # der Omarchy-Host, kein SSH-Hop nötig.
-      # generate-system statt generate: das Makefile setzt in GEN_ARGS immer
-      # --include-user, was ~/.config/omarchy/themes des Runner-Users auf main
-      # publishen würde. generate-system lässt --include-user weg (nur
-      # Systemthemen). Für eigene Themes: `make generate --include-user` lokal.
-      - name: Run make generate-system
-        run: make generate-system
+      # der Omarchy-Host, kein SSH-Hop nötig. User-Themes (USER_DIR) werden
+      # nicht gebaked — sie werden live aus current/theme/colors.toml gelesen.
+      - name: Run make generate
+        run: make generate
 
       # Syntaxcheck des generierten Ergebnisses — fängt kaputte Paletten ab,
-      # bevor sie committed werden (node --check + py_compile + shellcheck).
-      # Läuft nur wenn generate erfolgreich war (kein if: always()).
+      # bevor sie in einem PR landen.
       - name: Lint generated output
         run: make lint
 
-      # Diff-Check gegen HEAD. `git diff --quiet` exit 0 = clean, exit 1 =
-      # dirty. Kein `if: always()` — bei einem Fehler in den vorherigen
-      # Steps soll kein Commit entstehen.
-      - name: Commit and push if changed
-        run: |
-          if ! git diff --quiet desktop/plugin.js; then
-            echo "plugin.js changed — committing update"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git config user.name "github-actions[bot]"
-            git add desktop/plugin.js
-            git commit -m "chore(generated): regenerate theme table from omarchy"
-            git push
-          else
-            echo "plugin.js is up to date — nothing to commit"
-          fi
+      # Statt eines direkten Pushes auf das geschützte main: feature-Branch +
+      # PR. github-actions[bot] ist kein Admin, ein direkter `git push` würde
+      # mit GH006 abgelehnt; mit GITHUB_TOKEN werden die CI-Status-Checks
+      # zudem nicht ausgelöst, sodass der Push selbst dann durchginge, wenn
+      # main nicht geschützt wäre.
+      - name: Open PR if changed
+        uses: peter-evans/create-pull-request@27186a8b7c8b95ee83e8d5569b47486a73ad6e0e # v7.0.5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(generated): regenerate theme table from omarchy"
+          title: "chore(generated): regenerate theme table from omarchy"
+          body: |
+            Automated weekly regeneration of `desktop/plugin.js` from
+            `/usr/share/omarchy/themes` on the self-hosted omarchy runner.
+
+            - No manual review required if only the generated block changed
+            - CI (`make check`) must pass before merge
+          branch: chore/regen-themes
+          delete-branch: true

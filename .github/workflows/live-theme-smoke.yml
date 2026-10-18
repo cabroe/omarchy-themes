@@ -26,20 +26,16 @@ concurrency:
   cancel-in-progress: true
 
 # Workflow-weites Default: keine Permissions. Der Job deklariert seine
-# eigenen (least-privilege). OIDC-Token wird nicht angefordert — der Job
-# pusht nichts und braucht keine Cloud-Credentials.
+# eigenen (least-privilege). OIDC-Token wird nicht angefordert.
 permissions: {}
 
 jobs:
   smoke:
     name: live theme switch smoke (omarchy self-hosted)
     # Label-Match: nur Runner mit allen drei Labels akzeptieren den Job.
-    # Der omarchy-Runner trägt genau diese Labels (config.sh --labels ...),
-    # sodass keine versehentliche Verteilung auf andere Hosts erfolgt.
+    # Der omarchy-Runner trägt genau diese Labels (config.sh --labels ...).
     runs-on: [self-hosted, omarchy, omarchy-themes]
     # 30 min reicht für ~11 Themes á ~5-30 s inkl. Hook-Chain-Settle.
-    # `make theme-smoke` SCPt nach localhost und ruft das Test-Script
-    # remote — beide Schritte addieren etwas Overhead.
     timeout-minutes: 30
 
     # Read-only auf den Source-Code, sonst nichts.
@@ -49,16 +45,12 @@ jobs:
     steps:
       # Externe Actions auf Commit-SHA gepinnt — Tags/Branches sind mutable
       # und ein einziger Compromised-Tag würde jeden CI-Lauf kompromittieren.
-      # SHA-Pin matched das `ci.yml`-House-Styling.
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # Der Runner ist omarchy selbst, also SCP nach localhost und dort
-      # `omarchy theme set` ausführen. Das ist genau das, was der lokale
-      # `make theme-smoke HOST=omarchy`-Aufruf macht, nur dass der Runner
-      # der omarchy-Host ist und damit der SSH-Hop localhost ist.
-      # Der Job hat absichtlich keine Secrets: kein GH_TOKEN, kein
-      # DEPLOY_KEY, nichts — der Test mutiert nur lokale User-State des
-      # Runner-Users und restored am Ende den ACTIVE_BEFORE-Skin.
-      - name: Run make theme-smoke
-        run: make theme-smoke HOST=localhost
+      # Der Runner IST der Omarchy-Host, also kein SCP-nach-localhost mehr
+      # (der frühere `make theme-smoke HOST=localhost`-Schritt scheiterte an
+      # `Host key verification failed`, weil localhost nicht in known_hosts
+      # steht). Das Test-Script läuft direkt auf dem Runner.
+      - name: Run theme-switch smoke
+        run: bash tests/theme-switch-smoke.sh

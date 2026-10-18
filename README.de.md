@@ -28,9 +28,9 @@
 
 ## 🧩 Komponenten
 
-- **Desktop-Plugin** (`desktop/plugin.js`) — Registriert Omarchy-Themes (Stock + User via `--include-user`, minus Hermes-Built-in-Kollisionen) im Theme-Picker, als ⌘K-Befehle und auf einer Settings-Seite.
-- **Theme-Sync-Hook** (`hooks/hermes-skin-sync.sh`) — Läuft bei `omarchy theme set <slug>`, schreibt `~/.hermes/skins/<slug>.yaml` und aktiviert den Hermes-Skin.
-- **Generator** (`scripts/generate-themes.py`) — Liest `colors.toml`-Dateien und schreibt die Theme-Tabelle im Plugin neu nach Omarchy-Updates.
+- **Desktop-Plugin** (`desktop/plugin.js`) — Registriert die 22 System-Themes aus der Baked-Table (minus Hermes-Built-in-Kollisionen wie `catppuccin` / `everforest`) im Theme-Picker, als ⌘K-Befehle und auf einer Settings-Seite. User-Themes werden zusätzlich live aus `current/theme/colors.toml` als `omarchy-current` registriert.
+- **Theme-Sync-Hook** (`hooks/hermes-skin-sync.sh`) — Läuft bei `omarchy theme set <slug>`, prüft den `skip-hermes-theme-changes`-Toggle (Exit 0 ohne Side-Effects wenn aktiv), schreibt `~/.hermes/skins/<slug>.yaml` und aktiviert den Hermes-Skin.
+- **Generator** (`scripts/generate-themes.py`) — Liest `colors.toml`-Dateien und schreibt die Theme-Tabelle im Plugin neu nach Omarchy-Updates. Default = System-Themes; `--include-user` backt zusätzlich User-Themes.
 
 ---
 
@@ -40,11 +40,12 @@
 
 Für den CLI/TUI-Hook: `make install-hook` (idempotent); `make uninstall` entfernt sie.
 
-**Entwicklung:** Node ≥ 22, Python ≥ 3.11, `shellcheck`. `make check` = Lint + Tests; `make install-githooks` aktiviert Pre-push-Check.
+**Entwicklung:** Node ≥ 22, Python ≥ 3.11, `shellcheck`. `make check` = Lint + Tests; `make install-githooks` aktiviert Pre-push-`generate-check`-Guard (blockt den Push bei Drift — kein Auto-Commit mehr).
 
 **Was du bekommst:**
-- Omarchy-Themes als `omarchy-<slug>` im Picker, ⌘K (`Apply Omarchy Theme: <Name>`) und Settings-Kartenansicht mit Swatches/Filter/*Apply*.
-- `omarchy theme set nord` wechselt Desktop-Theme **und** Hell/Dunkel-Modus; Hook synchronisiert CLI/TUI-Skin (~3 s Verzögerung, 15-s-No-Op-Fenster). `~/.local/state/omarchy/toggles/skip-hermes-theme-changes` deaktiviert Auto-Switching.
+- 22 System-Themes (17 dark, 5 light) als `omarchy-<slug>` im Picker, ⌘K (`Apply Omarchy Theme: <Name>`) und Settings-Kartenansicht mit Swatches/Filter/*Apply*. `catppuccin` und `everforest` kollidieren mit Hermes-Built-ins und werden im Picker übersprungen (Hermes ist Source of Truth).
+- `omarchy theme set nord` wechselt Desktop-Theme **und** Hell/Dunkel-Modus; Hook synchronisiert CLI/TUI-Skin (~3 s Verzögerung, 15-s-No-Op-Fenster).
+- `~/.local/state/omarchy/toggles/skip-hermes-theme-changes` stoppt Auto-Switching vollständig: Hook prüft den Toggle, schreibt keinen Skin, beendet mit Exit 0; Plugin stellt die vor dem Toggle gezeigte Palette wieder her. Picker und ⌘K funktionieren weiter (sie sind nutzer-initiiert und umgehen den Toggle).
 - Jedes Theme liefert **beide** Paletten + **beide** Terminal-Paletten + Typography — Light/Dark-Wechsel färbt die ganze UI neu. Beide Paletten teilen Marken-`accent`/`primary`/`ring`; Gegenpalette wird auto-synthetisiert (Rec.709-Luma ≥ 0,5-Kontrast).
 - Unbekannte Themes (User-installiert oder neuer als `make generate`): Plugin liest `~/.local/state/omarchy/current/theme/colors.toml` und registriert **einen** `omarchy-current`-Fallback.
 
@@ -52,7 +53,7 @@ Für den CLI/TUI-Hook: `make install-hook` (idempotent); `make uninstall` entfer
 
 ## 🔄 Themes aktualisieren
 
-Nach einem Omarchy-Update: `make generate` (`HOST=<ssh-Host>` liest per SSH) oder `make generate-check` (Drift-Prüfung). Eigene Themes: `python3 scripts/generate-themes.py --include-user`. Generator ersetzt nur den `// BEGIN GENERATED THEMES` … `// END GENERATED THEMES`-Block, ist deterministisch, löst Themes ohne `colors.toml` über `omarchy-theme-colors-from-alacritty` / `omarchy-theme-color` auf.
+Nach einem Omarchy-Update: `make generate` (`HOST=<ssh-Host>` liest per SSH) baut die Baked-Table aus den System-Themes neu (Default — matched den committeten Stand); `make generate-system` ist ein Alias und wird vom `regen-themes`-Workflow verwendet; `make generate-check` ist die Drift-Prüfung (blockt den Push). Eigene Themes backen: `python3 scripts/generate-themes.py --include-user` oder `make generate SYSTEM=…`. Themes, die nicht in der Baked-Table stehen, werden weiterhin live als `omarchy-current` aus `current/theme/colors.toml` registriert. Generator ersetzt nur den `// BEGIN GENERATED THEMES` … `// END GENERATED THEMES`-Block, ist deterministisch, löst Themes ohne `colors.toml` über `omarchy-theme-colors-from-alacritty` / `omarchy-theme-color` auf.
 
 ---
 
@@ -68,7 +69,7 @@ make lint     # node --check + py_compile + shellcheck
 - **`tests/hook.sh`** — Skin-YAML (22 Keys, 3-stelliges Hex), Skip bei unbekannt, Exit 0 bei Fehler, Fallback auf Omarchy-erzeugte `colors.toml`.
 - **`tests/theme-switch-smoke.sh`** — Live `omarchy theme set` per SSH (`make theme-smoke HOST=omarchy`). Mutiert User-State; nicht in `make check`.
 
-CI: `.github/workflows/live-theme-smoke.yml` führt Smoke auf Self-hosted-omarchy-Runner aus (manuell `workflow_dispatch`, sonntags 04:00 UTC, `push` auf `main` wenn Smoke/Hook/Workflow ändern). Dediziert, Label-gepinnt; vor Trigger starten, danach stoppen.
+CI: drei Workflows. `ci.yml` (Lint + Tests auf Push/PR, manuelle `workflow_dispatch`). `live-theme-smoke.yml` führt Smoke auf Self-hosted-omarchy-Runner aus (manuell `workflow_dispatch`, sonntags 04:00 UTC, `push` auf `main` wenn Smoke/Hook/Workflow ändern). `regen-themes.yml` regeneriert die Baked-Table wöchentlich (montags 04:00 UTC) und öffnet einen PR wenn Drift entstanden ist; manuell via `workflow_dispatch`. Dedizierte Label-gepinnte Runner; vor Trigger starten, danach stoppen.
 
 ---
 
@@ -80,7 +81,7 @@ omarchy-themes/
 ├── hooks/hermes-skin-sync.sh # Omarchy-theme-set-Hook → Hermes CLI/TUI-Skin
 ├── scripts/generate-themes.py  # colors.toml → Theme-Tabelle in plugin.js
 ├── tests/{smoke.mjs,hook.sh,theme-switch-smoke.sh,stubs/}
-├── .github/workflows/        # CI: ci.yml, live-theme-smoke.yml
+├── .github/workflows/        # ci.yml, live-theme-smoke.yml, regen-themes.yml
 ├── .githooks/pre-push        # generate-check-Guard
 └── Makefile
 ```
@@ -99,7 +100,7 @@ Omarchys `lighter_background` / `darker_background` bleiben auf der falschen Sei
 
 ### Desktop-Theme
 
-`accent` → `primary`/`accent`/`ring`/`midground`/`composerRing` (Text darauf per Luminanz); `lighter_background` → `card`/`popover`/`secondary`/`userBubble`; `dark_background` → `border`/`input`/`sidebarBackground`/`sidebarBorder`/`userBubbleBorder`; `selection` → `terminal.selectionBackground`; `mode="light"` → zusätzlich `darkColors`/`darkTerminal`. Andere Keys (`background`, `foreground`, `muted`, `red`, ANSI) gehen 1:1 durch. Fehlende Keys fallen auf `background`/`foreground`/`accent` zurück. Ist `lighter_background` oder `dark_background` gleich `background`, um wenige Prozent für Sichtbarkeit angehoben. Vollständiges Mapping: siehe `desktop/plugin.js` (`synthLightFromDark` / `synthDarkFromLight`).
+`background` → `background`; `foreground` → `foreground`; `dark_foreground` → `mutedForeground`; `accent` → `primary`/`accent`/`ring`/`midground`/`composerRing` (Text darauf per Luminanz); `lighter_background` → `card`/`popover`/`secondary`/`userBubble`; `dark_background` → `border`/`input`/`sidebarBackground`/`sidebarBorder`/`userBubbleBorder`; `selection` / `selection_background` → `terminal.selectionBackground`; `muted` → `muted`. ANSI 1–6 und 9–14 (`red`/`green`/`yellow`/`blue`/`magenta`/`cyan` und Bright-Varianten) füllen die Terminal-Palette; `background` deckt `black` + `brightBlack`, `foreground` deckt `white` + `brightWhite`. `mode="light"` → zusätzlich `darkColors`/`darkTerminal`. Fehlende Keys fallen auf `background`/`foreground`/`accent` zurück. Ist `lighter_background` oder `dark_background` gleich `background`, um wenige Prozent für Sichtbarkeit angehoben. Vollständiges Mapping: siehe `desktop/plugin.js` (`synthLightFromDark` / `synthDarkFromLight`).
 
 ### CLI/TUI-Skin (Hook)
 

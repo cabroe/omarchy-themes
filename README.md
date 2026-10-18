@@ -66,13 +66,13 @@ Hermes Desktop picks up the change via `current/theme.name` (written ~0.5 s in),
 touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes
 ```
 
-The picker and ⌘K rows keep working; only the automatic hook-triggered switch is suppressed.
+The hook checks the toggle at startup and exits 0 without writing or activating a skin; the desktop plugin also stops its auto-sync and falls back to the palette shown before the toggle was raised. The picker and ⌘K rows still work — they are user-initiated and bypass the toggle.
 
 ---
 
 ## Themes
 
-27 themes ship baked into the plugin (22 dark, 5 light). Each gets a full dual-palette entry — both light and dark variants, both terminal palettes, typography — so flipping modes recolours the entire UI without loading anything from disk.
+22 system themes ship baked into the plugin (17 dark, 5 light). Each gets a full dual-palette entry — both light and dark variants, both terminal palettes, typography — so flipping modes recolours the entire UI without loading anything from disk.
 
 **Themes missing from the baked table** (user-installed or added after the last `make generate`) are read from `~/.local/state/omarchy/current/theme/colors.toml` and registered as `omarchy-current`. The picker shows them; the auto-sync follows them.
 
@@ -83,10 +83,12 @@ Built-in Hermes themes (`catppuccin`, `everforest`, `solarized`, …) are never 
 ## After an Omarchy update
 
 ```bash
-make generate               # rebuilds the theme table (system + user themes)
-make generate-system        # system themes only — used by CI
-make generate-check         # detect drift without writing
+make generate               # rebuilds the baked table from system themes (default — matches what's committed)
+make generate-system        # alias for `make generate`; kept for the regen-themes workflow
+make generate-check         # block the push if the baked table drifted from the live themes
 # HOST=<ssh-host> reads themes from a remote machine
+# Pass --include-user (or SYSTEM=…) to bake user themes locally. User themes
+# the table does not know are still picked up live as `omarchy-current`.
 ```
 
 The generator replaces only the `// BEGIN GENERATED THEMES … // END GENERATED THEMES` block. It resolves themes without `colors.toml` (e.g. `ayaka`) via `omarchy-theme-colors-from-alacritty`.
@@ -101,7 +103,7 @@ The generator replaces only the `// BEGIN GENERATED THEMES … // END GENERATED 
 make check          # lint + tests (CI gate)
 make test           # node tests/smoke.mjs && sh tests/hook.sh
 make lint           # node --check + py_compile + shellcheck
-make install-githooks   # pre-push auto-fix hook
+make install-githooks   # pre-push: blocks on baked-table drift (run 'make generate', commit, retry)
 ```
 
 **Tests:**
@@ -142,13 +144,14 @@ omarchy-themes/
 | Omarchy key | Hermes slots |
 |---|---|
 | `background` | `background` |
-| `foreground` | `foreground`, `mutedForeground` |
+| `foreground` | `foreground` |
+| `dark_foreground` | `mutedForeground` |
 | `accent` | `primary`, `accent`, `ring`, `midground`, `composerRing` |
 | `lighter_background` | `card`, `popover`, `secondary`, `userBubble` |
 | `dark_background` | `border`, `input`, `sidebarBackground`, `sidebarBorder`, `userBubbleBorder` |
-| `selection` | `terminal.selectionBackground` |
-| `muted` | `mutedBackground` |
-| ANSI 0–15 | terminal palette |
+| `selection` / `selection_background` | `terminal.selectionBackground` |
+| `muted` | `muted` |
+| ANSI 1–6 and 9–14 (`red`/`green`/`yellow`/`blue`/`magenta`/`cyan` and bright variants) | terminal palette; `background` fills `black` + `brightBlack`, `foreground` fills `white` + `brightWhite` |
 
 `lighter_background` and `dark_background` are lifted a few percent when equal to `background` (affects hermarchy, omacarchy, and flat themes). The opposite palette (light↔dark) is auto-synthesised using Rec.709 luma — the synthesised background always lands on the correct side of the 0.5 threshold so UI mode never flips unexpectedly.
 

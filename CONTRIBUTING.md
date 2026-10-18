@@ -4,7 +4,7 @@ Thanks for helping. The short version:
 
 ```bash
 make check               # lint + tests, no Omarchy needed (needs Node >= 22, Python >= 3.11, shellcheck)
-make install-githooks    # optional: pre-push check that plugin.js matches the Omarchy themes
+make install-githooks    # optional: pre-push 'make generate-check' — blocks the push on baked-table drift (no auto-commit; regenerate and commit by hand)
 make theme-smoke HOST=omarchy   # live hook-chain test — mutates the active skin, see Tests / SECURITY
 ```
 

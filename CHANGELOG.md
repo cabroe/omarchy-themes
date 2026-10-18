@@ -63,6 +63,63 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   gone; the `make typecheck` CI step that required `tsconfig.json` is also
   removed.
 
+### Bugfix-Runde 2026-10-19
+
+Baked table is now strictly system themes (22 entries: 17 dark + 5 light) so
+`make generate-check` matches the committed state. User themes follow live via
+`omarchy-current`. Three CI workflows (`ci.yml`, `live-theme-smoke.yml`,
+`regen-themes.yml`). The pre-push hook blocks on drift instead of auto-committing
+— the previous auto-commit never landed in the push because git had already
+snapshotted the refs.
+
+#### Fixed
+- **Generator / plugin.js** — Baked table reduced from 29 (system + user) to
+  22 system themes; user themes are read live from `current/theme/colors.toml`
+  and registered as the `omarchy-current` fallback. The baked `// BEGIN
+  GENERATED THEMES` block therefore matches what `make generate-check` produces
+  on a clean clone. Tests register 20 themes after the two Hermes-built-in
+  collisions (`catppuccin`, `everforest`) are skipped.
+- **Generator** — Theme slugs in `plugin.js` are JSON-quoted, so a slug with
+  embedded quotes or backslashes can no longer corrupt the surrounding object
+  literal. Aliases for `color0..15` and `selection_background` are now resolved
+  at parse time, so a colors.toml that uses only numeric color names still
+  yields a complete palette.
+- **Pre-push hook** — Runs `make generate-check HOST=…` (block on drift, exit
+  1 with a clear "run `make generate` and commit" hint). The previous version
+  silently auto-committed and ran `git push` again — but git had already
+  snapshotted the refs to push, so the regeneration never reached the remote
+  and the local branch ended up one commit ahead. Now: drift is detected, the
+  developer regenerates by hand, commits, retries.
+- **Hook** — `hermes-skin-sync.sh` checks
+  `~/.local/state/omarchy/toggles/skip-hermes-theme-changes` at startup and
+  exits 0 without writing or activating a skin when the toggle is raised; the
+  desktop plugin independently stops its auto-sync and restores the palette
+  shown before. Picker and ⌘K rows continue to work because they are
+  user-initiated and bypass the toggle.
+- **Workflows** — `regen-themes.yml` is now a third workflow alongside
+  `ci.yml` and `live-theme-smoke.yml` (weekly Monday 04:00 UTC cron,
+  `workflow_dispatch` for manual runs, opens a PR when the baked table drifts).
+  `live-theme-smoke.yml` paths-filter narrowed to the files the smoke actually
+  exercises. `ci.yml` lint step now uses the same `generate-check` rules.
+- **Makefile** — `make generate` defaults to system themes; `make
+  generate-system` is an explicit alias kept for the regen-themes workflow;
+  `make generate-check` uses the same source filter, so it agrees with `make
+  generate` byte-for-byte.
+- **README / docs** — Theme count corrected to 22 (17 dark + 5 light) in
+  README.md and README.de.md; toggle description documents the hook-side
+  short-circuit; the colour-mapping table separates `foreground → foreground`
+  from `dark_foreground → mutedForeground`, fixes `muted → muted`, and
+  replaces "ANSI 0–15" with the correct "ANSI 1–6 and 9–14" (ANSI 0/7/8/15
+  come from `background`/`foreground`). Workflows list in the project-layout
+  block lists all three workflows.
+- **CONTRIBUTING.md** — `make install-githooks` description spells out that
+  the pre-push hook blocks on drift (no auto-commit), so the contract matches
+  what the hook actually does.
+- **Generator / TOML** — `--include-user` and `SYSTEM=…` overrides are
+  accepted by both `generate` and `generate-check`; previously the override
+  flag was only honoured by `generate`, so a `generate-check` with overrides
+  always disagreed with `generate`.
+
 ## [1.2.0] — 2026-10-18
 
 ### Added

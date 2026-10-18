@@ -176,11 +176,15 @@ store.set(LAST_PROFILE_KEY, 'work')
 store.set(PROFILE_MODES_KEY, JSON.stringify({ home: 'light', work: 'light' }))
 store.set(MODE_KEY, 'light')
 
-// First call after a state change: profile and mode both new — one event.
+// Storage already has the target mode → the mirror's idempotency guard
+// (source of truth = storage, not the in-memory lastRequest cache) skips
+// the redundant write + StorageEvent. A fresh process / hot reload /
+// cross-tab scenario where storage was changed externally does not get a
+// re-dispatched event that would re-paint flicker.
 const evBaseline = storageEvents.length
-runRow('lupine')                              // light, work → fires (different from prior state)
-assert.equal(storageEvents.length, evBaseline + 1,
-  'first call after a state change fires exactly one event')
+runRow('lupine')                              // light, work → storage already 'light' → no-op
+assert.equal(storageEvents.length, evBaseline,
+  'storage already has target mode → no-op (storage is source of truth)')
 
 // Same (profile, mode) → idempotent no-op, no extra event.
 const evAfterRepeat = storageEvents.length
@@ -188,10 +192,14 @@ runRow('lupine')                              // same → no-op
 assert.equal(storageEvents.length, evAfterRepeat,
   'same-mode repeat must be a no-op (no flackern)')
 
+// Flip storage so the next call observes a real state change.
+store.set(MODE_KEY, 'system')
+store.set(PROFILE_MODES_KEY, JSON.stringify({ home: 'light', work: 'system' }))
+
 // A real change (mode flip) → fires exactly one event. Next identical
 // call → idempotent no-op.
 const evAfterLupine = storageEvents.length
-runRow('nord')                                // dark, work → mode flips light → dark → one event
+runRow('nord')                                // dark, work → mode flips system → dark → one event
 assert.equal(storageEvents.length, evAfterLupine + 1,
   'mode change fires exactly one event')
 
