@@ -2,6 +2,13 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow `plugin.yaml`.
 
+## [Unreleased]
+
+### Changed
+- Repository is public. `main` is protected (no force pushes or deletions, linear
+  history, CI must pass for everyone except the owner); secret scanning with push
+  protection, Dependabot alerts and private vulnerability reporting are enabled.
+
 ## [1.1.0] — 2026-10-18
 
 ### Changed
