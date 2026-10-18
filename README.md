@@ -66,7 +66,6 @@ make lint     # node --check + py_compile + shellcheck
 
 - **`tests/smoke.mjs`** — Plugin loads, registers themes/commands/settings, colours valid, luma/brand/prefix enforced, CLI→desktop sync covered.
 - **`tests/hook.sh`** — Skin YAML (22 keys, 3-digit hex), skip on unknown, exit 0 on failure, fallback to Omarchy-generated `colors.toml`.
-- **`tests/generate_themes_test.py`** — Stdlib `unittest`: `norm_hex`, `parse_palette`, `read_local`, `parse_sections`, `render`, `main()` exit codes, user-theme override.
 - **`tests/theme-switch-smoke.sh`** — Live `omarchy theme set` over SSH (`make theme-smoke HOST=omarchy`). Mutates user state; not in `make check`.
 
 CI: `.github/workflows/live-theme-smoke.yml` runs smoke on self-hosted omarchy runner (manual `workflow_dispatch`, Sunday 04:00 UTC, `push` to `main` when smoke/hook/workflow changes). Dedicated, label-pinned; start before trigger, stop after.
