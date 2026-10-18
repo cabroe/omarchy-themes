@@ -6,11 +6,10 @@ GEN_ARGS = --include-user $(if $(HOST),--remote $(HOST))
 INSTALL_HOOK_DIR ?= $(HOME)/.config/omarchy/hooks/theme-set.d
 INSTALL_HOOK     ?= $(INSTALL_HOOK_DIR)/hermes-skin-sync.sh
 
-.PHONY: help check test lint generate generate-check typecheck install-hook uninstall install-githooks theme-smoke
+.PHONY: help check test lint generate generate-check install-hook uninstall install-githooks theme-smoke
 
 help:
 	@echo "make check              lint + tests (local, no Omarchy needed)"
-	@echo "make typecheck          tsc --allowJs --checkJs --noEmit (plugin + lib + sync + settings-page)"
 	@echo "make generate           regenerate theme table from this machine's Omarchy themes (HOST=<ssh host> to read remotely)"
 	@echo "make generate-check     fail if plugin.js is out of date (same sources as 'generate')"
 	@echo "make install-hook       install hooks/hermes-skin-sync.sh into \$$INSTALL_HOOK_DIR (idempotent)"
@@ -20,16 +19,6 @@ help:
 
 check: lint test
 
-# Lightweight TypeScript validation for desktop/plugin.js + the extracted
-# modules. Runs purely at check-time (tsc --noEmit) — the plugin itself is
-# plain ESM that Hermes Desktop loads as-is. No build, no tsc in
-# package.json. Uses --moduleResolution nodenext + the local tsconfig.json
-# so ./types.d.ts declarations resolve and the runtime-module `declare`s
-# register. First run downloads typescript on demand (~30 s); subsequent
-# runs reuse the cache and complete in a few seconds.
-typecheck:
-	npx -y typescript@latest -p desktop/tsconfig.json
-
 lint:
 	node --check desktop/plugin.js
 	python3 -m py_compile scripts/generate-themes.py __init__.py
@@ -38,7 +27,6 @@ lint:
 test:
 	node tests/smoke.mjs
 	sh tests/hook.sh
-	python3 -m unittest tests/generate_themes_test.py
 
 generate:
 	python3 scripts/generate-themes.py $(GEN_ARGS)

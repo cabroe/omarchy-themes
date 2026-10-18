@@ -1,10 +1,5 @@
-// @ts-check
-// Type-checked by `make typecheck` (tsc --allowJs --checkJs --noEmit).
-// NOT compiled — Hermes Desktop loads this file as plain ESM at runtime;
-// the typedefs and JSDoc are consumed only by tsc. See desktop/types.d.ts
-// for the shared shapes referenced below.
 /**
- * @file omarchy-themes — pure local Hermes-Desktop plugin.
+ * omarchy-themes — pure local Hermes-Desktop plugin.
  *
  * No backend, no HTTP calls. The Omarchy palettes are baked into the RAW
  * table below (generated from /usr/share/omarchy/themes/<slug>/colors.toml).
@@ -26,50 +21,19 @@
  * `skip-hermes-theme-changes` (~/.local/state/omarchy/toggles/) stops all
  * automatic switching; the theme picker and ⌘K rows keep working.
  */
-/* eslint-disable */
-// Pull the ambient shapes from types.d.ts once, so every later JSDoc
-// annotation can reference them by short name (Palette, Mode, ...).
-// The `.d.ts` extension is omitted on purpose: TypeScript (since 4.5) refuses
-// to import a literal `.d.ts` — module resolution will pick the file up
-// via the `--moduleResolution nodenext` setting in desktop/tsconfig.json.
-/** @typedef {import('./types').AliveCheck} AliveCheck */
-/** @typedef {import('./types').ColorScale} ColorScale */
-/** @typedef {import('./types').DesktopTheme} DesktopTheme */
-/** @typedef {import('./types').Hex} Hex */
-/** @typedef {import('./types').HermesBridge} HermesBridge */
-/**
- * Loose bag-of-functions view of the bridge (sync.js accepts this instead
- * of `HermesBridge` so future ad-hoc methods don't choke type-check).
- * @typedef {Record<string, (...args: any[]) => any | Promise<any>>} BridgeLike */
-
-/** @typedef {import('./types').JsxRuntime} JsxRuntime */
-/** @typedef {import('./types').Mode} Mode */
-/** @typedef {import('./types').Palette} Palette */
-/** @typedef {import('./types').PluginContext} PluginContext */
-/** @typedef {import('./types').PluginSdk} PluginSdk */
-/** @typedef {import('./types').PluginStorage} PluginStorage */
-/** @typedef {import('./types').RawEntry} RawEntry */
-/** @typedef {import('./types').RegisterCurrentResult} RegisterCurrentResult */
-/** @typedef {import('./types').SettingsPage} SettingsPage */
-/** @typedef {import('./types').TerminalPalette} TerminalPalette */
-/** @typedef {import('./types').ThemeEntry} ThemeEntry */
-/** @typedef {import('./types').ThemeModeContext} ThemeModeContext */
-/** @typedef {import('./types').Typography} Typography */
 import * as sdk from '@hermes/plugin-sdk'
 const {
   THEMES_AREA, PALETTE_AREA,
   requestTheme,
+  useTheme,           // ThemeMode setter — forces the UI into the matching
+                     // mode when a theme is applied (lupine→light, nord→dark).
+                     // Replaces the old "render-in-current-mode" behaviour that
+                     // painted a Light Omarchy theme (lupine #fafafa) as a dark
+                     // UI because Hermes Desktop was in dark mode.
+  Button, EmptyState,
 } = sdk
+import { useState } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
-import { BrowsePage } from './settings-page.js'
-import { modeOf } from './lib/colors.js'
-import { buildTheme } from './lib/theme-builder.js'
-// Sync state machine — extracted into its own module. createSync wires up
-// the 4 watch doors (skin.changed, theme.name, config.yaml, colors.toml),
-// the local requestMode mirror, the dynamic theme registration, and the
-// dispose-race protection. applyEntry is shared here because the palette ⌘K
-// rows call it directly without going through the slug→entry lookup.
-import { applyEntry, createSync } from './sync.js'
 
 // `requestMode` is the SDK contract for changing the active mode from
 // outside React. The current SDK does not export it (defined internally in
@@ -91,6 +55,225 @@ const BUILTIN_NAMES = new Set([
   'github', 'nous', 'nous-alt', 'catppuccin', 'everforest', 'solarized',
   'classic', 'midnight', 'ember', 'mono', 'cyberpunk', 'slate',
 ])
+
+// ---------------------------------------------------------------------------
+// Color helpers
+// ---------------------------------------------------------------------------
+function luma(hex) {
+  const h = hex.replace('#', '')
+  const r = parseInt(h.slice(0, 2), 16) / 255
+  const g = parseInt(h.slice(2, 4), 16) / 255
+  const b = parseInt(h.slice(4, 6), 16) / 255
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+// Single-source-of-truth tuning constants for palette synthesis. The renderer
+// threshold (>= 0.5 = light, < 0.5 = dark) is Hermes-internal and lives in
+// apps/desktop/src/themes/context.tsx::renderedModeFor; tests/smoke.mjs
+// mirrors it. These two constants are the only knobs this plugin exposes.
+const SURFACE_MIX_AMOUNT = 0.88   // native background pulled this far toward #000 / #fff
+const ACCENT_TEXT_LUMA   = 0.55   // luma(accent) below → use #ffffff text on accent
+
+function onAccent(accent) { return luma(accent) < ACCENT_TEXT_LUMA ? '#ffffff' : '#000000' }
+
+function modeOf(c) { return (c.mode || 'dark').toLowerCase() === 'light' ? 'light' : 'dark' }
+
+function slugToLabel(slug) {
+  return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+// Built-in slugs are filtered out upstream (THEMES.flatMap below — Source of
+// Truth), so `slug` here is always a unique Omarchy palette and never collides
+// with a built-in name. The desktop name gets an `omarchy-` prefix on purpose:
+// Hermes registers every CLI skin under its bare slug as a backend theme, and a
+// backend theme of the same name would shadow this entry in resolveTheme().
+function toName(slug, taken) {
+  let name = 'omarchy-' + slug
+  while (taken.has(name)) name = name + '-dup'
+  return name
+}
+
+// ---------------------------------------------------------------------------
+// Color helpers — synthesise the missing mode from the one Omarchy ships
+// ---------------------------------------------------------------------------
+function hexToRgb(hex) {
+  const h = hex.replace('#', '')
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
+}
+// Linear-interpolate two #rrggbb colors. amount=0 → a, amount=1 → b.
+function mixHex(a, b, amount) {
+  const [ar, ag, ab] = hexToRgb(a), [br, bg, bb] = hexToRgb(b)
+  const t = (n, m) => Math.max(0, Math.min(255, Math.round(n + (m - n) * amount)))
+  const h = n => n.toString(16).padStart(2, '0')
+  return '#' + h(t(ar, br)) + h(t(ag, bg)) + h(t(ab, bb))
+}
+
+// Default system typography — matches what the bundled Hermes presets use so
+// the user's OS font + emoji rendering stay intact.
+const DEFAULT_TYPOGRAPHY = {
+  fontSans:
+    '"Segoe WPC", "Segoe UI", -apple-system, BlinkMacSystemFont, "SF Pro Text", ' +
+    '"SF Pro Display", system-ui, sans-serif, ' +
+    '"Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", emoji',
+  fontMono:
+    '"JetBrains Mono", "Cascadia Code", "Cascadia Mono", "DejaVu Sans Mono", ' +
+    '"Liberation Mono", "Noto Sans Mono", "SF Mono", ui-monospace, Menlo, Monaco, ' +
+    'Consolas, monospace, "Apple Color Emoji", "Segoe UI Emoji", emoji',
+}
+
+// Build the *light* counterpart of a dark-mode Omarchy palette.
+// Surface = background pulled 88% toward white. Omarchy's `lighter_background`
+// is just a few shades lighter than the dark BG (still dark in feel), so we
+// ignore it — the renderer's `renderedModeFor()` evaluates Rec.709 luma of the
+// chosen palette's background and flips mode above 0.5; a dark `colors.bg`
+// paints a dark UI in a light context. Accent stays the native Omarchy accent
+// so brand identity is preserved across the mode toggle.
+function synthLightFromDark(c, ac, acFg) {
+  const surface = mixHex(c.background, '#ffffff', SURFACE_MIX_AMOUNT)
+  const card    = mixHex(surface, '#ffffff', 0.6)
+  return {
+    background: surface, foreground: '#1a1a1a',
+    card, cardForeground: '#1a1a1a',
+    popover: card, popoverForeground: '#1a1a1a',
+    primary: ac, primaryForeground: acFg,
+    secondary: card, secondaryForeground: '#1a1a1a',
+    accent: ac, accentForeground: '#1a1a1a',
+    muted: mixHex(surface, '#000000', 0.06),
+    mutedForeground: mixHex('#1a1a1a', surface, 0.4),
+    border: mixHex(surface, '#000000', 0.14),
+    input:   mixHex(surface, '#000000', 0.14),
+    ring: ac, midground: ac, composerRing: ac,
+    destructive: c.red || '#b94a3a', destructiveForeground: '#ffffff',
+    sidebarBackground: mixHex(surface, '#000000', 0.04),
+    sidebarBorder:     mixHex(surface, '#000000', 0.14),
+    userBubble:        mixHex(ac,       '#ffffff', 0.85),
+    userBubbleBorder:  mixHex(surface, '#000000', 0.14),
+  }
+}
+
+// Build the *dark* counterpart of a light-mode Omarchy palette.
+// Surface = background pulled 88% toward black. Omarchy's `darker_background`
+// for a light theme is only a slightly darker grey (e.g. lupine `#dedede`,
+// luma 0.87 — the renderer reads that as "light" and flips the UI mode,
+// making the dark variant look identical to the light one). `mixHex` toward
+// black is the only way to produce a surface the renderer accepts as dark.
+// Accent stays native Omarchy so brand identity is preserved.
+function synthDarkFromLight(c, ac, acFg) {
+  const surface = mixHex(c.background, '#000000', SURFACE_MIX_AMOUNT)
+  return {
+    background: surface, foreground: '#e6e6e6',
+    card:       mixHex(surface, '#ffffff', 0.04), cardForeground: '#e6e6e6',
+    popover:    mixHex(surface, '#ffffff', 0.08), popoverForeground: '#e6e6e6',
+    primary: ac, primaryForeground: acFg,
+    secondary: mixHex(surface, '#ffffff', 0.06), secondaryForeground: '#e6e6e6',
+    accent: ac, accentForeground: '#e6e6e6',
+    muted:     mixHex(surface, '#ffffff', 0.06),
+    mutedForeground: mixHex('#e6e6e6', surface, 0.45),
+    border:    mixHex(surface, '#ffffff', 0.16),
+    input:     mixHex(surface, '#ffffff', 0.10),
+    ring: ac, midground: ac, composerRing: ac,
+    destructive: c.red || '#e25563', destructiveForeground: '#ffffff',
+    sidebarBackground: mixHex(surface, '#ffffff', 0.02),
+    sidebarBorder:     mixHex(surface, '#ffffff', 0.16),
+    userBubble:        mixHex(ac, surface, 0.18),
+    userBubbleBorder:  mixHex(surface, '#ffffff', 0.16),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Map one raw colors object to a DesktopTheme entry
+// ---------------------------------------------------------------------------
+function buildTheme(slug, c, taken) {
+  const bg = c.background, fg = c.foreground, ac = c.accent
+  if (!bg || !fg || !ac) return null
+
+  let lighterBg = c.lighter_background || bg
+  let darkBg    = c.dark_background    || bg
+  // Surfaces painted in the page colour are invisible. Omarchy derives
+  // lighter_background == background when a theme gives no shade (aetheria,
+  // ayaka, cpunk, last-horizon, solitude), and some themes set dark_background
+  // == background (hermarchy, omacarchy), which flattens sidebar and borders.
+  // Lift them off the page, toward the foreground (dark) or black (light) like
+  // the stock palettes do. A palette with neither shade gets a stronger fan-out.
+  const light = modeOf(c) === 'light'
+  const pole  = light ? '#000000' : fg
+  const fullyFlat = lighterBg === bg && darkBg === bg
+  if (lighterBg === bg) lighterBg = mixHex(bg, pole, light ? 0.04 : 0.08)
+  if (darkBg === bg)    darkBg    = mixHex(bg, pole, fullyFlat ? (light ? 0.12 : 0.14) : 0.08)
+  const darkFg    = c.dark_foreground    || fg
+  const mode      = modeOf(c)
+  const name      = toName(slug, taken)
+  const label     = slugToLabel(slug)
+  const acFg      = onAccent(ac)
+
+  // Native palette = the mode Omarchy ships for this theme.
+  const native = {
+    background: bg, foreground: fg,
+    card: lighterBg, cardForeground: fg,
+    popover: lighterBg, popoverForeground: fg,
+    primary: ac, primaryForeground: acFg,
+    secondary: lighterBg, secondaryForeground: fg,
+    accent: ac, accentForeground: acFg,
+    muted: c.muted || darkBg, mutedForeground: darkFg,
+    border: darkBg, input: darkBg,
+    ring: ac, midground: ac, composerRing: ac,
+    destructive: c.red || '#ef4444', destructiveForeground: '#ffffff',
+    sidebarBackground: darkBg, sidebarBorder: darkBg,
+    userBubble: lighterBg, userBubbleBorder: darkBg,
+  }
+
+  // Native terminal palette — bright_* fall back to non-bright.
+  const nativeTerminal = {
+    foreground: fg, cursor: fg,
+    selectionBackground: c.selection || darkBg,
+    black: bg,
+    red:     c.red     || fg,  green:   c.green   || fg,
+    yellow:  c.yellow  || fg,  blue:    c.blue    || ac,
+    magenta: c.magenta || ac,  cyan:    c.cyan    || ac,
+    white:   c.bright_foreground || fg,
+    brightBlack:   bg,
+    brightRed:     c.bright_red     || c.red     || fg,
+    brightGreen:   c.bright_green   || c.green   || fg,
+    brightYellow:  c.bright_yellow  || c.yellow  || fg,
+    brightBlue:    c.bright_blue    || c.blue    || ac,
+    brightMagenta: c.bright_magenta || c.magenta || ac,
+    brightCyan:    c.bright_cyan    || c.cyan    || ac,
+    brightWhite:   fg,
+  }
+
+  // ── Light / Dark palette pair ───────────────────────────────────────────
+  // `colors` is the Light palette (Hermes Desktop convention), `darkColors`
+  // is the Dark palette. Both are always populated so the renderer's
+  // getBaseColors() never falls back to synth — a dark-mode Omarchy theme
+  // applied in a light UI paints with a real light variant instead of the
+  // existing light default, and vice versa.
+  const lightColors = mode === 'light' ? native : synthLightFromDark(c, ac, acFg)
+  const darkColors  = mode === 'dark'  ? native : synthDarkFromLight(c, ac, acFg)
+
+  // Light terminal = bright variant of the dark terminal (swap fg/black,
+  // keep ANSI colors). This way the ANSI palette stays readable on whichever
+  // surface the pane lands on.
+  const lightTerminal = Object.assign({}, nativeTerminal, {
+    foreground: c.bright_foreground || fg,
+    cursor:     c.bright_foreground || fg,
+    black:      c.lighter_background || bg,
+    brightBlack: c.lighter_background || bg,
+  })
+  const darkTerminal = nativeTerminal
+
+  const theme = {
+    name,
+    label: 'Omarchy ' + label,
+    description: 'Omarchy \u00b7 ' + label + ' \u00b7 ' + mode,
+    colors: lightColors,
+    darkColors: darkColors,
+    terminal: lightTerminal,
+    darkTerminal: darkTerminal,
+    typography: DEFAULT_TYPOGRAPHY,
+  }
+
+  return { slug, label, mode, theme }
+}
 
 // ---------------------------------------------------------------------------
 // Baked-in palettes
@@ -152,11 +335,389 @@ const THEMES = RAW.flatMap(({ slug, c }) => {
 // is dark when Hermes paints its own built-in of that name.
 const RAW_MODE = new Map(RAW.map(({ slug, c }) => [slug, modeOf(c)]))
 
+// ---------------------------------------------------------------------------
+// Theme apply from outside React (⌘K row, gateway event, local config watch)
+// ---------------------------------------------------------------------------
+// The SDK exports `requestTheme`. `requestMode` is the official contract for
+// changing the active mode from outside React (defined in
+// apps/desktop/src/themes/request.ts) but is not re-exported from
+// sdk/index.ts yet — `SDK_REQUEST_MODE` above probes the namespace at module
+// load and delegates to the SDK's requestMode once it lands. Until then the
+// local mirror below persists the mode exactly like the ThemeProvider's
+// `modePref.assign(liveProfile, mode)` does (themes/context.tsx, profilePref):
+// the "default" profile owns the global slot; a named profile gets its own
+// record entry and mirrors into the global slot. Other profiles stay untouched.
+// Then poke the provider's `storage` listener — it re-resolves the mode from
+// storage and repaints through its own applyTheme, so React state and the
+// painted DOM never disagree.
+const MODE_KEY          = 'hermes-desktop-mode-v1'
+const PROFILE_MODES_KEY = 'hermes-desktop-profile-modes-v1'
+const LAST_PROFILE_KEY  = 'hermes-desktop-active-profile-v1'
+
+// Last (profile, mode) the local mirror targeted. Without this guard, every
+// applyEntry() call would dispatch a fresh StorageEvent — a second click on
+// Apply, a fast double-emit, or a CLI/host race would re-trigger the
+// ThemeProvider listener and cause visible flackern. Reset on dispose so
+// the next instance's first call always re-dispatches.
+let lastRequest = { profile: null, mode: null }
+
+function requestMode(mode) {
+  // Prefer the host's contract when the SDK exposes it; the mirror below is
+  // the fallback that pokes the ThemeProvider via a storage event.
+  if (SDK_REQUEST_MODE) return SDK_REQUEST_MODE(mode)
+  if (typeof window === 'undefined') return
+  try {
+    const ls = window.localStorage
+    const profile = (ls.getItem(LAST_PROFILE_KEY) || '').trim() || 'default'
+    if (lastRequest.profile === profile && lastRequest.mode === mode) return  // idempotent no-op
+    lastRequest = { profile, mode }
+    if (profile !== 'default') {
+      let record = {}
+      try {
+        const parsed = JSON.parse(ls.getItem(PROFILE_MODES_KEY) || '{}')
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) record = parsed
+      } catch (_) { /* corrupt record — start fresh like the host does */ }
+      ls.setItem(PROFILE_MODES_KEY, JSON.stringify({ ...record, [profile]: mode }))
+    }
+    ls.setItem(MODE_KEY, mode)
+    window.dispatchEvent(new StorageEvent('storage', { key: MODE_KEY, newValue: mode, storageArea: ls }))
+  } catch (_) { /* storage unavailable — the mode stays as it is */ }
+}
+
+function applyEntry(entry) {
+  requestMode(entry.mode)
+  requestTheme(entry.theme.name)
+}
+
+// A theme/skin name from the Omarchy or CLI side → desktop. Several doors can
+// report the same switch within seconds (theme.name, config.yaml, gateway
+// event); the later ones are no-ops unless forced.
+const DEDUPE_MS = 15000
+let lastApplied = { name: null, at: 0 }
+
+// Omarchy themes the baked table does not know. Their palette comes from
+// current/theme/colors.toml and is registered as ONE theme that each new
+// unknown Omarchy theme replaces (same contribution id → the host repaints).
+const DYNAMIC_NAME = 'omarchy-current'
+let dynamic = null       // { slug, entry, sig, stop }
+let omarchySlug = null   // theme.name as last seen
+let skipSync = false     // Omarchy toggle skip-hermes-theme-changes, cached
+let dynStore = null      // ctx.storage of the live instance (palette persistence)
+let INSTANCE = 0        // bumped on dispose — in-flight handlers of a dead instance stop touching shared state
+
 // `isKnown` also claims every Hermes built-in name: an Omarchy theme called
 // e.g. `solarized` must not override Hermes' own built-in of that name.
-/** @param {string} name */
 const isKnown = name =>
   THEMES.some(t => t.slug === name) || BUILTIN_NAMES.has(name)
+
+function applySkin(name, { force = false } = {}) {
+  // Omarchy's own `omarchy` skin (omarchy-theme-set-hermes) always stands for
+  // the current Omarchy theme; the host paints it as a single-palette skin,
+  // so map it to the matching dual-palette entry instead.
+  if (name === 'omarchy') name = omarchySlug
+  if (!name || skipSync) return
+  if (!force && name === lastApplied.name && Date.now() - lastApplied.at < DEDUPE_MS) return
+  const entry = THEMES.find(t => t.slug === name) ?? (dynamic?.slug === name ? dynamic.entry : null)
+  if (entry) {
+    lastApplied = { name, at: Date.now() }
+    applyEntry(entry)
+    return
+  }
+  // Built-in collision (catppuccin, everforest): paint Hermes' own built-in
+  // in the mode the Omarchy palette of that name ships with. Any other skin
+  // is not ours — leave the user's appearance alone.
+  if (BUILTIN_NAMES.has(name) && RAW_MODE.has(name)) {
+    lastApplied = { name, at: Date.now() }
+    requestMode(RAW_MODE.get(name))
+    requestTheme(name)
+  }
+}
+
+// `display.skin` from a Hermes config.yaml — only the direct child of the
+// top-level `display:` block, quotes and trailing comments stripped.
+function displaySkin(yaml) {
+  let inDisplay = false
+  let childIndent = null
+  for (const line of yaml.split('\n')) {
+    if (!line.trim() || /^\s*#/.test(line)) continue
+    if (/^\S/.test(line)) {
+      inDisplay = /^display:\s*(#.*)?$/.test(line)
+      childIndent = null
+      continue
+    }
+    if (!inDisplay) continue
+    const indent = line.match(/^ */)[0].length
+    childIndent ??= indent
+    if (indent !== childIndent) continue
+    const m = line.match(/^ +skin:\s*(['"]?)([^'"#\s]+)\1\s*(#.*)?$/)
+    if (m) return m[2]
+  }
+  return null
+}
+
+// Omarchy's `current/theme.name`: the theme slug as given to `omarchy theme set`
+// ("Tokyo Night" → tokyo-night, like the theme dir names).
+function themeName(text) {
+  const name = text.trim().toLowerCase().replace(/\s+/g, '-')
+  return name || null
+}
+
+const hermesHomeOf = async bridge =>
+  String(await bridge.desktopPluginsRoot()).replace(/[\\/]desktop-plugins[\\/]?$/, '')
+
+// Omarchy hard-codes `$HOME/.local/state/omarchy/current/theme.name`. $HOME is
+// the parent of a default `~/.hermes`; else fall back to /home/<user>.
+async function omarchyThemeNamePath(bridge) {
+  const rel = '/.local/state/omarchy/current/theme.name'
+  const candidates = []
+  const home = await hermesHomeOf(bridge)
+  if (/[\\/]\.hermes$/.test(home)) candidates.push(home.replace(/[\\/]\.hermes$/, '') + rel)
+  const user = (await bridge.getMachineProfile?.())?.username
+  if (user) candidates.push('/home/' + user + rel)
+  for (const path of candidates) {
+    const file = await bridge.readFileText(path).catch(() => null)
+    if (typeof file?.text === 'string') return path
+  }
+  return null
+}
+
+// Files next to theme.name: `current/theme/colors.toml`, `toggles/<flag>`.
+async function omarchyFile(bridge, rel) {
+  const path = await omarchyThemeNamePath(bridge)
+  return path && path.replace(/current\/theme\.name$/, rel)
+}
+
+async function readText(bridge, path) {
+  const file = path ? await bridge.readFileText(path).catch(() => null) : null
+  return typeof file?.text === 'string' ? file.text : null
+}
+
+// Omarchy's toggle convention: the flag is a file in toggles/.
+async function refreshSkip(bridge) {
+  skipSync = (await readText(bridge, await omarchyFile(bridge, 'toggles/skip-hermes-theme-changes'))) !== null
+}
+
+// Omarchy's colors.toml: accent/foreground/background plus color0..15, and
+// sometimes named ANSI colors, shades or `mode`. Same mapping as the generator
+// (red=color1 … cyan=color6, bright_*=color9..14); the mode falls back to the
+// background's brightness.
+function paletteFromToml(text) {
+  const t = {}
+  for (const line of text.split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Za-z0-9_]+)\s*=\s*["']?(#[0-9A-Fa-f]{6}|dark|light)["']?\s*(#.*)?$/)
+    if (m) t[m[1]] = m[2].toLowerCase()
+  }
+  const accent = t.accent ?? t.color4
+  if (!t.background || !t.foreground || !accent) return null
+  const c = {
+    mode: t.mode ?? (luma(t.background) > 0.5 ? 'light' : 'dark'),
+    accent, background: t.background, foreground: t.foreground,
+    selection: t.selection ?? t.selection_background, muted: t.muted ?? t.color8, dark_foreground: t.dark_foreground ?? t.color8,
+    dark_background: t.dark_background, darker_background: t.darker_background, lighter_background: t.lighter_background,
+    bright_foreground: t.bright_foreground,
+  }
+  ;['red', 'green', 'yellow', 'blue', 'magenta', 'cyan'].forEach((n, i) => {
+    c[n] = t[n] ?? t['color' + (i + 1)]
+    c['bright_' + n] = t['bright_' + n] ?? t['color' + (i + 9)]
+  })
+  return c
+}
+
+// Register the current Omarchy theme from colors.toml. Returns 'new' when the
+// dynamic theme changed, 'same' when it already matches, null when colors.toml
+// gave no palette. `alive` aborts a disposed instance before it touches shared
+// state. The palette is persisted so a launch under the skip toggle can restore
+// exactly what was shown before.
+async function registerCurrent(ctx, bridge, slug, alive = () => true) {
+  const text = await readText(bridge, await omarchyFile(bridge, 'current/theme/colors.toml'))
+  if (!alive()) return null
+  const c = text && paletteFromToml(text)
+  const entry = c && buildTheme(slug, c, new Set())
+  if (!entry) return null
+  entry.theme.name = DYNAMIC_NAME
+  const sig = slug + JSON.stringify(entry.theme)
+  if (dynamic?.sig === sig) return 'same'
+  dynamic?.stop?.()
+  dynamic = { slug, entry, sig, stop: ctx.register({ id: 'theme-current', area: THEMES_AREA, data: entry.theme }) }
+  dynStore?.set('last-dynamic', JSON.stringify({ slug, label: entry.label, mode: entry.mode, theme: entry.theme }))
+  return 'new'
+}
+
+// Launch: make the palette available again (the host does not persist it) and
+// learn the current theme name and toggle. Registering is not a theme switch —
+// and under the skip toggle the palette shown BEFORE is restored, not the one
+// Omarchy has switched to since.
+async function primeCurrent(ctx, bridge, alive) {
+  try {
+    const name = themeName((await readText(bridge, await omarchyThemeNamePath(bridge))) ?? '')
+    if (!name || !alive()) return
+    omarchySlug ??= name
+    await refreshSkip(bridge)
+    if (!alive() || isKnown(name)) return
+    if (!skipSync) { await registerCurrent(ctx, bridge, name, alive); return }
+    const saved = dynStore?.get('last-dynamic', null)
+    let parsed = null
+    try { parsed = JSON.parse(saved || 'null') } catch (_) { /* corrupt — nothing to restore */ }
+    if (!parsed?.theme) return
+    const sig = parsed.slug + JSON.stringify(parsed.theme)
+    if (dynamic?.sig === sig) return
+    dynamic?.stop?.()
+    dynamic = { slug: parsed.slug, entry: parsed, sig, stop: ctx.register({ id: 'theme-current', area: THEMES_AREA, data: parsed.theme }) }
+  } catch (_) { /* Omarchy not here — the baked themes still work */ }
+}
+
+// Watch one local file through the desktop's preview file-watch bridge
+// (window.hermesDesktop — the renderer has no fs). `parse(text)` extracts the
+// value; every change of it calls onValue.
+//
+// Launch: the value last seen is remembered in the plugin's own storage under
+// `seenKey`. If Omarchy switched themes while Hermes was closed, the stored
+// value differs and the desktop catches up. If nothing changed, the launch only
+// seeds the baseline — it must not stomp a theme picked in the desktop.
+// Returns a disposer; a host without the bridge gets a no-op.
+function watchFile(resolvePath, parse, onValue, store, seenKey) {
+  const bridge = typeof window === 'undefined' ? undefined : window.hermesDesktop
+  if (!bridge?.desktopPluginsRoot || !bridge.readFileText || !bridge.watchPreviewFile || !bridge.onPreviewFileChanged) {
+    return () => {}
+  }
+  let disposed = false
+  let watchId = null
+  let path = null
+  let last = null
+
+  const read = async () => {
+    const file = await bridge.readFileText(path)
+    return typeof file?.text === 'string' ? parse(file.text) : null
+  }
+  const offChanged = bridge.onPreviewFileChanged(async payload => {
+    if (disposed || !watchId || payload?.id !== watchId) return
+    try {
+      const value = await read()
+      if (disposed || !value || value === last) return
+      last = value
+      store?.set(seenKey, value)
+      Promise.resolve(onValue(value)).catch(() => { /* a failing door must not kill the watcher */ })
+    } catch (_) { /* unreadable mid-write — the next change event retries */ }
+  })
+
+  ;(async () => {
+    path = await resolvePath(bridge)
+    if (!path) return
+    last = await read()
+    const seen = store?.get(seenKey, null)
+    if (last) store?.set(seenKey, last)
+    if (!disposed && seen && last && seen !== last) Promise.resolve(onValue(last)).catch(() => {})
+    const watch = await bridge.watchPreviewFile(path)
+    if (!watch?.id) return
+    if (disposed) bridge.stopPreviewFileWatch?.(watch.id)
+    else watchId = watch.id
+  })().catch(() => { /* file not there — the other doors still sync */ })
+
+  return () => {
+    disposed = true
+    offChanged?.()
+    if (watchId) bridge.stopPreviewFileWatch?.(watchId)
+  }
+}
+
+// The two file doors: Omarchy's theme.name (written ~0.5 s into
+// `omarchy theme set`, right after the theme swap — the earliest signal) and
+// `display.skin` in the Hermes config (written by the theme-set hook ~2-3 s
+// later via `hermes skin use`; covers `hermes skin use` run by hand).
+const watchOmarchyTheme = (onTheme, store) => watchFile(omarchyThemeNamePath, themeName, onTheme, store, 'last-theme')
+const watchConfigSkin = (onSkin, store) =>
+  watchFile(async b => (await hermesHomeOf(b)) + '/config.yaml', displaySkin, onSkin, store, 'last-skin')
+
+// ---------------------------------------------------------------------------
+// Settings page
+// ---------------------------------------------------------------------------
+const SWATCH_KEYS = ['background', 'accent', 'foreground', 'red', 'green', 'cyan']
+
+function Swatch({ color }) {
+  return jsx('span', {
+    title: color,
+    style: {
+      display: 'inline-block', width: '14px', height: '14px',
+      borderRadius: '3px', background: color,
+      border: '1px solid rgba(128,128,128,.25)', flexShrink: 0,
+    }
+  })
+}
+
+function ThemeCard({ entry, ctx }) {
+  // Theme-Mode-Sync: pulling setMode out of the React context means the Apply
+  // button is now a one-stop shop — it applies the palette AND forces the UI
+  // into the mode the palette was designed for. Without this, applying a
+  // Light Omarchy theme (lupine, white, …) in a Hermes-Desktop dark context
+  // paints the dark variant (#1e1e1e) instead of the light one (#fafafa).
+  const { setMode } = useTheme()
+  const swatches = SWATCH_KEYS.map(k => entry.theme.colors[k]).filter(Boolean)
+  return jsxs('div', {
+    style: {
+      padding: '10px 12px', borderRadius: '8px',
+      border: '1px solid var(--ui-border)',
+      display: 'flex', flexDirection: 'column', gap: '6px',
+    },
+    children: [
+      jsxs('div', {
+        style: { display: 'flex', alignItems: 'center', gap: '6px' },
+        children: [
+          jsx('span', { style: { fontWeight: 500, fontSize: '13px', flex: 1, color: 'var(--ui-text-primary)' }, children: entry.label }),
+          jsx('span', {
+            style: { fontSize: '10px', padding: '1px 5px', borderRadius: '4px', background: 'var(--ui-muted)', color: 'var(--ui-text-secondary)' },
+            children: entry.mode,
+          }),
+        ]
+      }),
+      jsx('div', { style: { display: 'flex', gap: '4px' }, children: swatches.map(c => jsx(Swatch, { color: c }, c)) }),
+      jsxs('div', {
+        style: { display: 'flex', gap: '6px', marginTop: '2px' },
+        children: [
+          jsx(Button, {
+            size: 'sm',
+            onClick: () => {
+              requestTheme(entry.theme.name)
+              setMode(entry.mode)  // entry.mode ∈ {'light','dark'} ⊂ ThemeMode
+            },
+            children: 'Apply'
+          }),
+          jsx(Button, { size: 'sm', variant: 'ghost', onClick: () => ctx.os.writeClipboard(entry.theme.name), children: 'Copy name' }),
+        ]
+      })
+    ]
+  })
+}
+
+function BrowsePage({ ctx }) {
+  const [filter, setFilter] = useState('')
+  const q = filter.trim().toLowerCase()
+  const visible = q
+    ? THEMES.filter(t => t.label.toLowerCase().includes(q) || t.slug.includes(q) || t.mode === q)
+    : THEMES
+
+  return jsxs('div', {
+    style: { display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px' },
+    children: [
+      jsx('input', {
+        placeholder: 'Filter\u2026',
+        value: filter,
+        onChange: e => setFilter(e.target.value),
+        style: {
+          padding: '6px 10px', borderRadius: '6px',
+          border: '1px solid var(--ui-border)',
+          background: 'var(--ui-input)', color: 'var(--ui-text-primary)',
+          fontSize: '13px', outline: 'none',
+        }
+      }),
+      visible.length === 0
+        ? jsx(EmptyState, { title: 'No matching themes' })
+        : jsx('div', {
+            style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: '10px' },
+            children: visible.map(t => jsx(ThemeCard, { entry: t, ctx }, t.slug))
+          })
+    ]
+  })
+}
 
 // ---------------------------------------------------------------------------
 // Plugin export
@@ -166,20 +727,9 @@ export default {
   name: 'omarchy-themes',
   defaultEnabled: true,
 
-  /**
-   * Plugin lifecycle entry — the host calls this once per registered plugin
-   * (and again after a dispose, with a fresh instance). Implementation here
-   * is purely orchestration: it iterates the baked `THEMES` to register
-   * themes + palette ⌘K rows, mounts the settings page, and then delegates
-   * the four-door CLI/Omarchy sync wiring to `createSync` in ./sync.js.
-   * @param {PluginContext} ctx host context
-   */
   register(ctx) {
-    /** @type {Array<() => void>} */
     const disposers = []
 
-    // Register every baked theme as a `themes`-area contribution (the host
-    // adds them to resolveTheme() so the palette and ⌘K paths can pick them).
     THEMES.forEach(entry => {
       disposers.push(ctx.register({ id: 'theme-' + entry.slug, area: THEMES_AREA, data: entry.theme }))
     })
@@ -203,7 +753,7 @@ export default {
       title: 'omarchy-themes',
       icon: 'symbol-color',
       order: 10,
-      render: () => jsx(BrowsePage, { ctx, themes: THEMES }),
+      render: () => jsx(BrowsePage, { ctx }),
       children: [{
         id: 'about',
         title: 'About',
@@ -219,27 +769,111 @@ export default {
       }]
     })
 
-    // CLI→Desktop sync — the rest of register() is delegated to
-    // `createSync` in desktop/sync.js. It wires up the 4 watch doors
-    // (skin.changed, theme.name, config.yaml, colors.toml), the local
-    // requestMode mirror, the dynamic theme registration, and the
-    // dispose-race protection. `bridge` is the host preview file-watch
-    // surface; sync.js falls back to no-ops when the bridge is absent.
-    // `deps` carries plugin-local data that lives only here:
-    // THEMES / isKnown / buildTheme / RAW_MODE / BUILTIN_NAMES.
-    /** @type {BridgeLike | undefined} */
-    const bridge = typeof window === 'undefined' ? undefined : /** @type {BridgeLike} */ (/** @type {any} */ (window).hermesDesktop)
-    disposers.push(...createSync({
-      ctx,
-      bridge,
-      deps: {
-        THEMES,
-        isKnown,
-        buildTheme,
-        RAW_MODE,
-        BUILTIN_NAMES,
-      },
+    // CLI→Desktop sync, three doors into the same handler:
+    //  1. Omarchy's theme.name — fires ~0.5 s into `omarchy theme set`.
+    //  2. `display.skin` in this machine's Hermes config — written ~2-3 s later
+    //     by the hook; also covers a manual `hermes skin use`.
+    //  3. `skin.changed` from the active gateway — only when it is this machine.
+    //     The host handles the event itself right after the plugins (same task)
+    //     and requests the bare-slug backend skin (single palette). Re-apply in
+    //     a microtask, forced: it runs after the host set its request but before
+    //     React renders, so the dual-palette `omarchy-<slug>` request replaces
+    //     the host's and the single-palette skin is never painted.
+    // 1 and 2 work whichever gateway is the active connection. Later doors are
+    // no-ops for the same name (DEDUPE_MS).
+    let epoch = 0
+    let colorsTimer = 0
+    const myInstance = ++INSTANCE
+    const alive = () => myInstance === INSTANCE
+    const bridge = typeof window === 'undefined' ? undefined : window.hermesDesktop
+    dynStore = ctx.storage ?? null
+    disposers.push(ctx.onEvent('skin.changed', event => {
+      const name = event?.payload?.name
+      const mine = ++epoch
+      // Same task as the host's handler, so the cached toggle decides; refresh it for the next one.
+      if (bridge?.readFileText) refreshSkip(bridge).catch(() => {})
+      Promise.resolve().then(async () => {
+        if (mine !== epoch) return
+        // Omarchy republishes its `omarchy` skin on EVERY theme set (it touches
+        // the skin file, so the gateway broadcasts even an unchanged name).
+        // That is the reliable signal for a palette edit under the SAME
+        // unknown slug: Omarchy swaps current/theme by rename, which silences
+        // the colors.toml watch after its first event.
+        if (name === 'omarchy' && !skipSync && bridge?.readFileText && omarchySlug && !isKnown(omarchySlug)) {
+          if (await registerCurrent(ctx, bridge, omarchySlug, alive) === 'new' && mine === epoch && alive()) {
+            return applySkin(omarchySlug, { force: true })
+          }
+        }
+        applySkin(name, { force: true })
+      })
     }))
+    disposers.push(() => { epoch++ })
+    if (bridge?.readFileText) {
+      disposers.push(watchOmarchyTheme(async name => {
+        omarchySlug = name
+        await refreshSkip(bridge)
+        if (!alive()) return
+        if (!skipSync && !isKnown(name)) await registerCurrent(ctx, bridge, name, alive)
+        if (alive()) applySkin(name)
+      }, ctx.storage))
+      disposers.push(watchConfigSkin(async name => {
+        await refreshSkip(bridge)
+        if (alive()) applySkin(name)
+      }, ctx.storage))
+      // Fourth door: colors.toml itself. It catches the case no other door
+      // sees — the palette changed under the SAME unknown slug (edited custom
+      // theme, `omarchy theme set` re-run): re-register and force the repaint.
+      // Omarchy swaps current/theme by rename, which orphans a file watch
+      // after one event, so this watcher re-arms on every event instead of
+      // trusting a single watch to survive the swap.
+      let colorsStop = () => {}
+      const colorsArrived = () => {
+        clearTimeout(colorsTimer)
+        colorsTimer = setTimeout(() => {
+          colorsTimer = 0
+          ;(async () => {
+            await refreshSkip(bridge)
+            if (!alive() || skipSync || !omarchySlug || isKnown(omarchySlug)) return
+            if (await registerCurrent(ctx, bridge, omarchySlug, alive) === 'new' && alive()) {
+              applySkin(omarchySlug, { force: true })
+            }
+          })().catch(() => {})
+        }, 250)
+      }
+      const armColors = async () => {
+        const path = await omarchyFile(bridge, 'current/theme/colors.toml')
+        if (!path || !alive()) return
+        let id = null
+        const off = bridge.onPreviewFileChanged(async payload => {
+          if (!id || payload?.id !== id) return
+          off()
+          void bridge.stopPreviewFileWatch?.(id)
+          if (!alive()) return
+          void armColors() // the swap orphaned this watch — watch the path again
+          colorsArrived()
+        })
+        const watch = await bridge.watchPreviewFile(path).catch(() => null)
+        if (!watch?.id) { off(); return }
+        id = watch.id
+        colorsStop = () => { off(); void bridge.stopPreviewFileWatch?.(id) }
+      }
+      void armColors().catch(() => {})
+      disposers.push(() => colorsStop())
+      void primeCurrent(ctx, bridge, alive)
+    }
+    disposers.push(() => {
+      INSTANCE++
+      clearTimeout(colorsTimer)
+      dynamic?.stop?.(); dynamic = null; omarchySlug = null; skipSync = false; dynStore = null
+      // Per-instance dedupe state must NOT leak into the next register: a
+      // fresh instance's first apply for the same theme would otherwise be
+      // wrongly silenced by the previous instance's lastApplied window.
+      lastApplied = { name: null, at: 0 }
+      // The local requestMode mirror's (profile, mode) target — reset so a
+      // fresh instance's first requestMode call always re-dispatches the
+      // storage event (no cross-instance silent no-op).
+      lastRequest = { profile: null, mode: null }
+    })
 
     ctx.onDispose(() => disposers.forEach(d => d && d()))
   }
