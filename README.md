@@ -58,7 +58,13 @@ Jedes registrierte Theme liefert **beide** Paletten + **beide** Terminal-Palette
 | `terminal` / `darkTerminal` | ANSI-Palette (schwarz/weiß + 8 Farben + Bright-Varianten) fürs integrierte Terminal |
 | `typography` | `fontSans` (System-Stack mit Emoji-Fallback), `fontMono` (JetBrains Mono-Stack) |
 
-Für die **Gegenrichtung** (Light-Variante eines Dark-Themes oder umgekehrt) wird die fehlende Palette im Plugin synthetisiert — `lighter_background` / `darker_background` aus dem Omarchy-Theme als Surface-Seed, Akzent bleibt identisch, damit der Markencharakter erhalten bleibt.
+Für die **Gegenrichtung** (Light-Variante eines Dark-Themes oder umgekehrt) wird die fehlende Palette im Plugin synthetisiert. **Surface-Seed** ist jeweils `mixHex(c.background, '#ffffff' | '#000000', 0.88)` — also die native BG-Farbe um 88 % Richtung Weiß oder Schwarz gezogen. Das stellt sicher, dass beide Paletten echten Hell/Dunkel-Kontrast haben und der Renderer (`renderedModeFor` in `apps/desktop/src/themes/context.tsx`, Rec.709-Luma > 0.5) zuverlässig die richtige Palette wählt — selbst bei Omarchy-Light-Themes wie `lupine` (für die `darker_background` nur leichtes Grau ist) und Omarchy-Dark-Themes wie `nord` (für die `lighter_background` nur leicht helleres Schwarz ist). Omarchy's `lighter_background` / `darker_background` werden bewusst ignoriert, weil sie für den Renderer-Schwellwert zu nah am Original liegen.
+
+**Marken-Identität** bleibt erhalten: `accent`, `primary`, `ring`, `midground`, `composerRing` werden in beiden Paletten identisch aus `c.accent` abgeleitet — `lupine` ist also immer lupine-blau, `nord` immer nord-cyan, egal ob Light- oder Dark-Mode.
+
+Seit **Plugin-Hardening** ([t_3ca941bc]) + **Theme-Mode-Sync** (diese Task) erzwingt jeder Apply den passenden UI-Modus: `lupine` flipt zu Light, `nord` bleibt Dark. `setMode(entry.mode)` läuft zusätzlich zu `requestTheme(name)` im Apply-Pfad der Settings-Karte. Damit das auch außerhalb von React-Komponenten funktioniert (⌘K-Palette-`palette.action`, `applyThemeFor(skin.changed)`), braucht es `requestMode` im `@hermes/plugin-sdk` — Folge-Task für nach dem Hermes-SDK-Update. Bis dahin zeigen ⌘K und CLI→Desktop-Sync das Hardening-Verhalten (kein Mode-Flip, aber auch kein Lupine-als-Dark mehr).
+
+Der Test prüft das (siehe `tests/smoke.mjs`): für jedes registrierte Theme muss die Luma-Differenz zwischen `colors.background` und `darkColors.background` ≥ 0,5 sein (deckungsgleich mit dem Renderer-Threshold).
 
 ---
 
@@ -92,7 +98,7 @@ make lint     # node --check + py_compile + shellcheck
 
 | Test | Prüft |
 |---|---|
-| `tests/smoke.mjs` | Plugin lädt in Node und registriert alle Themes, ⌘K-Befehle und Settings-Seite. Alle Farben sind gültiges `#rrggbb`, kein Name doppelt. |
+| `tests/smoke.mjs` | Plugin lädt in Node und registriert alle Themes, ⌘K-Befehle und Settings-Seite. Alle Farben sind gültiges `#rrggbb`, kein Name doppelt. Erzwingt Luma-Differenz ≥ 0,5 zwischen `colors` und `darkColors` (deckungsgleich mit Renderer-Threshold ≥ 0,5), Vollständigkeit von 25 UI-Schlüsseln pro Palette und Markentreue (identischer `accent`/`primary`/`ring`/`midground`/`composerRing` in beiden Paletten). |
 | `tests/hook.sh` | Skin-YAML (22 Keys, Kleinschreibung, 3-stellige Hex-Expansion), Skip bei unbekanntem Slug, Exit 0 wenn `hermes` fehlschlägt. |
 
 Gleiches Ergebnis ohne `make`:

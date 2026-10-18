@@ -17,6 +17,11 @@
 import {
   THEMES_AREA, PALETTE_AREA,
   requestTheme,
+  useTheme,           // ThemeMode setter — forces the UI into the matching
+                      // mode when a theme is applied (lupine→light, nord→dark).
+                      // Replaces the old "render-in-current-mode" behaviour that
+                      // painted a Light Omarchy theme (lupine #fafafa) as a dark
+                      // UI because Hermes Desktop was in dark mode.
   Button, EmptyState,
 } from '@hermes/plugin-sdk'
 import { useState } from 'react'
@@ -82,11 +87,14 @@ const DEFAULT_TYPOGRAPHY = {
 }
 
 // Build the *light* counterpart of a dark-mode Omarchy palette.
-// Uses lighter_background as the surface base so cards/popovers still feel
-// related to the dark family — and accent stays the same so brand identity is
-// preserved across the mode toggle.
+// Surface = background pulled 88% toward white. Omarchy's `lighter_background`
+// is just a few shades lighter than the dark BG (still dark in feel), so we
+// ignore it — the renderer's `renderedModeFor()` evaluates Rec.709 luma of the
+// chosen palette's background and flips mode above 0.5; a dark `colors.bg`
+// paints a dark UI in a light context. Accent stays the native Omarchy accent
+// so brand identity is preserved across the mode toggle.
 function synthLightFromDark(c, ac, acFg) {
-  const surface = c.lighter_background || mixHex(c.background, '#ffffff', 0.85)
+  const surface = mixHex(c.background, '#ffffff', 0.88)
   const card    = mixHex(surface, '#ffffff', 0.6)
   return {
     background: surface, foreground: '#1a1a1a',
@@ -94,7 +102,7 @@ function synthLightFromDark(c, ac, acFg) {
     popover: card, popoverForeground: '#1a1a1a',
     primary: ac, primaryForeground: acFg,
     secondary: card, secondaryForeground: '#1a1a1a',
-    accent: mixHex(ac, '#ffffff', 0.85), accentForeground: '#1a1a1a',
+    accent: ac, accentForeground: '#1a1a1a',
     muted: mixHex(surface, '#000000', 0.06),
     mutedForeground: mixHex('#1a1a1a', surface, 0.4),
     border: mixHex(surface, '#000000', 0.14),
@@ -109,16 +117,21 @@ function synthLightFromDark(c, ac, acFg) {
 }
 
 // Build the *dark* counterpart of a light-mode Omarchy palette.
-// Uses darker_background as the surface base.
+// Surface = background pulled 88% toward black. Omarchy's `darker_background`
+// for a light theme is only a slightly darker grey (e.g. lupine `#dedede`,
+// luma 0.87 — the renderer reads that as "light" and flips the UI mode,
+// making the dark variant look identical to the light one). `mixHex` toward
+// black is the only way to produce a surface the renderer accepts as dark.
+// Accent stays native Omarchy so brand identity is preserved.
 function synthDarkFromLight(c, ac, acFg) {
-  const surface = c.darker_background || c.dark_background || mixHex(c.background, '#000000', 0.85)
+  const surface = mixHex(c.background, '#000000', 0.88)
   return {
     background: surface, foreground: '#e6e6e6',
     card:       mixHex(surface, '#ffffff', 0.04), cardForeground: '#e6e6e6',
     popover:    mixHex(surface, '#ffffff', 0.08), popoverForeground: '#e6e6e6',
     primary: ac, primaryForeground: acFg,
     secondary: mixHex(surface, '#ffffff', 0.06), secondaryForeground: '#e6e6e6',
-    accent:    mixHex(ac, surface, 0.82), accentForeground: '#e6e6e6',
+    accent: ac, accentForeground: '#e6e6e6',
     muted:     mixHex(surface, '#ffffff', 0.06),
     mutedForeground: mixHex('#e6e6e6', surface, 0.45),
     border:    mixHex(surface, '#ffffff', 0.16),
@@ -282,6 +295,12 @@ function Swatch({ color }) {
 }
 
 function ThemeCard({ entry, ctx }) {
+  // Theme-Mode-Sync: pulling setMode out of the React context means the Apply
+  // button is now a one-stop shop — it applies the palette AND forces the UI
+  // into the mode the palette was designed for. Without this, applying a
+  // Light Omarchy theme (lupine, white, …) in a Hermes-Desktop dark context
+  // paints the dark variant (#1e1e1e) instead of the light one (#fafafa).
+  const { setMode } = useTheme()
   const swatches = SWATCH_KEYS.map(k => entry.theme.colors[k]).filter(Boolean)
   return jsxs('div', {
     style: {
@@ -304,7 +323,14 @@ function ThemeCard({ entry, ctx }) {
       jsxs('div', {
         style: { display: 'flex', gap: '6px', marginTop: '2px' },
         children: [
-          jsx(Button, { size: 'sm', onClick: () => requestTheme(entry.theme.name), children: 'Apply' }),
+          jsx(Button, {
+            size: 'sm',
+            onClick: () => {
+              requestTheme(entry.theme.name)
+              setMode(entry.mode)  // entry.mode ∈ {'light','dark'} ⊂ ThemeMode
+            },
+            children: 'Apply'
+          }),
           jsx(Button, { size: 'sm', variant: 'ghost', onClick: () => ctx.os.writeClipboard(entry.theme.name), children: 'Copy name' }),
         ]
       })
