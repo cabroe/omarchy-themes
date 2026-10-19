@@ -34,7 +34,7 @@ function applyTheme(slug, { persist = true } = {}) {
   root.style.setProperty('--bg-elev',      mix(bg, theme.c.accent, 0.08));
   root.style.setProperty('--bg-elev-2',    mix(bg, theme.c.accent, 0.14));
   root.style.setProperty('--accent',       theme.c.accent || '#58a6ff');
-  root.style.setProperty('--accent-fg',    luminance(theme.c.accent) > 0.55 ? '#0d1117' : '#ffffff');
+  root.style.setProperty('--accent-fg',    pickFg(theme.c.accent));
   root.style.setProperty('--fg-muted',     mix(fg, bg, 0.4));
   root.style.setProperty('--border',       theme.c.selection || mix(fg, bg, 0.18));
   root.style.setProperty('--ok',           theme.c.green || '#3fb950');
@@ -96,6 +96,29 @@ function luminance(hex) {
     return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
   });
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+// WCAG contrast ratio between two sRGB hex colors: (L1 + 0.05) / (L2 + 0.05),
+// with L1 = lighter, L2 = darker (>= 1 by construction).
+function contrastRatio(a, b) {
+  const la = luminance(a), lb = luminance(b);
+  const hi = Math.max(la, lb), lo = Math.min(la, lb);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+// Pick the foreground candidate with the highest contrast against `bg`.
+// Used for the primary CTA accent-fg so every theme — light or dark — meets
+// at least WCAG AA-large (3:1) instead of relying on a fixed luma cutoff.
+// Falls back to '#0d1117' on garbage input (NaN/invalid hex) so the button
+// stays readable rather than becoming a brick of invisible text.
+function pickFg(bg) {
+  const CANDIDATES = ['#0d1117', '#ffffff'];
+  let best = '#0d1117', bestR = -1;
+  for (const c of CANDIDATES) {
+    const r = contrastRatio(bg, c);
+    if (Number.isFinite(r) && r > bestR) { bestR = r; best = c; }
+  }
+  return best;
 }
 
 const SWATCH_FIELDS = [
