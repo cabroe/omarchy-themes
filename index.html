@@ -3,22 +3,115 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Hallo Welt · omarchy-themes</title>
-  <style>
-    :root { --fg:#222; --accent:#0969da; --bg:#fafafa; }
-    @media (prefers-color-scheme: dark) {
-      :root { --fg:#eee; --accent:#58a6ff; --bg:#0d1117; }
-    }
-    body { font-family: system-ui, -apple-system, sans-serif;
-           max-width: 40rem; margin: 4rem auto; padding: 0 1rem;
-           color: var(--fg); background: var(--bg); line-height: 1.6; }
-    h1   { color: var(--accent); margin-top: 0; }
-    a    { color: var(--accent); }
-  </style>
+  <title>omarchy-themes · Pick a theme, change everything</title>
+  <meta name="description" content="A demo of the 29 standard Omarchy themes — press T or click Cycle to flip through them.">
+  <link rel="stylesheet" href="styles.css">
+  <!-- Inline script: liest gespeichertes Theme VOR dem Render und setzt CSS-Variablen.
+       Verhindert FOUC (Flash of wrong theme) beim Reload. -->
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('omarchy-theme');
+        if (saved) {
+          document.documentElement.setAttribute('data-theme', saved);
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
-  <h1>Hallo Welt 👋</h1>
-  <p>Das ist die GitHub-Pages-Seite für <code>omarchy-themes</code>.</p>
-  <p>Repo: <a href="https://github.com/cabroe/omarchy-themes">cabroe/omarchy-themes</a></p>
+  <header class="nav">
+    <a class="brand" href="#">omarchy-themes</a>
+    <nav>
+      <a href="#themes">Themes</a>
+      <a href="#plugins">Plugins</a>
+      <a href="https://github.com/cabroe/omarchy-themes" target="_blank" rel="noopener">GitHub →</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <h1>Beautiful, fun<br>and agentic themes.</h1>
+    <p class="lede">
+      Pick a theme — the whole site changes with you. Press <kbd>T</kbd> or click
+      <strong>Cycle theme</strong> to flip through all <span id="themeCount">29</span>
+      standard Omarchy palettes.
+    </p>
+    <div class="cta">
+      <button id="cycleBtn" class="btn primary">Cycle theme →</button>
+      <select id="themePicker" class="btn ghost" aria-label="Theme auswählen"></select>
+    </div>
+    <p class="hint">
+      Aktuelles Theme: <code id="currentSlug">…</code>
+    </p>
+  </section>
+
+  <section id="themes" class="band">
+    <h2>Pick a theme, change everything</h2>
+    <p class="lede">
+      Every theme recolours terminal, bar, notifications and wallpaper — and this
+      page. Light/dark modes each have their own accent, foreground and palette
+      families. Press <kbd>T</kbd> to flip through them.
+    </p>
+
+    <div class="demo">
+      <!-- Mock-Window, das das aktuelle Theme zeigt -->
+      <div class="window">
+        <div class="window-bar">
+          <span class="dot dot-red"></span>
+          <span class="dot dot-yellow"></span>
+          <span class="dot dot-green"></span>
+          <span class="window-title">~/projects/omarchy-themes</span>
+        </div>
+        <pre class="term"><span class="prompt">$</span> omarchy theme set <span id="demoName">tokyo-night</span>
+<span class="ok">✔</span> theme applied: <span id="demoLabel">tokyo-night</span>
+<span class="prompt">$</span> ls -la ~/.config/omarchy/themes/<span id="demoName2">tokyo-night</span>/
+drwxr-xr-x  alacritty.toml
+drwxr-xr-x  ghostty/
+drwxr-xr-x  hyprland/
+drwxr-xr-x  kitty/
+-rw-r--r--  colors.toml
+<span class="prompt">$</span> <span class="cursor">▍</span></pre>
+      </div>
+
+      <aside class="swatches">
+        <h3>Palette</h3>
+        <ul id="swatchList" class="swatch-list"></ul>
+      </aside>
+    </div>
+  </section>
+
+  <section id="plugins" class="band">
+    <h2>A theme picker for every dream, every desire</h2>
+    <p class="lede">
+      Themes are first-class here too — they show up as a settings card, as ⌘K
+      commands, and on the desktop theme picker. Same source of truth.
+    </p>
+    <div class="cards">
+      <article class="card">
+        <header><span class="star">★</span> omarchy-themes</header>
+        <h4>Theme picker</h4>
+        <p>All 29 standard palettes at a glance — keyboard navigation, swatches, live preview.</p>
+        <footer>Type: <code>desktop plugin</code></footer>
+      </article>
+      <article class="card">
+        <header><span class="star">★</span> omarchy-theme-set</header>
+        <h4>CLI/TUI sync</h4>
+        <p>Hook on <code>omarchy theme set</code> → write Hermes skin → activate (~3 s).</p>
+        <footer>Type: <code>hook</code></footer>
+      </article>
+      <article class="card">
+        <header><span class="star">★</span> themes.json</header>
+        <h4>Generator</h4>
+        <p>Reads <code>colors.toml</code> from system + user dirs and rewrites the theme table.</p>
+        <footer>Type: <code>script</code></footer>
+      </article>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <p>Built with the 29 stock Omarchy themes · <a href="https://omarchy.org/">omarchy.org</a> style · <a href="https://github.com/cabroe/omarchy-themes">repo</a></p>
+  </footer>
+
+  <script type="module" src="app.js"></script>
 </body>
 </html>
