@@ -695,7 +695,7 @@ function ThemeCard({ entry, ctx }) {
   return jsxs('div', {
     style: {
       padding: '10px 12px', borderRadius: '8px',
-      border: '1px solid var(--ui-border)',
+      border: '1px solid var(--dt-border)',
       display: 'flex', flexDirection: 'column', gap: '6px',
     },
     children: [
@@ -704,7 +704,7 @@ function ThemeCard({ entry, ctx }) {
         children: [
           jsx('span', { style: { fontWeight: 500, fontSize: '13px', flex: 1, color: 'var(--ui-text-primary)' }, children: entry.label }),
           jsx('span', {
-            style: { fontSize: '10px', padding: '1px 5px', borderRadius: '4px', background: 'var(--ui-muted)', color: 'var(--ui-text-secondary)' },
+            style: { fontSize: '10px', padding: '1px 5px', borderRadius: '4px', background: 'var(--dt-muted)', color: 'var(--ui-text-secondary)' },
             children: entry.mode,
           }),
         ]
@@ -748,8 +748,8 @@ function BrowsePage({ ctx }) {
         onChange: e => setFilter(e.target.value),
         style: {
           padding: '6px 10px', borderRadius: '6px',
-          border: '1px solid var(--ui-border)',
-          background: 'var(--ui-input)', color: 'var(--ui-text-primary)',
+          border: '1px solid var(--dt-input)',
+          background: 'transparent', color: 'var(--ui-text-primary)',
           fontSize: '13px', outline: 'none',
         }
       }),
@@ -770,13 +770,22 @@ function BrowsePage({ ctx }) {
 // UI renders this constant.
 const PLUGIN_VERSION = '1.2.0'
 
+// Colors come from Hermes' theme tokens (apps/desktop/src/styles.css): the
+// --dt-* shadcn tokens and --ui-inline-code-* follow the active palette.
+// Names Hermes does not define (e.g. --ui-muted, --ui-border) resolve to
+// nothing and silently drop the border or background.
 const CODE_STYLE = {
   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
   fontSize: '11.5px',
   padding: '1px 5px',
   borderRadius: '4px',
-  background: 'var(--ui-muted)',
-  color: 'var(--ui-text-primary)',
+  background: 'var(--ui-inline-code-background)',
+  color: 'var(--ui-inline-code-foreground)',
+  // One unit: moves to the next line whole; breaks inside only when longer
+  // than a full line (long paths at narrow widths).
+  display: 'inline-block',
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
 }
 
 const Code = ({ children }) => jsx('code', { style: CODE_STYLE, children })
@@ -795,7 +804,7 @@ function StatCard({ value, label }) {
   return jsxs('div', {
     style: {
       flex: 1, padding: '10px 12px', borderRadius: '8px',
-      border: '1px solid var(--ui-border)',
+      border: '1px solid var(--dt-border)',
       display: 'flex', flexDirection: 'column', gap: '2px',
     },
     children: [
@@ -805,9 +814,12 @@ function StatCard({ value, label }) {
   })
 }
 
+// Plain inline flow: text and <code> wrap together like a sentence. A flex
+// row turned every text fragment into its own item, so a long fragment
+// jumped to a new line after the code.
 function Row({ children }) {
   return jsx('div', {
-    style: { display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap', fontSize: '13px', color: 'var(--ui-text-secondary)' },
+    style: { fontSize: '13px', lineHeight: 1.7, color: 'var(--ui-text-secondary)' },
     children,
   })
 }
@@ -822,7 +834,7 @@ function AboutPage() {
       jsxs('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' }, children: [
         jsx('span', { style: { fontSize: '17px', fontWeight: 600, color: 'var(--ui-text-primary)' }, children: 'omarchy-themes' }),
         jsx('span', {
-          style: { fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: 'var(--ui-muted)', color: 'var(--ui-text-secondary)' },
+          style: { fontSize: '10px', padding: '2px 7px', borderRadius: '999px', background: 'var(--dt-muted)', color: 'var(--ui-text-secondary)' },
           children: 'v' + PLUGIN_VERSION,
         }),
         jsx('span', {

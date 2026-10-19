@@ -10,6 +10,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   and troubleshooting (toggle, hook log, `make generate`).
 
 ### Fixed
+- Settings pages use Hermes' theme tokens (`--dt-border`, `--dt-input`,
+  `--dt-muted`, `--ui-inline-code-*`): theme cards, stat cards and the filter
+  field have their border again, badges and code snippets their background.
+  The tokens used before (`--ui-border`, `--ui-input`, `--ui-muted`) do not
+  exist in Hermes.
+- About page text no longer breaks after each code snippet; a snippet moves to
+  the next line as a whole instead of splitting at a hyphen.
 - A palette edit under the same unknown slug (`omarchy theme set` re-run on an
   edited custom theme) repaints: `current/theme/colors.toml` is watched as a
   fourth door whose watcher re-arms on every event, because Omarchy swaps the
