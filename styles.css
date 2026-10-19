@@ -23,6 +23,17 @@ body {
   --selection: #1f6feb33;
   --ok: #3fb950;
   color-scheme: light dark;
+
+  /* Bento / spacing / shadow tokens (Wave-2 design tokens) */
+  --space-bento-gap: 1rem;
+  --space-bento-pad: 1.25rem;
+  --shadow-bento: 0 1px 0 color-mix(in srgb, var(--accent) 6%, transparent),
+                 0 8px 28px color-mix(in srgb, var(--accent) 18%, transparent);
+  --shadow-bento-hover: 0 1px 0 color-mix(in srgb, var(--accent) 14%, transparent),
+                        0 16px 40px color-mix(in srgb, var(--accent) 26%, transparent);
+  --accent-tint-strong: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-tint-mid:    color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-tint-soft:   color-mix(in srgb, var(--accent)  6%, transparent);
 }
 
 /* ---------- nav ---------- */
@@ -41,14 +52,19 @@ body {
 
 /* ---------- hero ---------- */
 .hero {
-  max-width: 72rem;
-  margin: 2.5rem auto 4rem;
-  padding: 4rem 1.5rem;
+  /* full-bleed: spannt die volle Viewport-Breite; Inhalt bleibt max-width: 72rem */
+  margin: 0 0 4rem;
+  padding: clamp(4.5rem, 9vw, 7rem) 1.5rem clamp(4rem, 8vw, 6rem);
   text-align: center;
-  background: linear-gradient(180deg, var(--bg) 0%, var(--bg-elev) 100%);
-  border-radius: 1.25rem;
-  border: 1px solid var(--border);
+  background:
+    radial-gradient(at 22% 18%, var(--accent-tint-strong) 0%, transparent 55%),
+    radial-gradient(at 78% 64%, var(--accent-tint-mid)    0%, transparent 60%),
+    radial-gradient(at 50% 110%, var(--accent-tint-soft)  0%, transparent 65%);
+  border: 0;
+  border-radius: 0;
+  container-type: inline-size;
 }
+.hero > * { max-width: 72rem; margin-inline: auto; }
 .hero h1 {
   font-size: clamp(2.4rem, 6vw, 4.5rem);
   line-height: 1.05;
@@ -94,14 +110,69 @@ body {
   border-color: var(--border);
 }
 .btn.ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ---------- polygon theme picker (Wave-2 design adaption) ---------- */
+#themePicker { display: none; } /* <select> bleibt im DOM (a11y + no-JS), aber visuell versteckt */
+
+.picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: 6px;
+  margin-top: 1rem;
+}
+.picker-grid[hidden] { display: none; }
+
+.picker-tile {
+  --tile-fg: #fff;
+  font: inherit;
+  cursor: pointer;
+  border: 0;
+  padding: 0.6rem 0.5rem 0.5rem;
+  text-align: center;
+  font-size: 0.78rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: -0.01em;
+  background: var(--accent);
+  color: var(--tile-fg);
+  clip-path: polygon(2.5% 0%, 100% 0%, 97.5% 100%, 0% 100%);
+  transition: transform 120ms ease, filter 160ms ease;
+}
+.picker-tile:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+.picker-tile[aria-pressed="true"] {
+  outline: 2px solid var(--fg);
+  outline-offset: -2px;
+}
+.picker-tile:focus-visible {
+  outline: 2px solid var(--accent-fg);
+  outline-offset: 2px;
+}
+
+.picker-toggle {
+  font: inherit;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+  color: var(--fg-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: color 160ms ease, border-color 160ms ease;
+}
+.picker-toggle:hover { color: var(--fg); border-color: var(--accent); }
+.picker-toggle[aria-expanded="true"] { color: var(--fg); }
 .hint { margin-top: 1.25rem; color: var(--fg-muted); font-size: 0.95rem; }
 .hint code {
   background: var(--bg-elev);
   border: 1px solid var(--accent);
+  border-bottom-width: 2px;
   border-radius: 6px;
-  padding: 0.05rem 0.4rem;
+  padding: 0.05rem 0.5rem;
   color: var(--fg);
-  opacity: 0.85;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92em;
 }
 kbd {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -135,6 +206,85 @@ kbd {
   align-items: start;
 }
 @media (max-width: 760px) { .demo { grid-template-columns: 1fr; } }
+
+/* ---------- themes bento (Wave-2 design adaption) ---------- */
+.themes-bento {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: minmax(7rem, auto);
+  gap: var(--space-bento-gap);
+  margin-top: 2rem;
+}
+.theme-tile {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: var(--space-bento-pad);
+  box-shadow: var(--shadow-bento);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+.theme-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-bento-hover);
+  border-color: var(--accent);
+}
+.theme-tile:active { transform: translateY(0); }
+.theme-tile .tile-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--fg);
+  letter-spacing: -0.01em;
+}
+.theme-tile .tile-meta {
+  font-size: 0.78rem;
+  color: var(--fg-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.theme-tile.tile-highlight {
+  grid-column: span 8;
+  grid-row: span 2;
+  background:
+    radial-gradient(at 0% 0%, color-mix(in srgb, var(--accent) 14%, transparent) 0%, transparent 60%),
+    var(--bg-elev);
+}
+.theme-tile.tile-highlight .tile-name { font-size: 1.5rem; letter-spacing: -0.02em; }
+.theme-tile.tile-highlight .tile-cmd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9rem;
+  color: var(--accent);
+  margin-top: auto;
+}
+.theme-tile.tile-satellite { grid-column: span 4; }
+.theme-tile.tile-satellite .tile-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(1rem, 1fr));
+  gap: 4px;
+  margin-top: auto;
+}
+.theme-tile.tile-satellite .tile-swatches span {
+  height: 1.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+.theme-tile.tile-more {
+  grid-column: span 12;
+  text-align: center;
+  background: transparent;
+  border-style: dashed;
+  box-shadow: none;
+}
+.theme-tile.tile-more:hover { transform: none; border-color: var(--accent); }
+@media (max-width: 900px) {
+  .theme-tile.tile-highlight { grid-column: span 12; grid-row: auto; }
+  .theme-tile.tile-satellite { grid-column: span 6; }
+}
+@media (max-width: 600px) {
+  .theme-tile.tile-satellite { grid-column: span 12; }
+}
 
 .window {
   background: var(--bg-elev);
@@ -211,20 +361,35 @@ kbd {
 }
 .swatch .chip { width: 1.1rem; height: 1.1rem; border-radius: 4px; border: 1px solid var(--border); flex-shrink: 0; }
 
-/* ---------- cards ---------- */
+/* ---------- cards (Wave-2: Bento-Reihe 6/3/3) ---------- */
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--space-bento-gap);
 }
 .card {
+  grid-column: span 4;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: 0.75rem;
-  padding: 1.25rem;
-  transition: transform 160ms ease, border-color 160ms ease;
+  padding: var(--space-bento-pad);
+  box-shadow: var(--shadow-bento);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
 }
-.card:hover { transform: translateY(-3px); border-color: var(--accent); }
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-bento-hover);
+  border-color: var(--accent);
+}
+.cards .card:first-child { grid-column: span 6; }
+.cards .card:nth-child(2) { grid-column: span 3; }
+.cards .card:nth-child(3) { grid-column: span 3; }
+@media (max-width: 760px) {
+  .cards .card,
+  .cards .card:first-child,
+  .cards .card:nth-child(2),
+  .cards .card:nth-child(3) { grid-column: span 12; }
+}
 .card header {
   display: flex;
   align-items: center;
@@ -242,14 +407,17 @@ kbd {
 /* ---------- footer ---------- */
 .foot {
   max-width: 72rem;
-  margin: 2rem auto 4rem;
-  padding: 0 1.5rem;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem 2.5rem;
   text-align: center;
   color: var(--fg-muted);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  border-top: 1px solid var(--border);
 }
+.foot p { margin: 0; }
 .foot a { color: var(--accent); text-decoration: none; }
 .foot a:hover { text-decoration: underline; }
+.foot .sep { color: var(--border); margin: 0 0.4rem; }
 
 /* ---------- theme-aware bits ---------- */
 ::selection { background: var(--selection, var(--accent)); color: var(--fg); }
@@ -263,6 +431,20 @@ kbd {
 }
 .card:focus-visible { border-radius: 0.75rem; }
 
+/* ---------- animations-whimsy (Wave-2 QW-4, respects reduced-motion above) ---------- */
+@keyframes pulse-accent {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 30%, transparent); }
+  50%      { box-shadow: 0 0 0 0.4rem color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+.btn.primary:not(:hover):not(:focus-visible) { animation: pulse-accent 2.4s ease-out infinite; }
+
+@keyframes tile-click {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(0.94); }
+  100% { transform: scale(1); }
+}
+.picker-tile:active { animation: tile-click 200ms ease-out; }
+
 /* ---------- a11y: reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   .term .cursor { animation: none; opacity: 1; }
@@ -270,8 +452,12 @@ kbd {
     transition: none !important;
     animation: none !important;
   }
-  .card:hover { transform: none; }
+  .card:hover,
+  .theme-tile:hover,
+  .theme-tile:active,
+  .picker-tile:hover,
   .btn:active { transform: none; }
+  .btn.primary:not(:hover):not(:focus-visible) { animation: none; }
 }
 
 /* ---------- a11y: skip-link (keyboard a11y) ---------- */

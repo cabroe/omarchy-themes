@@ -46,8 +46,14 @@
     </p>
     <div class="cta">
       <button id="cycleBtn" class="btn primary">Cycle theme →</button>
+      <button id="pickerToggle" class="picker-toggle"
+              aria-controls="pickerGrid" aria-expanded="false">
+        Pick theme ▾
+      </button>
       <select id="themePicker" class="btn ghost" aria-label="Theme auswählen"></select>
     </div>
+    <div id="pickerGrid" class="picker-grid" role="group"
+         aria-label="Theme-Auswahl" hidden></div>
     <p class="hint">
       Aktuelles Theme: <code id="currentSlug">…</code>
     </p>
@@ -61,16 +67,18 @@
       families. Press <kbd>T</kbd> to flip through them.
     </p>
 
-    <div class="demo">
-      <!-- Mock-Window, das das aktuelle Theme zeigt -->
-      <div class="window">
-        <div class="window-bar">
-          <span class="dot dot-red"></span>
-          <span class="dot dot-yellow"></span>
-          <span class="dot dot-green"></span>
-          <span class="window-title">~/projects/omarchy-themes</span>
-        </div>
-        <pre class="term"><span class="prompt">$</span> omarchy theme set <span id="demoName">tokyo-night</span>
+    <div class="themes-bento" id="themesBento" aria-label="Theme-Bento"></div>
+
+    <noscript>
+      <div class="demo">
+        <div class="window">
+          <div class="window-bar">
+            <span class="dot dot-red"></span>
+            <span class="dot dot-yellow"></span>
+            <span class="dot dot-green"></span>
+            <span class="window-title">~/projects/omarchy-themes</span>
+          </div>
+          <pre class="term"><span class="prompt">$</span> omarchy theme set <span id="demoName">tokyo-night</span>
 <span class="ok">✔</span> theme applied: <span id="demoLabel">tokyo-night</span>
 <span class="prompt">$</span> ls -la ~/.config/omarchy/themes/<span id="demoName2">tokyo-night</span>/
 drwxr-xr-x  alacritty.toml
@@ -79,13 +87,13 @@ drwxr-xr-x  hyprland/
 drwxr-xr-x  kitty/
 -rw-r--r--  colors.toml
 <span class="prompt">$</span> <span class="cursor">▍</span></pre>
+        </div>
+        <aside class="swatches">
+          <h3>Palette</h3>
+          <ul id="swatchList" class="swatch-list"></ul>
+        </aside>
       </div>
-
-      <aside class="swatches">
-        <h3>Palette</h3>
-        <ul id="swatchList" class="swatch-list"></ul>
-      </aside>
-    </div>
+    </noscript>
   </section>
 
   <section id="plugins" class="band">
@@ -117,7 +125,9 @@ drwxr-xr-x  kitty/
   </section>
 
   <footer class="foot">
-    <p>Built with the 29 stock Omarchy themes · <a href="https://omarchy.org/">omarchy.org</a> style · <a href="https://github.com/cabroe/omarchy-themes">repo</a></p>
+    <p>
+      29 stock Omarchy themes<span class="sep">·</span><a href="https://omarchy.org/">omarchy.org</a> style<span class="sep">·</span><a href="https://github.com/cabroe/omarchy-themes">repo</a>
+    </p>
   </footer>
 
   <script type="module" src="app.js"></script>
