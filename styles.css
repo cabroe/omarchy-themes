@@ -77,18 +77,27 @@ body {
 }
 .plugin-tag {
   display: inline-block;
-  padding: 0.3rem 0.7rem;
+  padding: 0.4rem 0.85rem;
   border-radius: 999px;
   border: 1px solid
-    color-mix(in srgb, var(--accent) 35%, transparent);
-  background:
-    color-mix(in srgb, var(--accent) 8%, transparent);
-  color: var(--fg);
+    color-mix(in srgb, var(--accent) 55%, transparent);
+  background: var(--bg-elev);
+  color: var(--accent);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.78rem;
-  letter-spacing: 0.01em;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-decoration: none;
 }
-.plugin-tag + .plugin-tag { /* subtle separator dot */ }
+.plugin-tag + .plugin-tag::before {
+  /* subtle " · " separator between adjacent tags */
+  content: '·';
+  display: none; /* siblings render as separate flex items already */
+}
+@media (prefers-reduced-motion: reduce) {
+  .plugin-tag { /* no animation needed */ }
+}
 .hero h1 {
   font-size: clamp(2.4rem, 6vw, 4.5rem);
   line-height: 1.05;
