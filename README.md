@@ -26,6 +26,18 @@
 | Theme-set hook | `hooks/hermes-skin-sync.sh` | Writes `~/.hermes/skins/<slug>.yaml`, calls `hermes skin use` |
 | Generator | `scripts/generate-themes.py` | Rebuilds the baked theme table after an Omarchy update |
 
+The settings page, with every Omarchy theme as a card — shown in Tokyo Night:
+
+![Theme picker in Hermes Desktop](assets/screenshots/themes-dark.png)
+
+Applying a light theme repaints the desktop the same way — shown in Catppuccin Latte:
+
+![Theme picker in a light theme](assets/screenshots/themes-light.png)
+
+The About page documents how the sync works and lists the theme counts:
+
+![About page](assets/screenshots/about.png)
+
 ---
 
 ## Install

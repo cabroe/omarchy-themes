@@ -32,6 +32,18 @@
 - **Theme-Sync-Hook** (`hooks/hermes-skin-sync.sh`) — Läuft bei `omarchy theme set <slug>`, prüft den `skip-hermes-theme-changes`-Toggle (Exit 0 ohne Side-Effects wenn aktiv), schreibt `~/.hermes/skins/<slug>.yaml` und aktiviert den Hermes-Skin.
 - **Generator** (`scripts/generate-themes.py`) — Liest `colors.toml`-Dateien und schreibt die Theme-Tabelle im Plugin neu nach Omarchy-Updates. Default = System-Themes; `--include-user` backt zusätzlich User-Themes.
 
+Die Settings-Seite mit allen Omarchy-Themes als Karten — hier im Theme Tokyo Night:
+
+![Theme-Picker in Hermes Desktop](assets/screenshots/themes-dark.png)
+
+Ein helles Theme färbt den Desktop genauso um — hier Catppuccin Latte:
+
+![Theme-Picker in einem hellen Theme](assets/screenshots/themes-light.png)
+
+Die About-Seite erklärt den Sync-Mechanismus und zählt die Themes auf:
+
+![About-Seite](assets/screenshots/about.png)
+
 ---
 
 ## 📦 Installation & Benutzung
