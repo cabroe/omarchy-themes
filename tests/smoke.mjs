@@ -43,6 +43,22 @@ for (const { data: row } of palette) {
 // backend themes, which would shadow a same-named plugin theme (resolveTheme).
 for (const { data: t } of themes) assert.match(t.name, /^omarchy-/, `${t.name}: missing omarchy- prefix`)
 assert.equal(settingsPages.length, 1)
+
+// Hermes mounts every settings page and sub-page as a component
+// (ContribRender: createElement(render)); a throw there kills the page.
+// Resolve function components recursively so jsx misuse surfaces here.
+const renderTree = node => {
+  if (Array.isArray(node)) return node.forEach(renderTree)
+  if (!node || typeof node !== 'object') return
+  if (typeof node.type === 'function') return renderTree(node.type(node.props))
+  renderTree(node.props?.children)
+}
+for (const page of settingsPages) {
+  for (const node of [page, ...(page.children ?? [])]) {
+    assert.equal(typeof node.render, 'function', `settings ${node.id}: render missing`)
+    renderTree(node.render({}))
+  }
+}
 assert.equal(disposers.length, 1)
 
 const names = new Set()
