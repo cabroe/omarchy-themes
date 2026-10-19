@@ -35,8 +35,8 @@ function applyTheme(slug, { persist = true } = {}) {
   root.style.setProperty('--bg-elev-2',    mix(bg, theme.c.accent, 0.14));
   root.style.setProperty('--accent',       theme.c.accent || '#58a6ff');
   root.style.setProperty('--accent-fg',    luminance(theme.c.accent) > 0.55 ? '#0d1117' : '#ffffff');
-  root.style.setProperty('--fg-muted',     theme.c.muted || theme.c.dark_foreground || '#8b949e');
-  root.style.setProperty('--border',       theme.c.selection || '#30363d');
+  root.style.setProperty('--fg-muted',     mix(fg, bg, 0.4));
+  root.style.setProperty('--border',       theme.c.selection || mix(fg, bg, 0.18));
   root.style.setProperty('--ok',           theme.c.green || '#3fb950');
 
   // UI-Labels aktualisieren
@@ -55,6 +55,11 @@ function applyTheme(slug, { persist = true } = {}) {
   if (persist) {
     try { localStorage.setItem('omarchy-theme', theme.slug); } catch (e) {}
   }
+
+  // Theme-Color meta synchron mit dem aktuellen Hintergrund halten (mobile Adressleiste).
+  // Meta-Tag existiert statisch im <head>; nur content aktualisieren.
+  const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeColorMeta) themeColorMeta.setAttribute('content', bg);
 }
 
 function labelFor(slug) {
@@ -74,8 +79,12 @@ function mix(hexA, hexB, t) {
   return `rgb(${r}, ${g}, ${bl})`;
 }
 function parseHex(h) {
+  // Guard against undefined / empty / short hex (#1234, #abc) — without this, mix() and
+  // luminance() propagate NaN into CSS rgb() and silently break contrast.
+  if (typeof h !== 'string' || !h) return [0, 0, 0];
   let s = h.replace('#', '');
   if (s.length === 3) s = s.split('').map(c => c + c).join('');
+  if (s.length !== 6 || /[^0-9a-f]/i.test(s)) return [0, 0, 0];
   return [parseInt(s.slice(0,2),16), parseInt(s.slice(2,4),16), parseInt(s.slice(4,6),16)];
 }
 
@@ -102,7 +111,8 @@ const SWATCH_FIELDS = [
 ];
 
 function renderSwatches(theme) {
-  swatchList.innerHTML = '';
+  swatchList.replaceChildren();
+  const labels = { bg:'Background', fg:'Foreground', accent:'Accent', red:'Red', yellow:'Yellow', green:'Green', cyan:'Cyan', blue:'Blue', magenta:'Magenta' };
   for (const [name, field] of SWATCH_FIELDS) {
     const v = theme.c[field] || theme.c.bright_blue || theme.c.bright_yellow || '#888';
     const li = document.createElement('li');
@@ -111,7 +121,7 @@ function renderSwatches(theme) {
     chip.className = 'chip';
     chip.style.background = v;
     const label = document.createElement('span');
-    label.textContent = `${name}`;
+    label.textContent = labels[name] || name;
     li.appendChild(chip);
     li.appendChild(label);
     swatchList.appendChild(li);
@@ -135,8 +145,9 @@ function cycle() {
 cycleBtn.addEventListener('click', cycle);
 picker.addEventListener('change', () => applyTheme(picker.value));
 
-// T-Taste → naechstes Theme (ausser wenn man in einem Input ist)
+// T-Taste → naechstes Theme (ausser wenn Modifier gedrueckt ist oder man in einem Input ist)
 window.addEventListener('keydown', (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
   if (e.key !== 't' && e.key !== 'T') return;
   const tag = (e.target && e.target.tagName) || '';
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
@@ -147,7 +158,7 @@ window.addEventListener('keydown', (e) => {
 // ---- init ----
 const initial = (() => {
   try {
-    return localStorage.getItem('omarchy-theme') || THEMES[10].slug; // tokyo-night-ish as default
+    return localStorage.getItem('omarchy-theme') || THEMES[10].slug; // THEMES[10] = hermarchy (default fallback when localStorage empty)
   } catch (e) { return THEMES[0].slug; }
 })();
 applyTheme(initial, { persist: false });

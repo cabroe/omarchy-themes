@@ -3,11 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="theme-color" content="#0d1117">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'">
+  <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=(), accelerometer=(), magnetometer=()">
   <title>omarchy-themes · Pick a theme, change everything</title>
   <meta name="description" content="A demo of the 29 standard Omarchy themes — press T or click Cycle to flip through them.">
   <link rel="stylesheet" href="styles.css">
-  <!-- Inline script: liest gespeichertes Theme VOR dem Render und setzt CSS-Variablen.
-       Verhindert FOUC (Flash of wrong theme) beim Reload. -->
+  <!-- Inline script: setzt data-theme synchron VOR Modul-Init, damit applyTheme() den saved-Wert
+       ohne Race uebernehmen kann. Themed CSS-Variablen werden anschliessend in app.js gesetzt;
+       ein Flash-of-Unthemed-Paint ist bei dieser Single-Asset-Architektur (kein Build) bewusst
+       akzeptiert, weil eine 29-Theme-CSS-Spiegelung in styles.css sonst zu Drift fuehrt. -->
   <script>
     (function () {
       try {
@@ -20,12 +27,13 @@
   </script>
 </head>
 <body>
+  <a href="#themes" class="skip-link">Skip to content</a>
   <header class="nav">
     <a class="brand" href="#">omarchy-themes</a>
     <nav>
       <a href="#themes">Themes</a>
       <a href="#plugins">Plugins</a>
-      <a href="https://github.com/cabroe/omarchy-themes" target="_blank" rel="noopener">GitHub →</a>
+      <a href="https://github.com/cabroe/omarchy-themes" target="_blank" rel="noopener noreferrer">GitHub →</a>
     </nav>
   </header>
 
@@ -33,7 +41,7 @@
     <h1>Beautiful, fun<br>and agentic themes.</h1>
     <p class="lede">
       Pick a theme — the whole site changes with you. Press <kbd>T</kbd> or click
-      <strong>Cycle theme</strong> to flip through all <span id="themeCount">29</span>
+      <strong>Cycle theme</strong> to flip through all <span id="themeCount"></span>
       standard Omarchy palettes.
     </p>
     <div class="cta">

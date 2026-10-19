@@ -16,12 +16,13 @@ body {
   --bg-elev: #161b22;
   --bg-elev-2: #1f2630;
   --fg: #e6edf3;
-  --fg-muted: #8b949e;
+  --fg-muted: color-mix(in srgb, var(--fg) 60%, var(--bg));
   --accent: #58a6ff;
   --accent-fg: #0d1117;
-  --border: #30363d;
+  --border: color-mix(in srgb, var(--fg) 18%, var(--bg));
   --selection: #1f6feb33;
   --ok: #3fb950;
+  color-scheme: light dark;
 }
 
 /* ---------- nav ---------- */
@@ -83,6 +84,8 @@ body {
   background: var(--accent);
   color: var(--accent-fg);
   border-color: var(--accent);
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 .btn.primary:hover { filter: brightness(1.08); }
 .btn.ghost {
@@ -94,9 +97,11 @@ body {
 .hint { margin-top: 1.25rem; color: var(--fg-muted); font-size: 0.95rem; }
 .hint code {
   background: var(--bg-elev);
-  border: 1px solid var(--border);
+  border: 1px solid var(--accent);
   border-radius: 6px;
   padding: 0.05rem 0.4rem;
+  color: var(--fg);
+  opacity: 0.85;
 }
 kbd {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -154,7 +159,9 @@ kbd {
   margin-left: 0.5rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.8rem;
-  color: var(--fg-muted);
+  color: var(--fg);
+  opacity: 0.55;
+  font-weight: 500;
 }
 .term {
   margin: 0;
@@ -246,3 +253,39 @@ kbd {
 
 /* ---------- theme-aware bits ---------- */
 ::selection { background: var(--selection, var(--accent)); color: var(--fg); }
+
+/* ---------- a11y: focus ring ---------- */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+.card:focus-visible { border-radius: 0.75rem; }
+
+/* ---------- a11y: reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .term .cursor { animation: none; opacity: 1; }
+  *, *::before, *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+  .card:hover { transform: none; }
+  .btn:active { transform: none; }
+}
+
+/* ---------- a11y: skip-link (keyboard a11y) ---------- */
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -100px;
+  padding: 0.55rem 1rem;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: 6px;
+  font-weight: 600;
+  text-decoration: none;
+  z-index: 100;
+  transition: top 160ms ease;
+}
+.skip-link:focus { top: 1rem; }
