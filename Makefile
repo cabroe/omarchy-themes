@@ -27,16 +27,18 @@ check: lint test
 
 lint:
 	node --check desktop/plugin.js tests/palette-parity.mjs
-	python3 -m py_compile scripts/generate-themes.py __init__.py
+	python3 -m py_compile scripts/generate-themes.py scripts/embed-hook.py __init__.py
 	shellcheck hooks/hermes-skin-sync.sh tests/hook.sh tests/theme-switch-smoke.sh tests/palette-parity.sh .githooks/pre-push
 
 test:
 	node --enable-source-maps tests/smoke.mjs
 	sh tests/hook.sh
 	sh tests/palette-parity.sh
+	python3 scripts/embed-hook.py --check
 
 generate:
 	python3 scripts/generate-themes.py $(GEN_ARGS)
+	python3 scripts/embed-hook.py
 
 # generate-system: alias for `generate`. Kept for backward compatibility with
 # the regen-themes CI workflow (the runner's ~/.config/omarchy/themes are no
@@ -46,6 +48,7 @@ generate-system: generate
 
 generate-check:
 	python3 scripts/generate-themes.py $(GEN_ARGS) --check
+	python3 scripts/embed-hook.py --check
 
 install-hook:
 	mkdir -p $(INSTALL_HOOK_DIR)

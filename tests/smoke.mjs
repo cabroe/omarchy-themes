@@ -10,7 +10,8 @@ import { resolve } from './stubs/loader.mjs'
 if (nodeModule.registerHooks) nodeModule.registerHooks({ resolve })
 else nodeModule.register('./stubs/loader.mjs', import.meta.url)
 
-const { default: plugin } = await import('../desktop/plugin.js')
+const pluginMod = await import('../desktop/plugin.js')
+const { default: plugin } = pluginMod
 
 const contributions = []
 const settingsPages = []
@@ -584,6 +585,40 @@ assert.equal(requested.length, beforeBRepeat,
   "instance B's own dedupe window is still active for the same name")
 disposeDyn()
 files.delete(COLORS)
+
+// ---------------------------------------------------------------------------
+// Terminal-Skin hook: the settings button writes the embedded script to the
+// Omarchy hook dir via the desktop bridge (the renderer has no fs).
+// ---------------------------------------------------------------------------
+{
+  const writes = []
+  const prevBridge = window.hermesDesktop
+  window.hermesDesktop = {
+    desktopPluginsRoot: async () => '/home/u/.hermes/desktop-plugins',
+    readFileText: async () => ({ error: 'ENOENT' }),
+    writeTextFile: async (path, content) => { writes.push([path, content]); return { path } },
+    trashPath: async path => { writes.push(['trash', path]) },
+  }
+  const hookCtx = { ...ctx, os: { notify: () => {}, writeClipboard: () => true }, setTimeout: fn => fn() }
+  const findButton = node => {
+    if (Array.isArray(node)) {
+      for (const n of node) { const hit = findButton(n); if (hit) return hit }
+      return null
+    }
+    if (!node || typeof node !== 'object') return null
+    if (node.props?.children === 'Installieren') return node
+    if (typeof node.type === 'function') return findButton(node.type(node.props))
+    return findButton(node.props?.children)
+  }
+  const btn = findButton(pluginMod.HookSection(hookCtx))
+  assert.ok(btn, 'HookSection renders an Installieren button')
+  btn.props.onClick()
+  await settle()
+  assert.equal(writes.length, 1, 'install writes exactly one file')
+  assert.equal(writes[0][0], '/home/u/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh', 'hook target path')
+  assert.ok(writes[0][1].startsWith('#!/bin/sh'), 'embedded hook script is written')
+  window.hermesDesktop = prevBridge
+}
 
 Date.now = realNow
 delete globalThis.window
