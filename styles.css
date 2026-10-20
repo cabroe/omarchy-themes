@@ -9,6 +9,7 @@
 /* ---------- reset ---------- */
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
+html { scrollbar-gutter: stable; }
 
 /* ---------- tokens ---------- */
 :root {
@@ -730,6 +731,12 @@ body.launcher-open { overflow: hidden; }
   .brand-ver { display: none; }
   .lang-switch { order: 2; }
   .topbar-status { order: 3; flex-basis: 100%; }
+}
+
+/* Unter 400px Nav umbrechen statt abschneiden (N2): engeres Gap reicht bis
+   375px, darunter bricht flex-wrap die Links auf die naechste Zeile um. */
+@media (max-width: 400px) {
+  .topnav { gap: var(--s3); flex-wrap: wrap; overflow-x: visible; white-space: normal; }
 }
 
 @media (max-width: 600px) {

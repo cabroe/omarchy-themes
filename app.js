@@ -383,7 +383,7 @@ function closeLauncher({ restore = true } = {}) {
   for (const el of inertTargets) el.inert = false;
   document.body.classList.remove('launcher-open');
   for (const btn of launcherBtns) btn.setAttribute('aria-expanded', 'false');
-  if (restore && launcherTrigger && typeof launcherTrigger.focus === 'function') launcherTrigger.focus();
+  if (restore && launcherTrigger && typeof launcherTrigger.focus === 'function') launcherTrigger.focus({ preventScroll: true });
 }
 
 function filterLauncher(query) {
