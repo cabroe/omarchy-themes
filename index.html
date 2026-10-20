@@ -40,10 +40,9 @@
         <span class="status-mode" id="statusMode">dark</span>
       </p>
       <nav class="topnav" aria-label="Sektionen" data-i18n-aria-label="nav.aria">
-        <a href="#architecture"><span class="idx" aria-hidden="true">01</span><span data-i18n="nav.flow">Flow</span></a>
-        <a href="#components"><span class="idx" aria-hidden="true">02</span><span data-i18n="nav.components">Komponenten</span></a>
+        <a href="#install"><span class="idx" aria-hidden="true">01</span><span data-i18n="nav.install">Install</span></a>
+        <a href="#architecture"><span class="idx" aria-hidden="true">02</span><span data-i18n="nav.flow">Flow</span></a>
         <a href="#demo"><span class="idx" aria-hidden="true">03</span><span data-i18n="nav.demo">Demo</span></a>
-        <a href="#install"><span class="idx" aria-hidden="true">04</span><span data-i18n="nav.install">Install</span></a>
       </nav>
       <span class="lang-switch" role="group" aria-label="Sprache" data-i18n-aria-label="lang.groupAria">
         <button type="button" class="lang-btn" data-lang-btn="de" aria-pressed="true">DE</button>
@@ -117,6 +116,51 @@
           </div>
           <figcaption class="mono-xs" data-i18n="mock.picker.caption">Einstellungen → Plugins → omarchy-themes</figcaption>
         </figure>
+      </div>
+    </section>
+
+    <!-- =========================== INSTALL ========================== -->
+    <section id="install" class="section">
+      <div class="wrap">
+        <h2 data-i18n="install.h2">In 30 Sekunden drin.</h2>
+        <p class="lede" data-i18n-html="install.lede">
+          Das Plugin bringt den Desktop-Picker und schaltet ihn bei <code>omarchy theme set</code>
+          automatisch mit. Der Hook ist optional und synct zusätzlich den CLI/TUI-Skin.
+        </p>
+
+        <div class="installs">
+          <div class="install-row">
+            <div class="install-head">
+              <span class="tag mono-xs" data-i18n="install.plugin.tag">Plugin</span>
+              <span class="meta mono-xs" data-i18n="install.plugin.meta">in ~3 s · via Hermes CLI</span>
+            </div>
+            <pre class="cmd-block" tabindex="0"><code>hermes plugins install https://github.com/cabroe/omarchy-themes</code></pre>
+            <p class="note" data-i18n-html="install.plugin.note">
+              Anschließend Hermes Desktop neu laden, ⌘K → <em>Reload desktop plugins</em>.
+              In <em>Settings → Capabilities → Plugins → omarchy-themes</em> einmalig aktivieren.
+            </p>
+          </div>
+
+          <div class="install-row">
+            <div class="install-head">
+              <span class="tag mono-xs" data-i18n="install.hook.tag">Optional: Hook</span>
+              <span class="meta mono-xs" data-i18n="install.hook.meta">nur für CLI/TUI-Skin</span>
+            </div>
+            <pre class="cmd-block" tabindex="0"><code>make install-hook</code></pre>
+            <p class="note" data-i18n-html="install.hook.note">
+              Nur nötig, wenn auch der CLI/TUI-Skin mitziehen soll. Kopiert
+              <code>hooks/hermes-skin-sync.sh</code> nach
+              <code>~/.config/omarchy/hooks/theme-set.d/</code>. Re-run jederzeit möglich
+              (überschreibt). Undo mit <code>make uninstall</code>.
+            </p>
+          </div>
+        </div>
+
+        <p class="note note-extras" data-i18n-html="install.extras">
+          <strong>Auto-Sync ausschalten:</strong>
+          <code>touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes</code>
+          — Picker und ⌘K bleiben funktional, der Hook triggert nur nicht mehr.
+        </p>
       </div>
     </section>
 
@@ -222,71 +266,6 @@
       </div>
     </section>
 
-    <!-- ========================= KOMPONENTEN ======================== -->
-    <section id="components" class="section">
-      <div class="wrap">
-        <h2 data-i18n="comp.h2">Drei Komponenten, ein Theme-Flow.</h2>
-        <p class="lede" data-i18n="comp.lede">
-          Desktop-Plugin registriert die Paletten. Hook synct sie ins Hermes-Skin-File.
-          Generator frischt sie nach jedem Omarchy-Update auf.
-        </p>
-        <p class="note note-lede" data-i18n="comp.anatomy">
-          Keine der drei Komponenten ist optional — wer nur den Desktop-Picker will, kommt mit Plugin + Generator aus; wer auch CLI/TUI mitsyncen will, ergänzt den Hook.
-        </p>
-
-        <div class="defs">
-          <article class="def">
-            <div class="def-key">
-              <span class="def-name mono">plugin</span>
-              <span class="tag mono-xs">settings · ⌘K</span>
-            </div>
-            <div class="def-body">
-              <h3 data-i18n="comp.plugin.h3">Desktop plugin</h3>
-              <p data-i18n-html="comp.plugin.body">
-                Registriert jede Omarchy-Palette im Hermes-Picker, als ⌘K-Befehl
-                (<em>Apply Omarchy Theme: &lt;Name&gt;</em>) und auf einer Settings-Karte mit Swatches,
-                Filter und Apply. Jedes Theme bringt Light- und Dark-Palette mit; Brand-Accent wird
-                geteilt, die Gegenpalette wird synthetisiert.
-              </p>
-              <code class="cmd-line cmd-wide">hermes plugins install https://github.com/cabroe/omarchy-themes</code>
-            </div>
-          </article>
-
-          <article class="def">
-            <div class="def-key">
-              <span class="def-name mono">hook</span>
-              <span class="tag mono-xs">theme-set.d</span>
-            </div>
-            <div class="def-body">
-              <h3 data-i18n="comp.hook.h3">Omarchy theme-set hook</h3>
-              <p data-i18n-html="comp.hook.body">
-                Läuft bei jedem <code>omarchy theme set &lt;slug&gt;</code>. Parst die <code>colors.toml</code>
-                (User &gt; System &gt; current), schreibt <code>~/.hermes/skins/&lt;slug&gt;.yaml</code>
-                und aktiviert den Skin via <code>hermes skin use</code>. Reines POSIX-sh, kein Python, exit 0 immer.
-              </p>
-              <code class="cmd-line">make install-hook</code>
-            </div>
-          </article>
-
-          <article class="def">
-            <div class="def-key">
-              <span class="def-name mono">generator</span>
-              <span class="tag mono-xs">plugin.js</span>
-            </div>
-            <div class="def-body">
-              <h3 data-i18n="comp.gen.h3">Theme-table generator</h3>
-              <p data-i18n-html="comp.gen.body">
-                Liest <code>colors.toml</code> aus <code>/usr/share/omarchy/themes/</code>
-                (mit <code>--include-user</code> auch aus <code>~/.config/omarchy/themes/</code>) und
-                schreibt den <code>// BEGIN GENERATED THEMES … // END GENERATED THEMES</code>-Block
-                in <code>desktop/plugin.js</code> neu. <code>HOST=&lt;ssh&gt;</code> liest aus der Ferne.
-              </p>
-              <code class="cmd-line">make generate</code>
-            </div>
-          </article>
-        </div>
-      </div>
-    </section>
 
     <!-- ============================ DEMO ============================ -->
     <section id="demo" class="section">
@@ -317,50 +296,6 @@
       </div>
     </section>
 
-    <!-- =========================== INSTALL ========================== -->
-    <section id="install" class="section section--wash">
-      <div class="wrap">
-        <h2 data-i18n="install.h2">In 30 Sekunden drin.</h2>
-        <p class="lede" data-i18n-html="install.lede">
-          Das Plugin bringt den Desktop-Picker und schaltet ihn bei <code>omarchy theme set</code>
-          automatisch mit. Der Hook ist optional und synct zusätzlich den CLI/TUI-Skin.
-        </p>
-
-        <div class="installs">
-          <div class="install-row">
-            <div class="install-head">
-              <span class="tag mono-xs" data-i18n="install.plugin.tag">Plugin</span>
-              <span class="meta mono-xs" data-i18n="install.plugin.meta">in ~3 s · via Hermes CLI</span>
-            </div>
-            <pre class="cmd-block" tabindex="0"><code>hermes plugins install https://github.com/cabroe/omarchy-themes</code></pre>
-            <p class="note" data-i18n-html="install.plugin.note">
-              Anschließend Hermes Desktop neu laden, ⌘K → <em>Reload desktop plugins</em>.
-              In <em>Settings → Capabilities → Plugins → omarchy-themes</em> einmalig aktivieren.
-            </p>
-          </div>
-
-          <div class="install-row">
-            <div class="install-head">
-              <span class="tag mono-xs" data-i18n="install.hook.tag">Optional: Hook</span>
-              <span class="meta mono-xs" data-i18n="install.hook.meta">nur für CLI/TUI-Skin</span>
-            </div>
-            <pre class="cmd-block" tabindex="0"><code>make install-hook</code></pre>
-            <p class="note" data-i18n-html="install.hook.note">
-              Nur nötig, wenn auch der CLI/TUI-Skin mitziehen soll. Kopiert
-              <code>hooks/hermes-skin-sync.sh</code> nach
-              <code>~/.config/omarchy/hooks/theme-set.d/</code>. Re-run jederzeit möglich
-              (überschreibt). Undo mit <code>make uninstall</code>.
-            </p>
-          </div>
-        </div>
-
-        <p class="note note-extras" data-i18n-html="install.extras">
-          <strong>Auto-Sync ausschalten:</strong>
-          <code>touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes</code>
-          — Picker und ⌘K bleiben funktional, der Hook triggert nur nicht mehr.
-        </p>
-      </div>
-    </section>
   </main>
 
   <!-- ============================ FOOTER =========================== -->

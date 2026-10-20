@@ -148,6 +148,7 @@ p code, .note code, .lede code, dd code {
 }
 .section { padding-block: clamp(3rem, 6vw, 5.5rem); }
 .section + .section { border-top: 1px solid var(--border); }
+.hero + .section { border-top: 1px solid var(--border); }
 .section--wash {
   background: color-mix(in srgb, var(--accent) 4%, var(--bg));
   border-top: 1px solid var(--border);
