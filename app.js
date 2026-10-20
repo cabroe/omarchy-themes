@@ -5,6 +5,8 @@
 // direkt am :root gesetzt, damit die ganze Site synchron umfaerbt.
 
 import { THEMES } from './themes.js';
+// i18n als `tr`, weil in mehreren Schleifen `t` fuer ein Theme steht.
+import { initI18n, onLangChange, t as tr } from './i18n.js';
 
 // ---- DOM refs ----
 const html         = document.documentElement;
@@ -16,7 +18,10 @@ const pickerDemo   = document.getElementById('pickerGridDemo'); // Demo-Band (ex
 const currentSlug  = document.getElementById('currentSlug');
 const themesBento  = document.getElementById('themesBento');
 
-if (currentSlug) {} // eslint-disable-line no-unused-expressions — defensive
+// Statische Strings uebersetzen + Sprach-Switcher verdrahten, BEVOR die
+// dynamischen Listen (Select, Picker-Tiles, Bento) gerendert werden — sonst
+// haengen sie in der Default-Sprache fest.
+initI18n();
 
 // ---- helpers ----
 const bySlug = (slug) => THEMES.find(t => t.slug === slug) || THEMES[0];
@@ -27,6 +32,14 @@ function labelFor(slug) {
     .map(w => w[0].toUpperCase() + w.slice(1))
     .join(' ');
 }
+
+// "Nord · light" / "Nord · dark" — Modus-Label kommt aus i18n.
+function themeLabel(theme) {
+  return labelFor(theme.slug) + ' · ' + tr(theme.mode === 'light' ? 'mode.light' : 'mode.dark');
+}
+
+// Aktuell aktives Theme (fuer Re-Labeling ohne erneutes applyTheme()).
+let activeSlug = null;
 
 function applyTheme(slug, { persist = true } = {}) {
   const theme = bySlug(slug);
@@ -59,30 +72,14 @@ function applyTheme(slug, { persist = true } = {}) {
   root.style.setProperty('--accent-tint-soft',   `color-mix(in srgb, var(--accent) ${softPct}%, transparent)`);
 
   // UI-Labels aktualisieren
+  activeSlug = theme.slug;
   if (currentSlug) currentSlug.textContent = theme.slug;
 
   // <select>-Picker synchronisieren
   if (picker) picker.value = theme.slug;
 
-  // Polygon-Tile aria-pressed synchronisieren (Hero + Demo)
-  const syncTile = (grid) => {
-    if (!grid) return;
-    for (const tile of grid.querySelectorAll('.picker-tile')) {
-      tile.setAttribute('aria-pressed', String(tile.dataset.slug === theme.slug));
-    }
-  };
-  syncTile(pickerGrid);
-  syncTile(pickerDemo);
-
-  // Bento-Tile aria-pressed synchronisieren
-  if (themesBento) {
-    for (const tile of themesBento.querySelectorAll('[data-slug]')) {
-      const isActive = tile.dataset.slug === theme.slug;
-      if (tile.classList.contains('theme-tile')) {
-        tile.setAttribute('aria-pressed', String(isActive));
-      }
-    }
-  }
+  // Polygon- + Bento-Tiles auf den aktiven Slug synchronisieren
+  syncPressed(theme.slug);
 
   if (persist) {
     try { localStorage.setItem('omarchy-theme', theme.slug); } catch (e) {}
@@ -90,6 +87,23 @@ function applyTheme(slug, { persist = true } = {}) {
 
   const themeColorMeta = document.querySelector('meta[name="theme-color"]');
   if (themeColorMeta) themeColorMeta.setAttribute('content', bg);
+}
+
+// aria-pressed aller Tiles auf den aktiven Slug setzen. Separat, weil
+// renderBento() die Tiles neu baut (Sprachwechsel) und den State verliert.
+function syncPressed(slug) {
+  for (const grid of [pickerGrid, pickerDemo]) {
+    if (!grid) continue;
+    for (const tile of grid.querySelectorAll('.picker-tile')) {
+      tile.setAttribute('aria-pressed', String(tile.dataset.slug === slug));
+    }
+  }
+  if (!themesBento) return;
+  for (const tile of themesBento.querySelectorAll('[data-slug]')) {
+    if (tile.classList.contains('theme-tile')) {
+      tile.setAttribute('aria-pressed', String(tile.dataset.slug === slug));
+    }
+  }
 }
 
 // Mische zwei Hex-Farben (linear-interpolation).
@@ -143,7 +157,7 @@ if (picker) {
   for (const t of THEMES) {
     const opt = document.createElement('option');
     opt.value = t.slug;
-    opt.textContent = labelFor(t.slug) + (t.mode === 'light' ? ' · light' : ' · dark');
+    opt.textContent = themeLabel(t);
     picker.appendChild(opt);
   }
 }
@@ -156,7 +170,7 @@ function fillPickerGrid(grid) {
     btn.type = 'button';
     btn.className = 'picker-tile';
     btn.dataset.slug = t.slug;
-    btn.title = labelFor(t.slug) + (t.mode === 'light' ? ' · light' : ' · dark');
+    btn.title = themeLabel(t);
     btn.setAttribute('aria-pressed', 'false');
     btn.textContent = t.slug;
     const accentColor = t.c.accent || '#58a6ff';
@@ -179,7 +193,7 @@ function setPickerExpanded(v) {
   pickerExpanded = v;
   if (!pickerToggle) return;
   pickerToggle.setAttribute('aria-expanded', String(v));
-  pickerToggle.textContent = v ? 'Pick theme ▴' : 'Pick theme ▾';
+  pickerToggle.textContent = v ? tr('hero.pickThemeOpen') : tr('hero.pickTheme');
   if (pickerGrid) pickerGrid.hidden = !v;
 }
 
@@ -220,7 +234,7 @@ function renderBento() {
     highlight.className = 'theme-tile tile-highlight';
     highlight.dataset.slug = slug;
     highlight.setAttribute('aria-pressed', 'false');
-    highlight.setAttribute('aria-label', `Theme ${labelFor(slug)} aktivieren`);
+    highlight.setAttribute('aria-label', tr('bento.activate', { name: labelFor(slug) }));
     const mode = theme.mode === 'light' ? 'light' : 'dark';
     highlight.innerHTML = `
       <span class="tile-meta">${mode}</span>
@@ -242,7 +256,7 @@ function renderBento() {
   more.type = 'button';
   more.className = 'theme-tile tile-more';
   const remaining = THEMES.length - BENTO_THEMES.length;
-  more.textContent = `+ ${remaining} weitere im Polygon-Picker ↑`;
+  more.textContent = tr('bento.more', { n: remaining });
   more.addEventListener('click', () => {
     if (pickerDemo) pickerDemo.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
@@ -278,3 +292,28 @@ const initial = (() => {
   } catch (e) { return THEMES[0].slug; }
 })();
 applyTheme(initial, { persist: false });
+
+// ---- Sprachwechsel: dynamische Labels neu setzen ----
+// applyI18n() hat die statischen Strings schon ersetzt; hier folgen Select,
+// Picker-Titles, Toggle-Label und der Bento-Neubau (der aria-pressed verliert).
+function relabel() {
+  if (picker) {
+    for (const opt of picker.options) {
+      const theme = bySlug(opt.value);
+      if (theme) opt.textContent = themeLabel(theme);
+    }
+  }
+  for (const grid of [pickerGrid, pickerDemo]) {
+    if (!grid) continue;
+    for (const tile of grid.querySelectorAll('.picker-tile')) {
+      const theme = bySlug(tile.dataset.slug);
+      if (theme) tile.title = themeLabel(theme);
+    }
+  }
+  if (pickerToggle) {
+    pickerToggle.textContent = pickerExpanded ? tr('hero.pickThemeOpen') : tr('hero.pickTheme');
+  }
+  renderBento();
+  if (activeSlug) syncPressed(activeSlug);
+}
+onLangChange(relabel);
