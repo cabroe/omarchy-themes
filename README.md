@@ -4,11 +4,11 @@
 
 **Omarchy colour schemes in Hermes Desktop — automatic on every `omarchy theme set`.**
 
-[![en](https://img.shields.io/badge/lang-en-blue.svg?style=flat-square)](README.md)
-[![de](https://img.shields.io/badge/lang-de-blue.svg?style=flat-square)](README.de.md)
 [![Release](https://img.shields.io/github/v/release/cabroe/omarchy-themes?style=flat-square&label=release)](https://github.com/cabroe/omarchy-themes/releases/latest)
 [![CI](https://img.shields.io/github/actions/workflow/status/cabroe/omarchy-themes/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/cabroe/omarchy-themes?style=flat-square)](LICENSE)
+
+**English** · [Deutsch](README.de.md)
 
 </div>
 
