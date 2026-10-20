@@ -76,10 +76,47 @@
           </div>
         </div>
         <figure class="shot shot-hero">
-          <img src="assets/screenshots/themes-dark.png" width="1600" height="954"
-               loading="eager" decoding="async"
-               alt="Hermes-Settings: Theme-Grid mit 29 Karten, Swatches, Filter und Apply-Button" data-i18n-alt="shot.themesDark.alt">
-          <figcaption class="mono-xs" data-i18n="shot.themesDark.caption">Einstellungen → Plugins → omarchy-themes</figcaption>
+          <!-- Mockup des Hermes-Pickers. role="img" fasst ihn fuer Screenreader zu
+               einem Bild zusammen; die Karten sind nur per Maus bedienbar
+               (tabindex="-1", in app.js gesetzt). Die Tastatur- und AT-Steuerung
+               liegt bei der Theme-Auswahl in #demo — nicht doppelt hier. -->
+          <div class="mock mock-picker" id="pickerMock" role="img" data-i18n-aria-label="mock.picker.aria">
+            <div class="mock-bar">
+              <span class="mock-dot" aria-hidden="true"></span>
+              <span class="mock-dot" aria-hidden="true"></span>
+              <span class="mock-dot" aria-hidden="true"></span>
+              <p class="mock-crumbs">
+                <span data-i18n="mock.settings">Einstellungen</span>
+                <span class="mock-sep" aria-hidden="true">›</span>
+                <span data-i18n="mock.plugins">Plugins</span>
+                <span class="mock-sep" aria-hidden="true">›</span>
+                <span class="mock-here">omarchy-themes</span>
+              </p>
+            </div>
+            <div class="mock-body">
+              <div class="mock-side">
+                <p class="mock-nav"><span data-i18n="mock.nav.model">Modell</span><span class="mock-caret" aria-hidden="true">›</span></p>
+                <p class="mock-nav"><span data-i18n="mock.nav.chat">Chat</span><span class="mock-caret" aria-hidden="true">›</span></p>
+                <p class="mock-nav"><span data-i18n="mock.nav.display">Darstellung</span><span class="mock-caret" aria-hidden="true">›</span></p>
+                <p class="mock-nav"><span data-i18n="mock.nav.workspace">Arbeitsbereich</span><span class="mock-caret" aria-hidden="true">›</span></p>
+                <p class="mock-nav"><span data-i18n="mock.nav.security">Sicherheit</span><span class="mock-caret" aria-hidden="true">›</span></p>
+                <p class="mock-nav"><span data-i18n="mock.nav.language">Sprache</span><span class="mock-caret" aria-hidden="true">›</span></p>
+                <p class="mock-nav"><span data-i18n="mock.nav.extended">Erweitert</span><span class="mock-caret" aria-hidden="true">›</span></p>
+                <p class="mock-nav"><span data-i18n="mock.nav.billing">Abrechnung</span><span class="mock-caret" aria-hidden="true">›</span></p>
+                <p class="mock-nav"><span data-i18n="mock.nav.gateways">Gateways</span><span class="mock-caret" aria-hidden="true">›</span></p>
+                <p class="mock-nav"><span data-i18n="mock.nav.sessions">Sessions</span><span class="mock-caret" aria-hidden="true">›</span></p>
+                <p class="mock-nav mock-nav--on"><span data-i18n="mock.nav.plugins">Plugins</span><span class="mock-caret" aria-hidden="true">▾</span></p>
+                <p class="mock-sub">hermes-handoff</p>
+                <p class="mock-sub">hermes-jev</p>
+                <p class="mock-sub mock-sub--on">omarchy-themes</p>
+              </div>
+              <div class="mock-main">
+                <p class="mock-filter"><span class="mock-prompt" aria-hidden="true">❯</span> <span data-i18n="mock.filter">Filter …</span></p>
+                <div class="mock-grid" id="mockGrid"></div>
+              </div>
+            </div>
+          </div>
+          <figcaption class="mono-xs" data-i18n="mock.picker.caption">Einstellungen → Plugins → omarchy-themes</figcaption>
         </figure>
       </div>
     </section>
@@ -113,10 +150,50 @@
 
         <div class="split">
           <figure class="shot shot-flow">
-            <img src="assets/screenshots/about.png" width="1600" height="954"
-                 loading="lazy" decoding="async"
-                 alt="About-Panel: Wechsel-Kette omarchy theme set → Hook → Skin → UI" data-i18n-alt="shot.about.alt">
-            <figcaption class="mono-xs" data-i18n="shot.about.caption">How switching works (About-Panel)</figcaption>
+            <!-- Wie der Picker: role="img" + aria-label, Inhalt nur fuer Maus/AT als Bild. -->
+            <div class="mock mock--about" id="aboutMock" role="img" data-i18n-aria-label="mock.about.aria">
+              <div class="mock-bar">
+                <span class="mock-dot" aria-hidden="true"></span>
+                <span class="mock-dot" aria-hidden="true"></span>
+                <span class="mock-dot" aria-hidden="true"></span>
+                <p class="mock-crumbs">
+                  <span data-i18n="mock.settings">Einstellungen</span>
+                  <span class="mock-sep" aria-hidden="true">›</span>
+                  <span data-i18n="mock.nav.plugins">Plugins</span>
+                  <span class="mock-sep" aria-hidden="true">›</span>
+                  <span class="mock-here">omarchy-themes</span>
+                  <span class="mock-sep" aria-hidden="true">›</span>
+                  <span class="mock-here">About</span>
+                </p>
+              </div>
+              <div class="mock-about">
+                <p class="mock-about-head">
+                  <span class="mock-about-title">omarchy-themes</span>
+                  <span class="mock-about-ver">v1.2.0</span>
+                  <span class="mock-about-repo">github.com/cabroe/omarchy-themes</span>
+                </p>
+                <p class="mock-about-lede" data-i18n="mock.about.lede">
+                  Bridgets Omarchy-Themes in Hermes Desktop — jedes Omarchy-Theme wird
+                  hier wählbar, und der Wechsel färbt die Oberfläche mit.
+                </p>
+                <!-- Zahlen kommen live aus THEMES (app.js), nicht hartkodiert. -->
+                <dl class="mock-stats">
+                  <div class="mock-stat"><dt data-i18n="readout.palettes">Paletten</dt><dd id="mockTotal">29</dd></div>
+                  <div class="mock-stat"><dt data-i18n="mock.about.dark">dark</dt><dd id="mockDark">24</dd></div>
+                  <div class="mock-stat"><dt data-i18n="mock.about.light">light</dt><dd id="mockLight">5</dd></div>
+                </dl>
+                <h4 class="mock-h4" data-i18n="mock.about.how">So wird gewechselt</h4>
+                <ol class="mock-steps">
+                  <li><code>omarchy theme set &lt;slug&gt;</code> <span data-i18n="mock.about.step1">schreibt die State-Datei — das Plugin liest sie zuerst.</span></li>
+                  <li><span data-i18n="mock.about.step2">Der Hook schreibt</span> <code>~/.hermes/skins/&lt;slug&gt;.yaml</code> <span data-i18n="mock.about.step2b">und läuft</span> <code>hermes skin use</code><span data-i18n="mock.about.step2c">.</span></li>
+                  <li><span data-i18n="mock.about.step3">Ein</span> <code>skin.changed</code> <span data-i18n="mock.about.step3b">ist die letzte Bestätigung — das Plugin legt seine Zwei-Farb-Palette obendrauf.</span></li>
+                </ol>
+                <h4 class="mock-h4" data-i18n="mock.about.trouble">Troubleshooting</h4>
+                <p class="mock-line"><span data-i18n="mock.about.nosync">Auto-Switch aus:</span> <code>touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes</code></p>
+                <p class="mock-line"><span data-i18n="mock.about.log">Hook-Log:</span> <code>~/.hermes/logs/omarchy-theme-sync.log</code></p>
+              </div>
+            </div>
+            <figcaption class="mono-xs" data-i18n="mock.about.caption">How switching works (About-Panel)</figcaption>
           </figure>
           <dl class="readout" aria-label="Theme-Status" data-i18n-aria-label="readout.aria">
             <div class="ro"><dt data-i18n="status.theme">theme</dt><dd id="roTheme">tokyo-night</dd></div>
@@ -217,13 +294,9 @@
 
         <div id="themeGrid" class="tile-grid" role="group"
              aria-label="Theme-Auswahl — alle 29" data-i18n-aria-label="demo.gridAria"></div>
-
-        <figure class="shot shot-demo">
-          <img src="assets/screenshots/themes-light.png" width="1600" height="954"
-               loading="lazy" decoding="async"
-               alt="Theme-Grid mit 29 Karten in Light — Swatches und Filter" data-i18n-alt="shot.themesLight.alt">
-          <figcaption class="mono-xs" data-i18n="shot.themesLight.caption">Dieselben 29 Paletten in Light</figcaption>
-        </figure>
+        <!-- Kein dritter Screenshot: das Picker-Mockup im Hero ist live und
+             faerbt sich bei jedem Klick mit — eine Light-Variante davon waere
+             dieselbe Aussage in zwei Formaten. -->
       </div>
     </section>
 

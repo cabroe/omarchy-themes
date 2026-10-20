@@ -27,6 +27,10 @@ const statusMode  = document.getElementById('statusMode');
 const roTheme     = document.getElementById('roTheme');
 const roMode      = document.getElementById('roMode');
 const grid        = document.getElementById('themeGrid');
+const mockGrid    = document.getElementById('mockGrid');
+const mockTotal   = document.getElementById('mockTotal');
+const mockDark    = document.getElementById('mockDark');
+const mockLight   = document.getElementById('mockLight');
 const demoCount   = document.getElementById('demoCount');
 const footCount   = document.getElementById('footCount');
 const launcher    = document.getElementById('launcher');
@@ -272,11 +276,87 @@ function updateReadout() {
 
 // ---- aria-pressed aller Tiles auf den aktiven Slug setzen ----
 function syncPressed(slug) {
-  if (!grid) return;
-  for (const tile of grid.querySelectorAll('.tile')) {
-    tile.setAttribute('aria-pressed', String(tile.dataset.slug === slug));
+  if (grid) {
+    for (const tile of grid.querySelectorAll('.tile')) {
+      tile.setAttribute('aria-pressed', String(tile.dataset.slug === slug));
+    }
+  }
+  if (mockGrid) {
+    for (const card of mockGrid.querySelectorAll('.mock-card')) {
+      card.setAttribute('aria-pressed', String(card.dataset.slug === slug));
+    }
   }
 }
+
+// ==========================================================================
+// Mockup: der Hermes-Picker als DOM (siehe .mock im Stylesheet)
+// ==========================================================================
+// Warum DOM statt <img>: das Fenster besteht aus denselben Tokens, die
+// applyTheme() setzt. Ein Klack im Tile-Grid faerbt es damit ohne Zusatzcode
+// mit — kein 350-kB-Bild, das bei jedem Theme falsch waere.
+//
+// Die Karten sind nur per Maus bedienbar (tabindex="-1"): der Container steht
+// als role="img", die echte Tastatur-Steuerung liegt beim #themeGrid. Sonst
+// haetten wir dieselben 29 Themes zweimal im Tab-Order.
+function renderMockCards() {
+  if (!mockGrid) return;
+  const frag = document.createDocumentFragment();
+  for (const theme of THEMES) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'mock-card';
+    card.dataset.slug = theme.slug;
+    card.tabIndex = -1;
+    card.setAttribute('aria-pressed', 'false');
+
+    const head = document.createElement('span');
+    head.className = 'mock-card-head';
+
+    const name = document.createElement('span');
+    name.className = 'mock-card-name';
+    name.textContent = labelFor(theme.slug);
+
+    const mode = document.createElement('span');
+    mode.className = 'mock-card-mode';
+    head.append(name, mode);
+
+    const swatches = document.createElement('span');
+    swatches.className = 'mock-card-swatches';
+    swatches.setAttribute('aria-hidden', 'true');
+    for (const color of [theme.c.accent, theme.c.background || theme.c.dark_background, theme.c.foreground]) {
+      const cell = document.createElement('span');
+      cell.style.background = color || 'transparent';
+      swatches.append(cell);
+    }
+
+    const apply = document.createElement('span');
+    apply.className = 'mock-card-apply';
+    apply.textContent = tr('mock.apply');
+    apply.setAttribute('aria-hidden', 'true');
+
+    card.append(head, swatches, apply);
+    card.addEventListener('click', () => applyTheme(theme.slug));
+    frag.append(card);
+  }
+  mockGrid.append(frag);
+  relabelMock();
+}
+
+function relabelMock() {
+  if (!mockGrid) return;
+  for (const card of mockGrid.querySelectorAll('.mock-card')) {
+    const theme = bySlug(card.dataset.slug);
+    const modeEl = card.querySelector('.mock-card-mode');
+    if (modeEl) modeEl.textContent = modeLabel(theme);
+  }
+  // Zaehler im About-Mockup kommen aus THEMES, nicht aus dem HTML:
+  // `make generate` aendert die Tabelle, dann stimmen sie automatisch.
+  if (mockTotal) mockTotal.textContent = String(THEMES.length);
+  if (mockDark) mockDark.textContent = String(THEMES.filter((t) => t.mode !== 'light').length);
+  if (mockLight) mockLight.textContent = String(THEMES.filter((t) => t.mode === 'light').length);
+}
+
+renderMockCards();
 
 // ==========================================================================
 // Theme-Tiles (Demo) — einmal gebaut, beim Sprachwechsel nur neu beschriftet
@@ -554,6 +634,7 @@ applyTheme(initial, { persist: false });
 // Select-Optionen, Tile-Beschriftungen, Zaehler und der Readout.
 function relabel() {
   relabelTiles();
+  relabelMock();
   if (launcherOpen) renderLauncher();
   if (activeSlug) updateReadout();
   if (activeSlug) syncPressed(activeSlug);

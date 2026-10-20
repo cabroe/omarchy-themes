@@ -285,7 +285,11 @@ p code, .note code, .lede code, dd code {
 
 /* ---------- hero ---------- */
 .hero { padding-block: clamp(2.5rem, 5vw, 4rem); }
-.hero-grid { display: grid; gap: var(--s7); align-items: start; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s7); align-items: start; }
+/* Grid-Items sind per Default min-width:auto und wachsen damit ueber die
+   Spur hinaus — beim Mockup (lange Breadcrumbs, 4 Kartenspalten) schob das die
+   Seite auf 419px. min-width:0 laesst sie sauber schrumpfen. */
+.hero-grid > * { min-width: 0; }
 .kicker { color: var(--fg-muted); margin: 0; display: flex; gap: var(--s2); align-items: baseline; }
 .prompt { color: var(--accent-text); font-weight: 600; }
 .hero h1 { margin-top: var(--s3); }
@@ -345,13 +349,6 @@ kbd {
 
 /* ---------- figures ---------- */
 .shot { margin: 0; }
-.shot img {
-  display: block;
-  width: 100%;
-  height: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--r-panel);
-}
 .shot figcaption {
   margin-top: var(--s2);
   font-size: var(--text-mono-xs);
@@ -360,6 +357,236 @@ kbd {
   color: var(--fg-muted);
 }
 .shot-hero { margin-top: var(--s6); }
+
+/* ---------- Mockup: Hermes-Fenster als DOM ----------
+   Kein <img>: das Fenster ist aus denselben Tokens gebaut, die applyTheme()
+   setzt, faerbt sich also bei jedem Theme-Klick mit. Keine neuen Farben, keine
+   Schatten, keine Radien > 4px — dieselben Regeln wie der Rest der Seite. */
+.mock {
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
+  background: var(--bg);
+  overflow: hidden;
+}
+.mock-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border);
+}
+.mock-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-chip);
+}
+.mock-crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-xs);
+  color: var(--fg-muted);
+  overflow: hidden;
+  white-space: nowrap;
+}
+.mock-sep { color: var(--border-strong); }
+.mock-here { color: var(--fg); font-weight: 600; }
+
+.mock-body { display: grid; grid-template-columns: 1fr; }
+/* Der Picker zeigt 29 Themes. Ohne Deckel waere das Mockup ~800px hoch und
+   drueckte die Sektionen darunter nach unten; die Kartenliste scrollt wie das
+   echte Settings-Fenster. */
+.mock-picker { display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: 30rem; }
+.mock-side {
+  display: none;
+  padding: var(--s2) 0;
+  background: var(--bg-elev);
+  border-right: 1px solid var(--border);
+}
+.mock-nav,
+.mock-sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  margin: 0;
+  padding: 5px var(--s3);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-xs);
+  color: var(--fg-muted);
+}
+.mock-caret { color: var(--border-strong); }
+.mock-nav--on { background: var(--accent-wash-2); color: var(--fg); }
+.mock-sub { padding-inline-start: var(--s5); }
+.mock-sub--on { background: var(--accent-wash); color: var(--fg); }
+
+.mock-main { padding: var(--s3); min-width: 0; min-height: 0; overflow-y: auto; }
+.mock-filter {
+  position: sticky;
+  top: calc(var(--s3) * -1);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin: 0 0 var(--s3);
+  padding: var(--s2) var(--s3);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-chip);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-xs);
+  color: var(--fg-muted);
+}
+.mock-prompt { color: var(--accent-text); font-weight: 600; }
+
+.mock-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s2);
+}
+.mock-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s2);
+  text-align: start;
+  font: inherit;
+  background: var(--bg-elev);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-chip);
+  cursor: pointer;
+}
+.mock-card:hover { border-color: var(--border-strong); }
+.mock-card[aria-pressed="true"] {
+  background: var(--accent-wash-2);
+  border-color: var(--accent-text);
+}
+.mock-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s2);
+  min-width: 0;
+}
+.mock-card-name {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-xs);
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mock-card-mode {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-xs);
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  flex: 0 0 auto;
+}
+.mock-card-swatches {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  height: 6px;
+  overflow: hidden;
+  border-radius: 1px;
+}
+.mock-card-swatches span { display: block; height: 6px; }
+.mock-card-apply {
+  align-self: start;
+  padding: 2px var(--s2);
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: var(--r-chip);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-xs);
+  font-weight: 600;
+}
+
+/* ---------- Mockup: About-Panel ---------- */
+.mock-about { padding: var(--s4); }
+.mock-about-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s2);
+  margin: 0 0 var(--s3);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-xs);
+}
+.mock-about-title { color: var(--fg); font-size: var(--text-mono); font-weight: 600; }
+.mock-about-ver {
+  padding: 1px 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-chip);
+  color: var(--fg-muted);
+}
+.mock-about-repo { color: var(--fg-muted); overflow-wrap: anywhere; }
+.mock-about-lede {
+  font-size: var(--text-note);
+  line-height: 1.55;
+  color: var(--fg-muted);
+  max-width: var(--measure);
+}
+.mock-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s3);
+  margin: var(--s4) 0;
+  padding-block: var(--s3);
+  border-block: 1px solid var(--border);
+}
+.mock-stat dt {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-muted);
+}
+.mock-stat dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-h3);
+  font-weight: 600;
+  color: var(--fg);
+}
+.mock-h4 {
+  margin: var(--s4) 0 var(--s2);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-muted);
+}
+.mock-steps {
+  margin: 0;
+  padding-inline-start: var(--s5);
+  display: grid;
+  gap: var(--s2);
+  font-size: var(--text-note);
+  line-height: 1.55;
+  color: var(--fg-muted);
+}
+.mock-line {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-xs);
+  line-height: 1.9;
+  color: var(--fg-muted);
+}
+.mock-steps code,
+.mock-line code {
+  background: var(--accent-wash);
+  color: var(--fg);
+  border-radius: var(--r-chip);
+  padding: 1px 4px;
+}
 
 /* ---------- flow ---------- */
 .flow {
@@ -398,13 +625,16 @@ kbd {
 }
 .cmd-wide { white-space: normal; word-break: break-all; }
 
-/* ---------- split (Screenshot + Readout) ---------- */
+/* ---------- split (Mockup + Readout) ---------- */
 .split {
   display: grid;
   gap: var(--s5);
   margin-top: var(--s7);
   align-items: start;
 }
+/* min-width:0 auf den Items: sonst schiebt das Mockup im 12-Spur-Grid die
+   Seite auf 419px (Auto-Minimum gegen die eigene Spur). */
+.split > * { min-width: 0; }
 
 /* Readout: label ....... value */
 .readout { margin: 0; border-top: 1px solid var(--border); }
@@ -510,7 +740,6 @@ kbd {
   box-shadow: inset 0 0 0 2px var(--accent-text);
   border-color: transparent;
 }
-.shot-demo { margin-top: var(--s7); }
 
 /* ---------- install ---------- */
 .installs { margin-top: var(--s7); border-top: 1px solid var(--border); }
@@ -684,9 +913,13 @@ body.launcher-open { overflow: hidden; }
 /* ---------- breakpoints ---------- */
 @media (min-width: 601px) {
   .tile-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s3); }
+  .mock-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (min-width: 901px) {
+  .mock-body { grid-template-columns: 150px minmax(0, 1fr); }
+  .mock-side { display: block; }
+  .mock-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .flow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .flow-cell + .flow-cell { border-top: 0; border-left: 1px solid var(--border); }
   .split { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--s5); }
