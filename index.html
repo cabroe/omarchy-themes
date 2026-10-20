@@ -6,11 +6,12 @@
   <meta name="color-scheme" content="dark light">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="theme-color" content="#1a1b26">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'none'">
   <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=(), accelerometer=(), magnetometer=()">
   <title>omarchy-themes · Hermes-nativ</title>
   <meta name="description" content="Omarchy-Paletten, Hermes-nativ — Plugin für Desktop, ⌘K und CLI/TUI-Skin. Bidirektionaler Sync, ein Plugin, drei Komponenten.">
   <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='2' fill='%231a1b26'/%3E%3Cpath d='M5 3.5 10.5 8 5 12.5' stroke='%237aa2f7' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <!-- Inline script: setzt data-theme synchron VOR Modul-Init, damit applyTheme() den saved-Wert
        ohne Race uebernehmen kann. Das vollstaendige Token-Set wird in app.js am :root gesetzt;
        eine 29-Theme-Spiegelung in styles.css wuerde driften (kein Build). -->
@@ -33,7 +34,11 @@
         <span class="brand-name">omarchy-themes</span>
         <span class="brand-ver mono-xs">v1.2.0</span>
       </a>
-      <p class="topbar-status mono" id="currentSlug" aria-live="polite">theme: tokyo-night</p>
+      <p class="topbar-status mono" id="currentSlug" aria-live="polite">
+        <span class="status-label" data-i18n="status.theme">theme</span>
+        <span class="status-slug" id="statusSlug">tokyo-night</span>
+        <span class="status-mode" id="statusMode">dark</span>
+      </p>
       <nav class="topnav" aria-label="Sektionen" data-i18n-aria-label="nav.aria">
         <a href="#architecture"><span class="idx" aria-hidden="true">01</span><span data-i18n="nav.flow">Flow</span></a>
         <a href="#components"><span class="idx" aria-hidden="true">02</span><span data-i18n="nav.components">Komponenten</span></a>
@@ -68,13 +73,12 @@
                     data-i18n-aria-label="launcher.openAria">
               <span data-i18n="hero.launcher">Themes</span><kbd class="kbd">/</kbd>
             </button>
-            <select id="themePicker" aria-label="Theme auswählen" data-i18n-aria-label="hero.selectAria"></select>
           </div>
         </div>
         <figure class="shot shot-hero">
           <img src="assets/screenshots/themes-dark.png" width="1600" height="954"
                loading="eager" decoding="async"
-               alt="Einstellungen → Plugins → omarchy-themes" data-i18n-alt="shot.themesDark.alt">
+               alt="Hermes-Settings: Theme-Grid mit 29 Karten, Swatches, Filter und Apply-Button" data-i18n-alt="shot.themesDark.alt">
           <figcaption class="mono-xs" data-i18n="shot.themesDark.caption">Einstellungen → Plugins → omarchy-themes</figcaption>
         </figure>
       </div>
@@ -111,7 +115,7 @@
           <figure class="shot shot-flow">
             <img src="assets/screenshots/about.png" width="1600" height="954"
                  loading="lazy" decoding="async"
-                 alt="How switching works (About-Panel)" data-i18n-alt="shot.about.alt">
+                 alt="About-Panel: Wechsel-Kette omarchy theme set → Hook → Skin → UI" data-i18n-alt="shot.about.alt">
             <figcaption class="mono-xs" data-i18n="shot.about.caption">How switching works (About-Panel)</figcaption>
           </figure>
           <dl class="readout" aria-label="Theme-Status" data-i18n-aria-label="readout.aria">
@@ -217,7 +221,7 @@
         <figure class="shot shot-demo">
           <img src="assets/screenshots/themes-light.png" width="1600" height="954"
                loading="lazy" decoding="async"
-               alt="Dieselben 29 Paletten in Light" data-i18n-alt="shot.themesLight.alt">
+               alt="Theme-Grid mit 29 Karten in Light — Swatches und Filter" data-i18n-alt="shot.themesLight.alt">
           <figcaption class="mono-xs" data-i18n="shot.themesLight.caption">Dieselben 29 Paletten in Light</figcaption>
         </figure>
       </div>

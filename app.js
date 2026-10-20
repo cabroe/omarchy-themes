@@ -22,8 +22,8 @@ const DEFAULT_SLUG = 'tokyo-night';
 const root        = document.documentElement;
 const cycleBtns   = [document.getElementById('cycleBtn'), document.getElementById('cycleBtnDemo')].filter(Boolean);
 const launcherBtns = [document.getElementById('launcherBtn'), document.getElementById('launcherBtnDemo')].filter(Boolean);
-const picker      = document.getElementById('themePicker');
-const readout     = document.getElementById('currentSlug');
+const statusSlug  = document.getElementById('statusSlug');
+const statusMode  = document.getElementById('statusMode');
 const roTheme     = document.getElementById('roTheme');
 const roMode      = document.getElementById('roMode');
 const grid        = document.getElementById('themeGrid');
@@ -218,15 +218,13 @@ function applyTheme(slug, { persist = true } = {}) {
   const border = mixToContrast(bg, fg, 1.5, 0.01, 0.65);
   const borderStrong = mixToContrast(bg, fg, 3.0, 0.01, 0.65);
 
-  // --fg-muted steht auf --bg-elev (kbd-Chip, Tile-Modus, Launcher, Caption).
-  const fgMuted = dimToContrast(fg, elev, 4.5);
+  // --fg-muted liegt auf --bg (Topbar/Captions), --bg-elev (kbd-Chip) UND
+  // --accent-wash-2 (aktives Tile, gewaehlte Launcher-Zeile). wash-2 ist die
+  // accent-staerkste Flaeche -> gegen sie gerechnet haelt der Ton automatisch
+  // auch auf bg und bg-elev.
+  const fgMuted = dimToContrast(fg, wash2, 4.5);
   const accentTxt = accentText(accent, fg, wash2);
   const accentFg = pickOnColor(accent);
-
-  // Statusfarben roh liegen in 6-8 von 29 Paletten unter 4.5 -> gegen --bg anheben.
-  const ok = liftTo(parseColor(theme.c.green || '#9ece6a'), fg, bg, 4.5, 0.01, 1.0);
-  const warn = liftTo(parseColor(theme.c.yellow || '#e0af68'), fg, bg, 4.5, 0.01, 1.0);
-  const err = liftTo(parseColor(theme.c.red || '#f7768e'), fg, bg, 4.5, 0.01, 1.0);
 
   const selection = theme.c.selection ? parseColor(theme.c.selection) : wash2;
   const selectionFg = pickOnColor(selection);
@@ -244,9 +242,6 @@ function applyTheme(slug, { persist = true } = {}) {
   set('--accent-fg', toHex(accentFg));
   set('--accent-wash', toHex(wash));
   set('--accent-wash-2', toHex(wash2));
-  set('--ok', toHex(ok));
-  set('--warn', toHex(warn));
-  set('--err', toHex(err));
   set('--selection', toHex(selection));
   set('--selection-fg', toHex(selectionFg));
 
@@ -255,7 +250,6 @@ function applyTheme(slug, { persist = true } = {}) {
 
   activeSlug = theme.slug;
   updateReadout();
-  if (picker) picker.value = theme.slug;
   syncPressed(theme.slug);
 
   if (persist) {
@@ -270,8 +264,8 @@ function applyTheme(slug, { persist = true } = {}) {
 function updateReadout() {
   const theme = bySlug(activeSlug);
   const mode = modeLabel(theme);
-  const text = tr('status.theme') + ': ' + theme.slug + ' · ' + mode;
-  if (readout) readout.textContent = text;
+  if (statusSlug) statusSlug.textContent = theme.slug;
+  if (statusMode) statusMode.textContent = mode;
   if (roTheme) roTheme.textContent = theme.slug;
   if (roMode) roMode.textContent = mode;
 }
@@ -336,16 +330,6 @@ function relabelTiles() {
   if (footCount) footCount.textContent = tr('demo.count', { n });
 }
 
-// ---- <select> bleibt als versteckter Spiegel der Auswahl ----
-if (picker) {
-  for (const theme of THEMES) {
-    const opt = document.createElement('option');
-    opt.value = theme.slug;
-    opt.textContent = themeLabel(theme);
-    picker.append(opt);
-  }
-}
-
 renderTiles();
 
 // ==========================================================================
@@ -358,7 +342,6 @@ function cycle(dir = 1) {
 }
 
 for (const btn of cycleBtns) btn.addEventListener('click', () => cycle(1));
-if (picker) picker.addEventListener('change', () => applyTheme(picker.value));
 
 // ==========================================================================
 // Launcher (/)
@@ -368,12 +351,23 @@ let launcherIndex = 0;
 let launcherMatches = [];
 let launcherTrigger = null;
 
+// Ausserhalb des modalen Dialogs: Header, Main, Footer und Skip-Link inert
+// setzen, damit Fokus und Screenreader im Launcher bleiben (aria-modal).
+const inertTargets = [
+  document.querySelector('header.topbar'),
+  document.getElementById('main'),
+  document.querySelector('footer.foot'),
+  document.querySelector('.skip-link'),
+].filter(Boolean);
+
 function openLauncher(trigger) {
   if (!launcher || launcherOpen) return;
   launcherTrigger = trigger || document.activeElement;
   launcherOpen = true;
   launcher.hidden = false;
   launcherIndex = 0;
+  for (const el of inertTargets) el.inert = true;
+  document.body.classList.add('launcher-open');
   if (launcherInput) {
     launcherInput.value = '';
     filterLauncher('');
@@ -386,6 +380,8 @@ function closeLauncher({ restore = true } = {}) {
   if (!launcher || !launcherOpen) return;
   launcherOpen = false;
   launcher.hidden = true;
+  for (const el of inertTargets) el.inert = false;
+  document.body.classList.remove('launcher-open');
   for (const btn of launcherBtns) btn.setAttribute('aria-expanded', 'false');
   if (restore && launcherTrigger && typeof launcherTrigger.focus === 'function') launcherTrigger.focus();
 }
@@ -557,12 +553,6 @@ applyTheme(initial, { persist: false });
 // applyI18n() hat die statischen Strings bereits gesetzt; hier folgen
 // Select-Optionen, Tile-Beschriftungen, Zaehler und der Readout.
 function relabel() {
-  if (picker) {
-    for (const opt of picker.options) {
-      const theme = bySlug(opt.value);
-      if (theme) opt.textContent = themeLabel(theme);
-    }
-  }
   relabelTiles();
   if (launcherOpen) renderLauncher();
   if (activeSlug) updateReadout();

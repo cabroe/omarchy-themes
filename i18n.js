@@ -27,7 +27,6 @@ export const STRINGS = {
     'hero.lede': 'Ein <code>omarchy</code>-Theme-Set — und Desktop-Picker, ⌘K und CLI/TUI-Skin wechseln synchron. Ein Plugin, drei Komponenten, eine Wahrheit pro Klick.',
     'hero.cycle': 'Cycle theme →',
     'hero.launcher': 'Themes',
-    'hero.selectAria': 'Theme auswählen',
     'status.theme': 'theme',
 
     'readout.aria': 'Theme-Status',
@@ -35,11 +34,11 @@ export const STRINGS = {
     'readout.skins': 'Skin-Keys',
     'readout.mode': 'Modus',
 
-    'shot.themesDark.alt': 'Einstellungen → Plugins → omarchy-themes: Theme-Grid mit Swatches und Filter',
+    'shot.themesDark.alt': 'Hermes-Settings: Theme-Grid mit 29 Karten, Swatches, Filter und Apply-Button',
     'shot.themesDark.caption': 'Einstellungen → Plugins → omarchy-themes',
-    'shot.themesLight.alt': 'Dieselben 29 Paletten in Light, Theme-Grid in der Hermes-Desktop-Ansicht',
+    'shot.themesLight.alt': 'Theme-Grid mit 29 Karten in Light — Swatches und Filter in der Desktop-Ansicht',
     'shot.themesLight.caption': 'dieselben 29 Paletten in Light',
-    'shot.about.alt': 'About-Panel: How switching works, Theme-Wechsel-Kette in Hermes',
+    'shot.about.alt': 'About-Panel: Wechsel-Kette omarchy theme set → Hook → Skin → UI',
     'shot.about.caption': 'How switching works (About-Panel)',
 
     'arch.h2': 'Bidirektionaler Sync. Eine Wahrheit pro Klick.',
@@ -111,7 +110,6 @@ export const STRINGS = {
     'hero.lede': 'One <code>omarchy</code> theme set — and the desktop picker, ⌘K and the CLI/TUI skin switch in sync. One plugin, three components, one source of truth per click.',
     'hero.cycle': 'Cycle theme →',
     'hero.launcher': 'Themes',
-    'hero.selectAria': 'Select theme',
     'status.theme': 'theme',
 
     'readout.aria': 'Theme status',
@@ -119,11 +117,11 @@ export const STRINGS = {
     'readout.skins': 'skin keys',
     'readout.mode': 'mode',
 
-    'shot.themesDark.alt': 'Settings → Plugins → omarchy-themes: theme grid with swatches and filter',
+    'shot.themesDark.alt': 'Hermes settings: theme grid with 29 cards, swatches, filter and apply button',
     'shot.themesDark.caption': 'Settings → Plugins → omarchy-themes',
-    'shot.themesLight.alt': 'The same 29 palettes in light, theme grid in the Hermes desktop view',
+    'shot.themesLight.alt': 'Theme grid with 29 cards in light — swatches and filter in the desktop view',
     'shot.themesLight.caption': 'the same 29 palettes in light',
-    'shot.about.alt': 'About panel: how switching works, the theme switch chain in Hermes',
+    'shot.about.alt': 'About panel: switch chain omarchy theme set → hook → skin → UI',
     'shot.about.caption': 'How switching works (about panel)',
 
     'arch.h2': 'Bidirectional sync. One source of truth per click.',

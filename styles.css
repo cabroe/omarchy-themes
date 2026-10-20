@@ -58,9 +58,6 @@ html, body { margin: 0; padding: 0; }
   --accent-fg: #000000;
   --accent-wash: #24283b;
   --accent-wash-2: #2c344b;
-  --ok: #9ece6a;
-  --warn: #e0af68;
-  --err: #f7768e;
   --selection: #292e42;
   --selection-fg: #a9b1d6;
   color-scheme: dark;
@@ -68,7 +65,7 @@ html, body { margin: 0; padding: 0; }
 
 /* Kein Weissblitz vor dem ersten Paint */
 html {
-  background: #1a1b26;
+  background: var(--bg);
   scroll-padding-top: calc(var(--topbar-h) + var(--s4));
   -webkit-text-size-adjust: 100%;
 }
@@ -207,11 +204,27 @@ p code, .note code, .lede code, dd code {
 }
 .brand-ver { color: var(--fg-muted); letter-spacing: 0.04em; }
 .topbar-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
   color: var(--fg-muted);
   white-space: nowrap;
+  min-width: 0;
+}
+.topbar-status .status-label::after { content: ":"; }
+.status-slug {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
+  white-space: nowrap;
+}
+.status-mode {
+  flex: 0 0 auto;
+  color: var(--fg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-chip);
+  padding: 1px 5px;
+  white-space: nowrap;
 }
 .topnav {
   display: flex;
@@ -234,6 +247,9 @@ p code, .note code, .lede code, dd code {
 .topnav a:hover { color: var(--fg); border-bottom-color: var(--accent-text); }
 .topnav .idx { color: var(--fg-muted); margin-inline-end: var(--s1); }
 .topbar-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
   color: var(--fg-muted);
   text-decoration: none;
   font-size: var(--text-mono);
@@ -257,6 +273,7 @@ p code, .note code, .lede code, dd code {
   letter-spacing: 0.06em;
   font-weight: 600;
   line-height: 1;
+  min-height: 24px;
   padding: 6px 8px;
   cursor: pointer;
   transition: background-color 120ms linear, color 120ms linear;
@@ -264,9 +281,6 @@ p code, .note code, .lede code, dd code {
 .lang-btn + .lang-btn { border-left: 1px solid var(--border-strong); }
 .lang-btn:hover { background: var(--bg-elev-2); color: var(--fg); }
 .lang-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
-
-/* versteckter Select-Spiegel: keine eigene Typografie nach aussen tragen */
-#themePicker { display: none; font-size: var(--text-mono); font-family: var(--font-mono); }
 
 /* ---------- hero ---------- */
 .hero { padding-block: clamp(2.5rem, 5vw, 4rem); }
@@ -541,7 +555,7 @@ kbd {
   color: var(--fg-muted);
 }
 .foot-brand { color: var(--fg); }
-.foot-line a { color: var(--fg-muted); text-decoration: none; border-bottom: 1px solid transparent; }
+.foot-line a { display: inline-flex; align-items: center; min-height: 24px; color: var(--fg-muted); text-decoration: none; border-bottom: 1px solid transparent; }
 .foot-line a:hover { color: var(--fg); border-bottom-color: var(--accent-text); }
 .dot { color: var(--border-strong); }
 
@@ -557,6 +571,7 @@ kbd {
   background: rgb(0 0 0 / 0.55);
 }
 .launcher[hidden] { display: none; }
+body.launcher-open { overflow: hidden; }
 .launcher-panel {
   width: min(42rem, calc(100vw - 2rem));
   display: flex;
@@ -594,7 +609,7 @@ kbd {
   padding: 6px 0;
 }
 .launcher-input::placeholder { color: var(--fg-muted); opacity: 1; }
-.launcher-input:focus { outline: none; }
+.launcher-input:focus:not(:focus-visible) { outline: none; }
 .launcher-list {
   list-style: none;
   margin: 0;
@@ -691,13 +706,11 @@ kbd {
 }
 
 @media (min-width: 1121px) {
-  .hero-grid { grid-template-columns: 7fr 5fr; gap: var(--s7); align-items: center; }
-  .shot-hero { margin-top: 0; }
   .tile-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
-/* Unter 768px zweizeilige Topbar: Brand + Readout + Lang, darunter die Nav */
-@media (max-width: 767px) {
+/* Unter 1024px zweizeilige Topbar: Brand + Readout + Lang, darunter die Nav */
+@media (max-width: 1023px) {
   .topbar-inner {
     flex-wrap: wrap;
     gap: var(--s1) var(--s3);
@@ -715,11 +728,14 @@ kbd {
 @media (max-width: 480px) {
   .topbar-link { display: none; }
   .brand-ver { display: none; }
+  .lang-switch { order: 2; }
+  .topbar-status { order: 3; flex-basis: 100%; }
 }
 
 @media (max-width: 600px) {
   :root { --gutter: 20px; }
   .tile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cmd-block { white-space: pre-wrap; overflow-wrap: anywhere; }
 }
 
 /* ---------- motion ---------- */
