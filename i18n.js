@@ -24,7 +24,7 @@ export const STRINGS = {
 
     'hero.kicker': 'omarchy · hermes desktop plugin',
     'hero.title': 'Omarchy-Themes, Hermes-nativ.',
-    'hero.lede': 'Ein <code>omarchy</code>-Theme-Set — und Desktop-Picker, ⌘K und CLI/TUI-Skin wechseln mit. Ein Plugin, drei Komponenten, eine Richtung: von Omarchy nach Hermes.',
+    'hero.lede': 'Ein Hermes-Desktop-Plugin, das Omarchy-Themes nach Hermes Desktop synct. <code>omarchy theme set nord</code>, und Picker, ⌘K und CLI/TUI-Skin färben sich mit.',
     'hero.cycle': 'Cycle theme →',
     'hero.launcher': 'Themes',
     'status.theme': 'theme',
@@ -134,7 +134,7 @@ export const STRINGS = {
 
     'hero.kicker': 'omarchy · hermes desktop plugin',
     'hero.title': 'Omarchy themes, Hermes-native.',
-    'hero.lede': 'One <code>omarchy</code> theme set — and the desktop picker, ⌘K and the CLI/TUI skin come along. One plugin, three components, one direction: Omarchy into Hermes.',
+    'hero.lede': 'A Hermes Desktop plugin that syncs Omarchy themes into Hermes Desktop. Run <code>omarchy theme set nord</code>, and the picker, ⌘K and the CLI/TUI skin recolour with it.',
     'hero.cycle': 'Cycle theme →',
     'hero.launcher': 'Themes',
     'status.theme': 'theme',
