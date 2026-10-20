@@ -393,9 +393,9 @@ kbd {
   min-width: 0;
   margin: 0;
   /* Optisch auf die Mitte der Traffic-Lights ziehen: die Zeilenbox zentriert
-     exakt, aber die Glyphen sitzen wegen des Descender-Raums ~1 px zu hoch. */
+     exakt, aber die Glyphen sitzen wegen des Descender-Raums ~2 px zu hoch. */
   position: relative;
-  top: 1px;
+  top: 2px;
   font-family: var(--font-mono);
   font-size: var(--text-mono-xs);
   color: var(--fg-muted);
