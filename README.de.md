@@ -58,7 +58,13 @@ Die About-Seite erklärt den Sync-Mechanismus und zählt die Themes auf:
 
 `hermes plugins install https://github.com/cabroe/omarchy-themes`, dann **⌘K → „Reload desktop plugins"**. Einmal aktivieren: Settings → Capabilities → Plugins → omarchy-themes → Toggle.
 
-**Deinstallation:** `hermes plugins remove omarchy-themes`, dann Hermes Desktop neu starten.
+Ohne Terminal: Settings → Capabilities → Plugins → *Von Git installieren*, `https://github.com/cabroe/omarchy-themes` einfügen, *Repository prüfen*, *Installieren* — die App installiert und aktiviert in einem Schritt.
+
+**Deinstallation:** `hermes plugins remove omarchy-themes`, dann Hermes Desktop neu starten. Der Befehl löscht das Plugin-Verzeichnis und entfernt seine Einträge aus der Hermes-Config (Plugin-Liste, Freigaben) — manuell nacharbeiten musst du nichts. `display.skin` zeigt danach weiter auf den zuletzt aktiven Omarchy-Skin; `hermes skin use default` holt eine eingebaute Palette zurück.
+
+**Deinstallation ohne Terminal:** Settings → Capabilities → Plugins → Papierkorb in der Zeile `omarchy-themes` → *Deinstallieren*. Die App löscht den Ordner und entlädt das Plugin sofort, ein Neustart ist dafür nicht nötig.
+
+**Reste nach der Deinstallation:** Skin-Dateien unter `~/.hermes/skins/<slug>.yaml` und — falls gesetzt — der Auto-Sync-Toggle unter `~/.local/state/omarchy/toggles/`; löschen, wenn du sie nicht mehr brauchst.
 
 **Entwicklung:** Node ≥ 22, Python ≥ 3.11, `shellcheck`. `make check` = Lint + Tests; `make install-githooks` aktiviert Pre-push-`generate-check`-Guard (blockt den Push bei Drift — kein Auto-Commit mehr).
 

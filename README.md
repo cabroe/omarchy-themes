@@ -55,6 +55,8 @@ hermes plugins install https://github.com/cabroe/omarchy-themes
 # then: Settings → Capabilities → Plugins → omarchy-themes → enable
 ```
 
+Without a terminal: Settings → Capabilities → Plugins → *Install from Git*, paste `https://github.com/cabroe/omarchy-themes`, *Review repository*, *Install* — the app installs and enables it in one go.
+
 ---
 
 ## Uninstall
@@ -63,6 +65,12 @@ hermes plugins install https://github.com/cabroe/omarchy-themes
 hermes plugins remove omarchy-themes
 # then restart Hermes Desktop so the plugin stops registering its themes
 ```
+
+The command deletes the plugin folder and drops its entries from the Hermes config (plugin list, grants), so nothing has to be edited by hand. Afterwards `display.skin` still points at the last Omarchy skin — `hermes skin use default` switches back to a builtin palette.
+
+Without a terminal: Settings → Capabilities → Plugins → trash icon on the `omarchy-themes` row → *Uninstall*. The app deletes the folder and unloads the plugin right away; no restart needed.
+
+Leftovers you may keep: the skin files under `~/.hermes/skins/<slug>.yaml` and — if you set it — the auto-sync toggle under `~/.local/state/omarchy/toggles/`.
 
 ---
 
