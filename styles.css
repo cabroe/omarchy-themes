@@ -380,9 +380,12 @@ kbd {
   width: 8px;
   height: 8px;
   flex: 0 0 auto;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-chip);
+  clip-path: circle(50%);
+  background: var(--border-strong);
 }
+.mock-dot--close { background: #ff5f57; }
+.mock-dot--min { background: #febc2e; }
+.mock-dot--max { background: #28c840; }
 .mock-crumbs {
   display: flex;
   align-items: center;
