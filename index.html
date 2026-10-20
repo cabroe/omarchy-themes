@@ -322,14 +322,14 @@
       <div class="wrap">
         <h2 data-i18n="install.h2">In 30 Sekunden drin.</h2>
         <p class="lede" data-i18n-html="install.lede">
-          Plugin und Hook sind zwei voneinander unabhängige Pfade. Plugin läuft nach Reload,
-          Hook nach <code>make install-hook</code>. Beide idempotent.
+          Das Plugin bringt den Desktop-Picker und schaltet ihn bei <code>omarchy theme set</code>
+          automatisch mit. Der Hook ist optional und synct zusätzlich den CLI/TUI-Skin.
         </p>
 
         <div class="installs">
           <div class="install-row">
             <div class="install-head">
-              <span class="tag mono-xs" data-i18n="install.plugin.tag">1. Plugin</span>
+              <span class="tag mono-xs" data-i18n="install.plugin.tag">Plugin</span>
               <span class="meta mono-xs" data-i18n="install.plugin.meta">in ~3 s · via Hermes CLI</span>
             </div>
             <pre class="cmd-block" tabindex="0"><code>hermes plugins install https://github.com/cabroe/omarchy-themes</code></pre>
@@ -341,12 +341,13 @@
 
           <div class="install-row">
             <div class="install-head">
-              <span class="tag mono-xs" data-i18n="install.hook.tag">2. Hook</span>
-              <span class="meta mono-xs" data-i18n="install.hook.meta">idempotent · aus Plugin-Root</span>
+              <span class="tag mono-xs" data-i18n="install.hook.tag">Optional: Hook</span>
+              <span class="meta mono-xs" data-i18n="install.hook.meta">nur für CLI/TUI-Skin</span>
             </div>
             <pre class="cmd-block" tabindex="0"><code>make install-hook</code></pre>
             <p class="note" data-i18n-html="install.hook.note">
-              Kopiert <code>hooks/hermes-skin-sync.sh</code> nach
+              Nur nötig, wenn auch der CLI/TUI-Skin mitziehen soll. Kopiert
+              <code>hooks/hermes-skin-sync.sh</code> nach
               <code>~/.config/omarchy/hooks/theme-set.d/</code>. Re-run jederzeit möglich
               (überschreibt). Undo mit <code>make uninstall</code>.
             </p>
