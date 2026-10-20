@@ -526,7 +526,10 @@ async function refreshSkip(bridge) {
 // sometimes named ANSI colors, shades or `mode`. Same mapping as the generator
 // (red=color1 … cyan=color6, bright_*=color9..14); the mode falls back to the
 // background's brightness.
-function paletteFromToml(text) {
+// Exported for tests/palette-parity.mjs — the renderer reads only the default
+// export, so this named export is inert at runtime and only exists so the
+// parity test can call the live parser directly.
+export function paletteFromToml(text) {
   const t = {}
   for (const line of text.split(/\r?\n/)) {
     const m = line.match(/^\s*([A-Za-z0-9_]+)\s*=\s*["']?(#[0-9A-Fa-f]{3,6}|[Dd][Aa][Rr][Kk]|[Ll][Ii][Gg][Hh][Tt])["']?\s*(#.*)?$/)

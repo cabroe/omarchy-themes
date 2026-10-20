@@ -26,13 +26,14 @@ help:
 check: lint test
 
 lint:
-	node --check desktop/plugin.js
+	node --check desktop/plugin.js tests/palette-parity.mjs
 	python3 -m py_compile scripts/generate-themes.py __init__.py
-	shellcheck hooks/hermes-skin-sync.sh tests/hook.sh tests/theme-switch-smoke.sh .githooks/pre-push
+	shellcheck hooks/hermes-skin-sync.sh tests/hook.sh tests/theme-switch-smoke.sh tests/palette-parity.sh .githooks/pre-push
 
 test:
-	node tests/smoke.mjs
+	node --enable-source-maps tests/smoke.mjs
 	sh tests/hook.sh
+	sh tests/palette-parity.sh
 
 generate:
 	python3 scripts/generate-themes.py $(GEN_ARGS)

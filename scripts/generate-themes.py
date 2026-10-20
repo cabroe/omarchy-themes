@@ -131,9 +131,11 @@ def parse_palette(slug: str, text: str) -> dict[str, str] | None:
     if missing_ansi:
         print(f"  skip {slug}: incomplete palette, missing {', '.join(missing_ansi)}", file=sys.stderr)
         return None
-    # Mode fallback: missing/invalid `mode` keys default to luma of the background.
-    # Mirrors Omarchy's own resolve_theme_mode (raw R+G+B > 382 = light) and the
-    # plugin's luma() > 0.5 branch in paletteFromToml.
+    # Mode fallback: missing/invalid `mode` keys default to the background's
+    # Rec.709 luma (> 0.5 = light), matching the plugin's paletteFromToml and
+    # the renderer's renderedModeFor. The hook instead mirrors Omarchy's
+    # resolve_theme_mode (raw R+G+B > 382), which only feeds the skin
+    # `description:` line — see tests/palette-parity.sh.
     if "mode" not in out:
         out["mode"] = "light" if luma(out["background"]) > 0.5 else "dark"
     return out

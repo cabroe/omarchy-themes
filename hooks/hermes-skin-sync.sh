@@ -83,7 +83,8 @@ fi
 # quotes (the format Omarchy ships).
 
 # Extract a hex value for $1 (e.g. "background") and print it. Empty on miss.
-# - Grep uses a word-boundary look-around so `red` doesn't match `redder`.
+# - Grep matches a key-name boundary ([^A-Za-z0-9_] before the key) so `red`
+#   doesn't match `redder` — ERE has no look-around, a character class does it.
 # - Sed anchors on the first `=` (via `[^=]*=` instead of greedy `.*=`) so a
 #   trailing comment like `# was = "#000000"` is consumed by `.*` instead of
 #   being parsed as the value. A greedy `.*=` would otherwise pull the last
