@@ -949,6 +949,8 @@ body.launcher-open { overflow: hidden; }
   .install-head { grid-column: span 12; }
   .install-row .cmd-block { grid-column: span 8; }
   .install-row .note { grid-column: span 4; margin: 0; }
+  /* Reste-/Aufraeum-Hinweis: eigene Zeile unter dem Befehl statt schmaler Spalte */
+  .install-row .note-wide { grid-column: span 12; }
 }
 
 @media (min-width: 1121px) {
