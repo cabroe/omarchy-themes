@@ -1,301 +1,561 @@
-// omarchy-themes — Plugin-Story-Homepage
-// Zyklisches Wechseln zwischen den 29 Omarchy-Paletten via Cycle-Button,
-// T-Tastenkuerzel, Hero-Picker-Toggle und Live-Demo-Picker/Bento.
-// Persistiert die Wahl in localStorage; th emed CSS-Variablen werden
-// direkt am :root gesetzt, damit die ganze Site synchron umfaerbt.
+// omarchy-themes — Werkstatt-Landing-Page.
+//
+// Farben kommen ausschliesslich aus applyTheme(): alle abgeleiteten Tokens
+// (Flaechen, Linien, gedimmter Text, Akzent-Text, Statusfarben) werden gegen die
+// Flaeche gerechnet, auf der sie tatsaechlich liegen — 29 Paletten, 5 davon light.
+//
+// WICHTIG (Vertragsregel): die Farb-Helfer rechnen intern mit [r,g,b]-Tupeln und
+// serialisieren erst am Ende zu Hex. Der frueher benutzte mix()->'rgb(...)' Pfad
+// war mit parseHex() (nur Hex) unvertraeglich: jede Kontrastmessung auf einem
+// Misch-Ergebnis las Luminanz 0 und lieferte still falsche Tokens.
+//
+// Tastatur: T = naechstes Theme, Shift+T = vorheriges, / = Launcher.
 
 import { THEMES } from './themes.js';
 // i18n als `tr`, weil in mehreren Schleifen `t` fuer ein Theme steht.
 import { initI18n, onLangChange, t as tr } from './i18n.js';
 
+// Default per Slug, nie per Index: `make generate` schreibt die Tabelle neu.
+const DEFAULT_SLUG = 'tokyo-night';
+
 // ---- DOM refs ----
-const html         = document.documentElement;
-const cycleBtn     = document.getElementById('cycleBtn');
-const picker       = document.getElementById('themePicker');
-const pickerGrid   = document.getElementById('pickerGrid');     // Hero (collapsed)
-const pickerToggle = document.getElementById('pickerToggle');
-const pickerDemo   = document.getElementById('pickerGridDemo'); // Demo-Band (expanded, 29 Tiles)
-const currentSlug  = document.getElementById('currentSlug');
-const themesBento  = document.getElementById('themesBento');
+const root        = document.documentElement;
+const cycleBtns   = [document.getElementById('cycleBtn'), document.getElementById('cycleBtnDemo')].filter(Boolean);
+const launcherBtns = [document.getElementById('launcherBtn'), document.getElementById('launcherBtnDemo')].filter(Boolean);
+const picker      = document.getElementById('themePicker');
+const readout     = document.getElementById('currentSlug');
+const roTheme     = document.getElementById('roTheme');
+const roMode      = document.getElementById('roMode');
+const grid        = document.getElementById('themeGrid');
+const demoCount   = document.getElementById('demoCount');
+const footCount   = document.getElementById('footCount');
+const launcher    = document.getElementById('launcher');
+const launcherPanel = document.getElementById('launcherPanel');
+const launcherInput = document.getElementById('launcherInput');
+const launcherList  = document.getElementById('launcherList');
+const launcherCount = document.getElementById('launcherCount');
 
 // Statische Strings uebersetzen + Sprach-Switcher verdrahten, BEVOR die
-// dynamischen Listen (Select, Picker-Tiles, Bento) gerendert werden — sonst
-// haengen sie in der Default-Sprache fest.
+// dynamischen Listen (Select, Tiles, Launcher) gerendert werden.
 initI18n();
 
-// ---- helpers ----
-const bySlug = (slug) => THEMES.find(t => t.slug === slug) || THEMES[0];
+// ---- Theme-Nachschlag ----
+const bySlug = (slug) => THEMES.find((t) => t.slug === slug)
+  || THEMES.find((t) => t.slug === DEFAULT_SLUG)
+  || THEMES[0];
 
 function labelFor(slug) {
-  return slug
-    .split('-')
-    .map(w => w[0].toUpperCase() + w.slice(1))
-    .join(' ');
+  return String(slug).split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
 }
 
-// "Nord · light" / "Nord · dark" — Modus-Label kommt aus i18n.
+function modeLabel(theme) {
+  return theme.mode === 'light' ? tr('mode.light') : tr('mode.dark');
+}
+
 function themeLabel(theme) {
-  return labelFor(theme.slug) + ' · ' + tr(theme.mode === 'light' ? 'mode.light' : 'mode.dark');
+  return labelFor(theme.slug) + ' · ' + modeLabel(theme);
 }
 
-// Aktuell aktives Theme (fuer Re-Labeling ohne erneutes applyTheme()).
-let activeSlug = null;
+// ==========================================================================
+// Farbmathematik — [r,g,b]-Tupel
+// ==========================================================================
+const WHITE = [255, 255, 255];
+const BLACK = [0, 0, 0];
 
-function applyTheme(slug, { persist = true } = {}) {
-  const theme = bySlug(slug);
-  const root  = document.documentElement;
-
-  // drei Hintergrund-Schichten aus accent + background ableiten
-  const bg = theme.c.background || theme.c.dark_background || '#0d1117';
-  const fg = theme.c.foreground || '#e6edf3';
-
-  root.setAttribute('data-theme', theme.slug);
-  root.style.setProperty('--bg',        bg);
-  root.style.setProperty('--fg',        fg);
-  root.style.setProperty('--bg-elev',   mix(bg, theme.c.accent, 0.08));
-  root.style.setProperty('--bg-elev-2', mix(bg, theme.c.accent, 0.14));
-  root.style.setProperty('--accent',    theme.c.accent || '#58a6ff');
-  root.style.setProperty('--accent-fg', pickFg(theme.c.accent));
-  root.style.setProperty('--fg-muted',  mix(fg, bg, 0.4));
-  root.style.setProperty('--border',    theme.c.selection || mix(fg, bg, 0.18));
-  root.style.setProperty('--ok',        theme.c.green || '#3fb950');
-
-  // Luma-Boost: bei grauen Akzenten (white, solitude, lumon, vantablack) sind die
-  // radial-tint-Layer im Hero sonst unsichtbar. wir heben sie proportional an.
-  const accentLuma = luminance(theme.c.accent);
-  const boost = accentLuma < 0.35;
-  const strongPct = boost ? 24 : 16;
-  const midPct    = boost ? 16 : 10;
-  const softPct   = boost ? 10 :  6;
-  root.style.setProperty('--accent-tint-strong', `color-mix(in srgb, var(--accent) ${strongPct}%, transparent)`);
-  root.style.setProperty('--accent-tint-mid',    `color-mix(in srgb, var(--accent) ${midPct}%, transparent)`);
-  root.style.setProperty('--accent-tint-soft',   `color-mix(in srgb, var(--accent) ${softPct}%, transparent)`);
-
-  // UI-Labels aktualisieren
-  activeSlug = theme.slug;
-  if (currentSlug) currentSlug.textContent = theme.slug;
-
-  // <select>-Picker synchronisieren
-  if (picker) picker.value = theme.slug;
-
-  // Polygon- + Bento-Tiles auf den aktiven Slug synchronisieren
-  syncPressed(theme.slug);
-
-  if (persist) {
-    try { localStorage.setItem('omarchy-theme', theme.slug); } catch (e) {}
+// Nimmt Hex, rgb()/rgba() oder ein Tupel. Nie still [0,0,0] fuer gueltige Werte.
+function parseColor(value) {
+  if (Array.isArray(value)) return value.slice(0, 3).map(clampByte);
+  if (typeof value !== 'string') return BLACK;
+  const s = value.trim();
+  const fn = s.match(/^rgba?\(([^)]+)\)$/i);
+  if (fn) {
+    const parts = fn[1].split(/[,\s/]+/).filter(Boolean).map(Number);
+    if (parts.length >= 3 && parts.slice(0, 3).every(Number.isFinite)) return parts.slice(0, 3).map(clampByte);
+    return BLACK;
   }
-
-  const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-  if (themeColorMeta) themeColorMeta.setAttribute('content', bg);
+  let h = s.replace(/^#/, '');
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  if (h.length === 8) h = h.slice(0, 6);
+  if (!/^[0-9a-f]{6}$/i.test(h)) return BLACK;
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
 }
 
-// aria-pressed aller Tiles auf den aktiven Slug setzen. Separat, weil
-// renderBento() die Tiles neu baut (Sprachwechsel) und den State verliert.
-function syncPressed(slug) {
-  for (const grid of [pickerGrid, pickerDemo]) {
-    if (!grid) continue;
-    for (const tile of grid.querySelectorAll('.picker-tile')) {
-      tile.setAttribute('aria-pressed', String(tile.dataset.slug === slug));
-    }
-  }
-  if (!themesBento) return;
-  for (const tile of themesBento.querySelectorAll('[data-slug]')) {
-    if (tile.classList.contains('theme-tile')) {
-      tile.setAttribute('aria-pressed', String(tile.dataset.slug === slug));
-    }
-  }
+function clampByte(v) {
+  return Math.max(0, Math.min(255, Math.round(v)));
 }
 
-// Mische zwei Hex-Farben (linear-interpolation).
-function mix(hexA, hexB, t) {
-  if (!hexA || !hexB) return hexA || hexB || '#000000';
-  const a = parseHex(hexA), b = parseHex(hexB);
-  const r  = Math.round(a[0] + (b[0] - a[0]) * t);
-  const g  = Math.round(a[1] + (b[1] - a[1]) * t);
-  const bl = Math.round(a[2] + (b[2] - a[2]) * t);
-  return `rgb(${r}, ${g}, ${bl})`;
-}
-function parseHex(h) {
-  // Guard gegen undefined / empty / short-hex ohne den NaN in CSS durchzulassen.
-  if (typeof h !== 'string' || !h) return [0, 0, 0];
-  let s = h.replace('#', '');
-  if (s.length === 3) s = s.split('').map(c => c + c).join('');
-  if (s.length !== 6 || /[^0-9a-f]/i.test(s)) return [0, 0, 0];
-  return [parseInt(s.slice(0, 2), 16), parseInt(s.slice(2, 4), 16), parseInt(s.slice(4, 6), 16)];
+function toHex(tuple) {
+  return '#' + tuple.slice(0, 3).map((v) => clampByte(v).toString(16).padStart(2, '0')).join('');
 }
 
-// Rec. 709 luma (0..1). Linearisierung per sRGB-Gamma.
-function luminance(hex) {
-  if (!hex) return 0;
-  const [r, g, b] = parseHex(hex).map(v => {
-    const c = v / 255;
-    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+function mixTuple(a, b, t) {
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+}
+
+// 8-bit-Rundung wie CSS sie vornimmt: Kontrast wird auf dem GLEICHEN Wert
+// geprueft, der spaeter als Token im Stylesheet landet (sonst rutschen Ziele
+// wie 4.50 durch Quantisierung auf 4.47).
+function q8(tuple) {
+  return parseColor(toHex(tuple));
+}
+
+// Rec. 709 Luma (0..1), linearisiert per sRGB-Gamma.
+function luminance(c) {
+  const [r, g, b] = c.map((v) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
   });
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
-// WCAG-Kontrast zweier sRGB-Hex-Werte.
-function contrastRatio(a, b) {
-  const la = luminance(a), lb = luminance(b);
-  const hi = Math.max(la, lb), lo = Math.min(la, lb);
+function contrast(a, b) {
+  const la = luminance(a);
+  const lb = luminance(b);
+  const hi = Math.max(la, lb);
+  const lo = Math.min(la, lb);
   return (hi + 0.05) / (lo + 0.05);
 }
 
-// Beste Vordergrund-Variante aus #0d1117 / #fff per Kontrastvergleich — fuer CTA accent-fg.
-function pickFg(bg) {
-  const CANDIDATES = ['#0d1117', '#ffffff'];
-  let best = '#0d1117', bestR = -1;
-  for (const c of CANDIDATES) {
-    const r = contrastRatio(bg, c);
-    if (Number.isFinite(r) && r > bestR) { bestR = r; best = c; }
+// Flaeche: accent so weit in bg mischen, bis der Kontrast zu bg das Ziel trifft.
+function surface(bg, accent, target, start = 0.07, step = 0.03, cap = 0.22) {
+  let t = Math.min(start, cap);
+  let out = q8(mixTuple(bg, accent, t));
+  while (t < cap && contrast(out, bg) < target) {
+    t = Math.min(cap, t + step);
+    out = q8(mixTuple(bg, accent, t));
+  }
+  return out;
+}
+
+// Kleinste Mischmenge Richtung `towards`, die gegen `base` das Ziel erreicht.
+function mixToContrast(base, towards, target, step = 0.01, cap = 0.65) {
+  let t = 0;
+  let out = base;
+  while (t < cap) {
+    t = Math.min(cap, t + step);
+    out = q8(mixTuple(base, towards, t));
+    if (contrast(out, base) >= target) return out;
+  }
+  return out;
+}
+
+// Groesste Mischmenge Richtung Flaechenfarbe, die das Ziel noch haelt (so blass
+// wie moeglich, aber nie unter dem Ziel).
+function dimToContrast(fg, surf, target, step = 0.01) {
+  let best = q8(fg);
+  for (let t = step; t <= 1.0001; t += step) {
+    const cand = q8(mixTuple(fg, surf, t));
+    if (contrast(cand, surf) >= target) best = cand;
+    else break;
   }
   return best;
 }
 
-// ---- <select>-Options fuellen (a11y + no-JS-Fallback) ----
-if (picker) {
-  for (const t of THEMES) {
-    const opt = document.createElement('option');
-    opt.value = t.slug;
-    opt.textContent = themeLabel(t);
-    picker.appendChild(opt);
+// Farbe Richtung `towards` aufhellen, bis sie gegen `against` das Ziel haelt.
+function liftTo(color, towards, against, target, step = 0.01, cap = 1.0) {
+  if (contrast(color, against) >= target) return color;
+  let t = 0;
+  let out = q8(color);
+  while (t < cap) {
+    t = Math.min(cap, t + step);
+    out = q8(mixTuple(color, towards, t));
+    if (contrast(out, against) >= target) return out;
+  }
+  return out;
+}
+
+// Akzent als Textfarbe: erst pruefen, dann Richtung fg entsaettigen. Gemessen
+// gegen --accent-wash-2, weil dort Tile-Ring und aktive Launcher-Zeile liegen.
+function accentText(accent, fg, wash2, target = 4.5, cap = 0.75) {
+  if (contrast(accent, wash2) >= target) return accent;
+  const lifted = liftTo(accent, fg, wash2, target, 0.01, cap);
+  return contrast(lifted, wash2) >= target ? lifted : fg;
+}
+
+// Beste Vordergrundfarbe auf einer Fuellflaeche (ersetzt hartcodiertes '#0d1117').
+function pickOnColor(fill) {
+  let best = BLACK;
+  let bestRatio = -1;
+  for (const candidate of [WHITE, BLACK]) {
+    const ratio = contrast(fill, candidate);
+    if (Number.isFinite(ratio) && ratio > bestRatio) {
+      bestRatio = ratio;
+      best = candidate;
+    }
+  }
+  return best;
+}
+
+function bgOf(theme) {
+  return parseColor(theme.c.background || theme.c.dark_background || '#1a1b26');
+}
+
+function fgOf(theme) {
+  return parseColor(theme.c.foreground || theme.c.dark_foreground || '#a9b1d6');
+}
+
+function accentOf(theme) {
+  return parseColor(theme.c.accent || theme.c.blue || '#7aa2f7');
+}
+
+// ==========================================================================
+// Theme anwenden
+// ==========================================================================
+let activeSlug = null;
+
+function applyTheme(slug, { persist = true } = {}) {
+  const theme = bySlug(slug);
+  const bg = bgOf(theme);
+  const fg = fgOf(theme);
+  const accent = accentOf(theme);
+
+  // Flaechen liegen unter Text -> sie zuerst, danach die Textfarben dagegen rechnen.
+  const elev = surface(bg, accent, 1.10);
+  const elev2 = surface(bg, accent, 1.18, 0.13);
+  const wash = q8(mixTuple(bg, accent, 0.10));
+  const wash2 = q8(mixTuple(bg, accent, 0.18));
+
+  const border = mixToContrast(bg, fg, 1.5, 0.01, 0.65);
+  const borderStrong = mixToContrast(bg, fg, 3.0, 0.01, 0.65);
+
+  // --fg-muted steht auf --bg-elev (kbd-Chip, Tile-Modus, Launcher, Caption).
+  const fgMuted = dimToContrast(fg, elev, 4.5);
+  const accentTxt = accentText(accent, fg, wash2);
+  const accentFg = pickOnColor(accent);
+
+  // Statusfarben roh liegen in 6-8 von 29 Paletten unter 4.5 -> gegen --bg anheben.
+  const ok = liftTo(parseColor(theme.c.green || '#9ece6a'), fg, bg, 4.5, 0.01, 1.0);
+  const warn = liftTo(parseColor(theme.c.yellow || '#e0af68'), fg, bg, 4.5, 0.01, 1.0);
+  const err = liftTo(parseColor(theme.c.red || '#f7768e'), fg, bg, 4.5, 0.01, 1.0);
+
+  const selection = theme.c.selection ? parseColor(theme.c.selection) : wash2;
+  const selectionFg = pickOnColor(selection);
+
+  const set = (name, value) => root.style.setProperty(name, value);
+  set('--bg', toHex(bg));
+  set('--bg-elev', toHex(elev));
+  set('--bg-elev-2', toHex(elev2));
+  set('--fg', toHex(fg));
+  set('--fg-muted', toHex(fgMuted));
+  set('--border', toHex(border));
+  set('--border-strong', toHex(borderStrong));
+  set('--accent', toHex(accent));
+  set('--accent-text', toHex(accentTxt));
+  set('--accent-fg', toHex(accentFg));
+  set('--accent-wash', toHex(wash));
+  set('--accent-wash-2', toHex(wash2));
+  set('--ok', toHex(ok));
+  set('--warn', toHex(warn));
+  set('--err', toHex(err));
+  set('--selection', toHex(selection));
+  set('--selection-fg', toHex(selectionFg));
+
+  root.setAttribute('data-theme', theme.slug);
+  root.style.colorScheme = theme.mode === 'light' ? 'light' : 'dark';
+
+  activeSlug = theme.slug;
+  updateReadout();
+  if (picker) picker.value = theme.slug;
+  syncPressed(theme.slug);
+
+  if (persist) {
+    try { localStorage.setItem('omarchy-theme', theme.slug); } catch (e) { /* privater Modus */ }
+  }
+
+  const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeColorMeta) themeColorMeta.setAttribute('content', toHex(bg));
+}
+
+// Readout in der Topbar (aria-live) + Werte im Flow-Readout.
+function updateReadout() {
+  const theme = bySlug(activeSlug);
+  const mode = modeLabel(theme);
+  const text = tr('status.theme') + ': ' + theme.slug + ' · ' + mode;
+  if (readout) readout.textContent = text;
+  if (roTheme) roTheme.textContent = theme.slug;
+  if (roMode) roMode.textContent = mode;
+}
+
+// ---- aria-pressed aller Tiles auf den aktiven Slug setzen ----
+function syncPressed(slug) {
+  if (!grid) return;
+  for (const tile of grid.querySelectorAll('.tile')) {
+    tile.setAttribute('aria-pressed', String(tile.dataset.slug === slug));
   }
 }
 
-// ---- Polygon-Tile-Picker (Hero: collapsed, Demo: expanded) ----
-function fillPickerGrid(grid) {
+// ==========================================================================
+// Theme-Tiles (Demo) — einmal gebaut, beim Sprachwechsel nur neu beschriftet
+// ==========================================================================
+function renderTiles() {
   if (!grid) return;
-  for (const t of THEMES) {
+  const frag = document.createDocumentFragment();
+  for (const theme of THEMES) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'picker-tile';
-    btn.dataset.slug = t.slug;
-    btn.title = themeLabel(t);
+    btn.className = 'tile';
+    btn.dataset.slug = theme.slug;
     btn.setAttribute('aria-pressed', 'false');
-    btn.textContent = t.slug;
-    const accentColor = t.c.accent || '#58a6ff';
-    btn.style.background = accentColor;
-    btn.style.setProperty('--tile-fg', pickFg(accentColor));
-    btn.addEventListener('click', () => applyTheme(t.slug));
-    grid.appendChild(btn);
+
+    const swatch = document.createElement('span');
+    swatch.className = 'tile-swatch';
+    swatch.setAttribute('aria-hidden', 'true');
+    for (const color of [theme.c.accent, theme.c.background || theme.c.dark_background, theme.c.foreground]) {
+      const cell = document.createElement('span');
+      cell.style.background = color || 'transparent';
+      swatch.append(cell);
+    }
+
+    const slugEl = document.createElement('span');
+    slugEl.className = 'tile-slug';
+    slugEl.textContent = theme.slug;
+
+    const modeEl = document.createElement('span');
+    modeEl.className = 'tile-mode';
+
+    btn.append(swatch, slugEl, modeEl);
+    btn.addEventListener('click', () => applyTheme(theme.slug));
+    frag.append(btn);
+  }
+  grid.append(frag);
+  relabelTiles();
+}
+
+function relabelTiles() {
+  if (grid) {
+    for (const tile of grid.querySelectorAll('.tile')) {
+      const theme = bySlug(tile.dataset.slug);
+      const modeEl = tile.querySelector('.tile-mode');
+      if (modeEl) modeEl.textContent = modeLabel(theme);
+      tile.title = themeLabel(theme);
+      tile.setAttribute('aria-label', tr('tile.aria', { name: labelFor(theme.slug) }));
+    }
+  }
+  const n = THEMES.length;
+  if (demoCount) demoCount.textContent = tr('demo.count', { n });
+  if (footCount) footCount.textContent = tr('demo.count', { n });
+}
+
+// ---- <select> bleibt als versteckter Spiegel der Auswahl ----
+if (picker) {
+  for (const theme of THEMES) {
+    const opt = document.createElement('option');
+    opt.value = theme.slug;
+    opt.textContent = themeLabel(theme);
+    picker.append(opt);
   }
 }
-fillPickerGrid(pickerGrid);
-fillPickerGrid(pickerDemo);
 
-// Demo-Picker schliesst sich nicht selbst nach Klick (Expanded-UI),
-// Hero-Picker dagegen schon — toggle-button unten.
-let pickerExpanded = false;
-if (pickerToggle) {
-  pickerToggle.addEventListener('click', () => setPickerExpanded(!pickerExpanded));
-}
-function setPickerExpanded(v) {
-  pickerExpanded = v;
-  if (!pickerToggle) return;
-  pickerToggle.setAttribute('aria-expanded', String(v));
-  pickerToggle.textContent = v ? tr('hero.pickThemeOpen') : tr('hero.pickTheme');
-  if (pickerGrid) pickerGrid.hidden = !v;
-}
+renderTiles();
 
-// ---- bento-themes (12 defaults, je 1 Highlight + 3 Satelliten) ----
-const BENTO_THEMES = [
-  'catppuccin','catppuccin-latte','gruvbox','kanagawa','nord',
-  'osaka-jade','rose-pine','solitude','tokyo-night','hackerman',
-  'flexoki-light','lumon'
-];
-
-function makeSatellite(theme, field, label) {
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'theme-tile tile-satellite';
-  btn.dataset.slug = theme.slug;
-  btn.setAttribute('aria-pressed', 'false');
-  const v = theme.c[field] || theme.c.bright_blue || theme.c.bright_yellow || '#888';
-  btn.innerHTML = `
-    <span class="tile-meta">${label}</span>
-    <span class="tile-swatches" aria-hidden="true">
-      <span style="background:${v}"></span>
-      <span style="background:${v}"></span>
-      <span style="background:${v}"></span>
-    </span>`;
-  btn.addEventListener('click', () => applyTheme(theme.slug));
-  return btn;
-}
-
-function renderBento() {
-  if (!themesBento) return;
-  themesBento.replaceChildren();
-  for (const slug of BENTO_THEMES) {
-    const theme = bySlug(slug);
-
-    // Highlight-Tile
-    const highlight = document.createElement('button');
-    highlight.type = 'button';
-    highlight.className = 'theme-tile tile-highlight';
-    highlight.dataset.slug = slug;
-    highlight.setAttribute('aria-pressed', 'false');
-    highlight.setAttribute('aria-label', tr('bento.activate', { name: labelFor(slug) }));
-    const mode = theme.mode === 'light' ? 'light' : 'dark';
-    highlight.innerHTML = `
-      <span class="tile-meta">${mode}</span>
-      <span class="tile-name">${labelFor(slug)}</span>
-      <span class="tile-cmd">omarchy theme set ${slug}</span>`;
-    highlight.addEventListener('click', () => applyTheme(slug));
-    themesBento.appendChild(highlight);
-
-    // 3 Satelliten (accent / background / foreground) als Swatch-Cluster
-    themesBento.append(
-      makeSatellite(theme, 'accent',     labelFor(slug) + ' · accent'),
-      makeSatellite(theme, 'background', labelFor(slug) + ' · bg'),
-      makeSatellite(theme, 'foreground', labelFor(slug) + ' · fg')
-    );
-  }
-
-  // "More"-Tile am Ende → scrollt hinauf zum Polygon-Picker
-  const more = document.createElement('button');
-  more.type = 'button';
-  more.className = 'theme-tile tile-more';
-  const remaining = THEMES.length - BENTO_THEMES.length;
-  more.textContent = tr('bento.more', { n: remaining });
-  more.addEventListener('click', () => {
-    if (pickerDemo) pickerDemo.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
-  themesBento.appendChild(more);
-}
-
-renderBento();
-
-// ---- cycle ----
-function cycle() {
-  const current = (picker && picker.value) || (currentSlug && currentSlug.textContent) || THEMES[0].slug;
-  const i = THEMES.findIndex(t => t.slug === current);
-  const next = THEMES[(i + 1) % THEMES.length];
+// ==========================================================================
+// Theme wechseln
+// ==========================================================================
+function cycle(dir = 1) {
+  const i = THEMES.findIndex((t) => t.slug === activeSlug);
+  const next = THEMES[(i + dir + THEMES.length) % THEMES.length];
   applyTheme(next.slug);
 }
-if (cycleBtn) cycleBtn.addEventListener('click', cycle);
+
+for (const btn of cycleBtns) btn.addEventListener('click', () => cycle(1));
 if (picker) picker.addEventListener('change', () => applyTheme(picker.value));
 
-// T-Taste → naechstes Theme (ausser Modifier gedrueckt oder Fokus in Input/SELECT).
+// ==========================================================================
+// Launcher (/)
+// ==========================================================================
+let launcherOpen = false;
+let launcherIndex = 0;
+let launcherMatches = [];
+let launcherTrigger = null;
+
+function openLauncher(trigger) {
+  if (!launcher || launcherOpen) return;
+  launcherTrigger = trigger || document.activeElement;
+  launcherOpen = true;
+  launcher.hidden = false;
+  launcherIndex = 0;
+  if (launcherInput) {
+    launcherInput.value = '';
+    filterLauncher('');
+    launcherInput.focus();
+  }
+  for (const btn of launcherBtns) btn.setAttribute('aria-expanded', 'true');
+}
+
+function closeLauncher({ restore = true } = {}) {
+  if (!launcher || !launcherOpen) return;
+  launcherOpen = false;
+  launcher.hidden = true;
+  for (const btn of launcherBtns) btn.setAttribute('aria-expanded', 'false');
+  if (restore && launcherTrigger && typeof launcherTrigger.focus === 'function') launcherTrigger.focus();
+}
+
+function filterLauncher(query) {
+  const needle = query.trim().toLowerCase();
+  launcherMatches = THEMES.filter((t) => !needle || t.slug.toLowerCase().includes(needle));
+  launcherIndex = Math.min(launcherIndex, Math.max(0, launcherMatches.length - 1));
+  renderLauncher();
+}
+
+function renderLauncher() {
+  if (!launcherList || !launcherInput) return;
+  launcherList.replaceChildren();
+
+  if (!launcherMatches.length) {
+    const empty = document.createElement('li');
+    empty.className = 'launcher-empty';
+    empty.setAttribute('role', 'presentation');
+    empty.textContent = tr('launcher.empty');
+    launcherList.append(empty);
+    launcherInput.removeAttribute('aria-activedescendant');
+  } else {
+    launcherMatches.forEach((theme, i) => {
+      const row = document.createElement('li');
+      row.className = 'launcher-row';
+      row.id = 'launcher-opt-' + theme.slug;
+      row.setAttribute('role', 'option');
+      row.setAttribute('aria-selected', String(i === launcherIndex));
+      row.dataset.index = String(i);
+
+      const chip = document.createElement('span');
+      chip.className = 'launcher-chip';
+      chip.style.background = theme.c.accent || 'transparent';
+      chip.setAttribute('aria-hidden', 'true');
+
+      const slugEl = document.createElement('span');
+      slugEl.className = 'launcher-slug';
+      slugEl.textContent = theme.slug;
+
+      const modeEl = document.createElement('span');
+      modeEl.className = 'launcher-mode';
+      modeEl.textContent = modeLabel(theme);
+
+      row.append(chip, slugEl, modeEl);
+      row.addEventListener('mousedown', (e) => e.preventDefault());
+      row.addEventListener('click', () => chooseLauncher(i));
+      launcherList.append(row);
+    });
+
+    const active = launcherMatches[launcherIndex];
+    launcherInput.setAttribute('aria-activedescendant', 'launcher-opt-' + active.slug);
+    const activeRow = launcherList.children[launcherIndex];
+    if (activeRow && typeof activeRow.scrollIntoView === 'function') {
+      activeRow.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  if (launcherCount) {
+    launcherCount.textContent = tr('launcher.count', { n: launcherMatches.length, m: THEMES.length });
+  }
+}
+
+function setLauncherIndex(next) {
+  if (!launcherMatches.length) return;
+  launcherIndex = Math.max(0, Math.min(launcherMatches.length - 1, next));
+  renderLauncher();
+}
+
+function chooseLauncher(index) {
+  const theme = launcherMatches[index];
+  if (!theme) return;
+  applyTheme(theme.slug);
+  closeLauncher();
+}
+
+for (const btn of launcherBtns) {
+  btn.addEventListener('click', () => openLauncher(btn));
+  btn.setAttribute('aria-expanded', 'false');
+}
+
+if (launcher) {
+  launcher.addEventListener('click', (e) => {
+    if (e.target === launcher) closeLauncher();
+  });
+}
+
+if (launcherInput) {
+  launcherInput.addEventListener('input', () => {
+    launcherIndex = 0;
+    filterLauncher(launcherInput.value);
+  });
+
+  launcherInput.addEventListener('keydown', (e) => {
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setLauncherIndex(launcherIndex + 1);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setLauncherIndex(launcherIndex - 1);
+        break;
+      case 'Home':
+        e.preventDefault();
+        setLauncherIndex(0);
+        break;
+      case 'End':
+        e.preventDefault();
+        setLauncherIndex(launcherMatches.length - 1);
+        break;
+      case 'Enter':
+        e.preventDefault();
+        chooseLauncher(launcherIndex);
+        break;
+      case 'Escape':
+        e.preventDefault();
+        closeLauncher();
+        break;
+      case 'Tab':
+        // Fokus-Trap: der Dialog hat genau ein fokussierbares Element.
+        e.preventDefault();
+        break;
+      default:
+        break;
+    }
+  });
+}
+
+if (launcherPanel) {
+  launcherPanel.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab' && launcherInput) {
+      e.preventDefault();
+      launcherInput.focus();
+    }
+  });
+}
+
+// ==========================================================================
+// Globale Tastatur
+// ==========================================================================
 window.addEventListener('keydown', (e) => {
-  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
-  if (e.key !== 't' && e.key !== 'T') return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
   const tag = (e.target && e.target.tagName) || '';
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-  e.preventDefault();
-  cycle();
+  const inField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target && e.target.isContentEditable);
+
+  if ((e.key === 't' || e.key === 'T') && !inField && !launcherOpen) {
+    e.preventDefault();
+    cycle(e.shiftKey ? -1 : 1);
+    return;
+  }
+  if (e.key === '/' && !inField && !launcherOpen) {
+    e.preventDefault();
+    openLauncher(launcherBtns[0] || null);
+  }
 });
 
 // ---- init ----
 const initial = (() => {
   try {
-    return localStorage.getItem('omarchy-theme') || THEMES[10].slug; // THEMES[10] = hermarchy (fallback)
-  } catch (e) { return THEMES[0].slug; }
+    return localStorage.getItem('omarchy-theme') || DEFAULT_SLUG;
+  } catch (e) {
+    return DEFAULT_SLUG;
+  }
 })();
 applyTheme(initial, { persist: false });
 
-// ---- Sprachwechsel: dynamische Labels neu setzen ----
-// applyI18n() hat die statischen Strings schon ersetzt; hier folgen Select,
-// Picker-Titles, Toggle-Label und der Bento-Neubau (der aria-pressed verliert).
+// ---- Sprachwechsel: nur noch die verbliebenen dynamischen Labels ----
+// applyI18n() hat die statischen Strings bereits gesetzt; hier folgen
+// Select-Optionen, Tile-Beschriftungen, Zaehler und der Readout.
 function relabel() {
   if (picker) {
     for (const opt of picker.options) {
@@ -303,17 +563,9 @@ function relabel() {
       if (theme) opt.textContent = themeLabel(theme);
     }
   }
-  for (const grid of [pickerGrid, pickerDemo]) {
-    if (!grid) continue;
-    for (const tile of grid.querySelectorAll('.picker-tile')) {
-      const theme = bySlug(tile.dataset.slug);
-      if (theme) tile.title = themeLabel(theme);
-    }
-  }
-  if (pickerToggle) {
-    pickerToggle.textContent = pickerExpanded ? tr('hero.pickThemeOpen') : tr('hero.pickTheme');
-  }
-  renderBento();
+  relabelTiles();
+  if (launcherOpen) renderLauncher();
+  if (activeSlug) updateReadout();
   if (activeSlug) syncPressed(activeSlug);
 }
 onLangChange(relabel);

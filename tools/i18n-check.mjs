@@ -26,7 +26,7 @@ const en = new Set(Object.keys(S.en));
 
 const html = fs.readFileSync(path.resolve(dir, 'index.html'), 'utf8');
 const htmlKeys = new Set(
-  [...html.matchAll(/data-i18n(?:-html|-aria-label|-title)?="([^"]+)"/g)].map((m) => m[1])
+  [...html.matchAll(/data-i18n(?:-html|-aria-label|-title|-alt|-placeholder)?="([^"]+)"/g)].map((m) => m[1])
 );
 
 const js = fs.readFileSync(path.resolve(dir, 'app.js'), 'utf8');

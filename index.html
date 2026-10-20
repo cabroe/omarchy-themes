@@ -3,232 +3,307 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="light dark">
+  <meta name="color-scheme" content="dark light">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <meta name="theme-color" content="#0d1117">
+  <meta name="theme-color" content="#1a1b26">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'">
   <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=(), accelerometer=(), magnetometer=()">
   <title>omarchy-themes · Hermes-nativ</title>
   <meta name="description" content="Omarchy-Paletten, Hermes-nativ — Plugin für Desktop, ⌘K und CLI/TUI-Skin. Bidirektionaler Sync, ein Plugin, drei Komponenten.">
   <link rel="stylesheet" href="styles.css">
   <!-- Inline script: setzt data-theme synchron VOR Modul-Init, damit applyTheme() den saved-Wert
-       ohne Race uebernehmen kann. Themed CSS-Variablen werden anschliessend in app.js gesetzt;
-       ein Flash-of-Unthemed-Paint ist bei dieser Single-Asset-Architektur (kein Build) bewusst
-       akzeptiert, weil eine 29-Theme-CSS-Spiegelung in styles.css sonst zu Drift fuehrt. -->
+       ohne Race uebernehmen kann. Das vollstaendige Token-Set wird in app.js am :root gesetzt;
+       eine 29-Theme-Spiegelung in styles.css wuerde driften (kein Build). -->
   <script>
     (function () {
       try {
         var saved = localStorage.getItem('omarchy-theme');
-        if (saved) {
-          document.documentElement.setAttribute('data-theme', saved);
-        }
+        if (saved) document.documentElement.setAttribute('data-theme', saved);
       } catch (e) {}
     })();
   </script>
 </head>
 <body>
-  <a href="#demo" class="skip-link" data-i18n="a11y.skip">Zum Inhalt springen</a>
-  <header class="nav">
-    <a class="brand" href="#">omarchy-themes</a>
-    <nav>
-      <a href="#architecture" data-i18n="nav.flow">Flow</a>
-      <a href="#components" data-i18n="nav.components">Komponenten</a>
-      <a href="#demo" data-i18n="nav.demo">Demo</a>
-      <a href="#install" data-i18n="nav.install">Install</a>
-      <a href="https://github.com/cabroe/omarchy-themes" target="_blank" rel="noopener noreferrer">GitHub →</a>
+  <a class="skip-link" href="#main" data-i18n="a11y.skip">Zum Inhalt springen</a>
+
+  <!-- ============================ TOPBAR =========================== -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#hero">
+        <span class="brand-name">omarchy-themes</span>
+        <span class="brand-ver mono-xs">v1.2.0</span>
+      </a>
+      <p class="topbar-status mono" id="currentSlug" aria-live="polite">theme: tokyo-night</p>
+      <nav class="topnav" aria-label="Sektionen" data-i18n-aria-label="nav.aria">
+        <a href="#architecture"><span class="idx" aria-hidden="true">01</span><span data-i18n="nav.flow">Flow</span></a>
+        <a href="#components"><span class="idx" aria-hidden="true">02</span><span data-i18n="nav.components">Komponenten</span></a>
+        <a href="#demo"><span class="idx" aria-hidden="true">03</span><span data-i18n="nav.demo">Demo</span></a>
+        <a href="#install"><span class="idx" aria-hidden="true">04</span><span data-i18n="nav.install">Install</span></a>
+      </nav>
       <span class="lang-switch" role="group" aria-label="Sprache" data-i18n-aria-label="lang.groupAria">
         <button type="button" class="lang-btn" data-lang-btn="de" aria-pressed="true">DE</button>
         <button type="button" class="lang-btn" data-lang-btn="en" aria-pressed="false">EN</button>
       </span>
-    </nav>
+      <a class="topbar-link" href="https://github.com/cabroe/omarchy-themes" target="_blank" rel="noopener noreferrer">github ↗</a>
+    </div>
   </header>
 
-  <!-- =========================== HERO =========================== -->
-  <section class="hero">
-    <p class="hero-kicker">
-      <span class="plugin-tag" data-i18n="hero.tag.plugin">Hermes Desktop plugin</span>
-      <span class="plugin-tag" data-i18n="hero.tag.bridge">Omarchy theme bridge</span>
-    </p>
-    <h1 class="hero-title" data-i18n="hero.title">Omarchy-Themes, Hermes-nativ.</h1>
-    <p class="lede" data-i18n-html="hero.lede">
-      Ein <code>omarchy</code>-Theme-Set — und Desktop-Picker, ⌘K und CLI/TUI-Skin wechseln
-      synchron. Ein Plugin, drei Komponenten, eine Wahrheit pro Klick.
-    </p>
-    <div class="cta">
-      <button id="cycleBtn" class="btn primary" data-i18n="hero.cycle">Cycle theme →</button>
-      <button id="pickerToggle" class="picker-toggle"
-              aria-controls="pickerGrid" aria-expanded="false" data-i18n="hero.pickTheme">
-        Pick theme ▾
-      </button>
-      <select id="themePicker" class="btn ghost" aria-label="Theme auswählen"
-              data-i18n-aria-label="hero.selectAria"></select>
-      <kbd class="kbd-hint">T</kbd>
-    </div>
-    <div id="pickerGrid" class="picker-grid" role="group"
-         aria-label="Theme-Auswahl" data-i18n-aria-label="hero.gridAria" hidden></div>
-    <p class="hint">
-      <span data-i18n="hero.hintLabel">Aktuelles Theme:</span> <code id="currentSlug">…</code>
-    </p>
-  </section>
+  <main id="main">
+    <!-- ============================ HERO ============================ -->
+    <section id="hero" class="hero">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <p class="kicker mono-xs"><span class="prompt" aria-hidden="true">❯</span> <span data-i18n="hero.kicker">omarchy · hermes desktop plugin</span></p>
+          <h1 data-i18n="hero.title">Omarchy-Themes, Hermes-nativ.</h1>
+          <p class="lede" data-i18n-html="hero.lede">
+            Ein <code>omarchy</code>-Theme-Set — und Desktop-Picker, ⌘K und CLI/TUI-Skin wechseln
+            synchron. Ein Plugin, drei Komponenten, eine Wahrheit pro Klick.
+          </p>
+          <div class="cta">
+            <button id="cycleBtn" class="btn btn-primary" type="button">
+              <span data-i18n="hero.cycle">Cycle theme →</span><kbd class="kbd">T</kbd>
+            </button>
+            <button id="launcherBtn" class="btn btn-ghost" type="button"
+                    aria-haspopup="dialog" aria-controls="launcher" aria-expanded="false"
+                    data-i18n-aria-label="launcher.openAria">
+              <span data-i18n="hero.launcher">Themes</span><kbd class="kbd">/</kbd>
+            </button>
+            <select id="themePicker" aria-label="Theme auswählen" data-i18n-aria-label="hero.selectAria"></select>
+          </div>
+        </div>
+        <figure class="shot shot-hero">
+          <img src="assets/screenshots/themes-dark.png" width="1600" height="954"
+               loading="eager" decoding="async"
+               alt="Einstellungen → Plugins → omarchy-themes" data-i18n-alt="shot.themesDark.alt">
+          <figcaption class="mono-xs" data-i18n="shot.themesDark.caption">Einstellungen → Plugins → omarchy-themes</figcaption>
+        </figure>
+      </div>
+    </section>
 
-  <!-- ===================== ARCHITECTURE-FLOW ===================== -->
-  <section id="architecture" class="band band--tint">
-    <h2 data-i18n="arch.h2">Bidirektionaler Sync. Eine Wahrheit pro Klick.</h2>
-    <p class="lede" data-i18n-html="arch.lede">
-      <code>omarchy theme set</code> schreibt über den Hook ins Hermes-Skin-File.
-      Der Hermes-Picker ruft denselben <code>skin use</code>-Pfad zurück. Pro Aktion gewinnt genau eine Seite.
-    </p>
-
-    <ol class="arch-flow" aria-label="Theme-Sync-Flow" data-i18n-aria-label="arch.flowAria">
-      <li class="arch-step arch-step--src">
-        <span class="arch-tag arch-tag--cli" data-i18n="arch.cli.tag">Omarchy CLI</span>
-        <code class="arch-cmd">omarchy theme set nord</code>
-        <p class="arch-note" data-i18n-html="arch.cli.note">Source-of-Truth für Theme-Colors via <code>colors.toml</code> (User &gt; System &gt; current).</p>
-      </li>
-      <li class="arch-arrow" aria-hidden="true">→</li>
-      <li class="arch-step arch-step--mid">
-        <span class="arch-tag arch-tag--plugin" data-i18n="arch.mid.tag">omarchy-themes</span>
-        <code class="arch-cmd">hermes skin use nord</code>
-        <p class="arch-note" data-i18n-html="arch.mid.note">Hook schreibt <code>~/.hermes/skins/nord.yaml</code> (22 Keys, hex 3- oder 6-stellig), Plugin registriert die Palette im Picker und ⌘K.</p>
-      </li>
-      <li class="arch-arrow" aria-hidden="true">→</li>
-      <li class="arch-step arch-step--dst">
-        <span class="arch-tag arch-tag--ui" data-i18n="arch.dst.tag">Hermes UI</span>
-        <code class="arch-cmd">applyTheme('nord')</code>
-        <p class="arch-note" data-i18n-html="arch.dst.note">Desktop, CLI, TUI — alles in einem Schritt umgefärbt (light/dark + Accent via Rec.709-Luma-Synth).</p>
-      </li>
-    </ol>
-  </section>
-
-  <!-- ===================== 3-KOMPONENTEN-CARDS =================== -->
-  <section id="components" class="band">
-    <h2 data-i18n="comp.h2">Drei Komponenten, ein Theme-Flow.</h2>
-    <p class="lede" data-i18n="comp.lede">
-      Desktop-Plugin registriert die Paletten. Hook synct sie ins Hermes-Skin-File.
-      Generator frischt sie nach jedem Omarchy-Update auf.
-    </p>
-    <p class="components-anatomy" data-i18n="comp.anatomy">
-      Keine der drei Komponenten ist optional — wer nur den Desktop-Picker will, kommt mit Plugin + Generator aus; wer auch CLI/TUI mitsyncen will, ergänzt den Hook.
-    </p>
-
-    <div class="components-bento">
-      <article class="component-card">
-        <span class="component-tag" data-i18n="comp.plugin.tag">Plugin</span>
-        <h3 data-i18n="comp.plugin.h3">Desktop plugin</h3>
-        <p data-i18n-html="comp.plugin.body">
-          Registriert jede Omarchy-Palette im Hermes-Picker, als ⌘K-Befehl
-          (<em>Apply Omarchy Theme: &lt;Name&gt;</em>) und auf einer Settings-Karte mit Swatches,
-          Filter und Apply. Jedes Theme bringt Light- und Dark-Palette mit; Brand-Accent wird
-          geteilt, die Gegenpalette wird synthetisiert.
+    <!-- ============================ FLOW ============================ -->
+    <section id="architecture" class="section section--wash">
+      <div class="wrap">
+        <h2 data-i18n="arch.h2">Bidirektionaler Sync. Eine Wahrheit pro Klick.</h2>
+        <p class="lede" data-i18n-html="arch.lede">
+          <code>omarchy theme set</code> schreibt über den Hook ins Hermes-Skin-File.
+          Der Hermes-Picker ruft denselben <code>skin use</code>-Pfad zurück. Pro Aktion gewinnt genau eine Seite.
         </p>
-        <code class="component-install">hermes plugins install https://github.com/cabroe/omarchy-themes</code>
-      </article>
 
-      <article class="component-card">
-        <span class="component-tag" data-i18n="comp.hook.tag">Hook</span>
-        <h3 data-i18n="comp.hook.h3">Omarchy theme-set hook</h3>
-        <p data-i18n-html="comp.hook.body">
-          Läuft bei jedem <code>omarchy theme set &lt;slug&gt;</code>. Parst die <code>colors.toml</code>
-          (User &gt; System &gt; current), schreibt <code>~/.hermes/skins/&lt;slug&gt;.yaml</code>
-          und aktiviert den Skin via <code>hermes skin use</code>. Reines POSIX-sh, kein Python, exit 0 immer.
+        <ol class="flow" aria-label="Theme-Sync-Flow" data-i18n-aria-label="arch.flowAria">
+          <li class="flow-cell">
+            <p class="flow-head mono-xs"><span class="brk" aria-hidden="true">[1]</span> <span data-i18n="arch.cli.tag">Omarchy CLI</span></p>
+            <code class="cmd-line">omarchy theme set nord</code>
+            <p class="note" data-i18n-html="arch.cli.note">Source-of-Truth für Theme-Colors via <code>colors.toml</code> (User &gt; System &gt; current).</p>
+          </li>
+          <li class="flow-cell">
+            <p class="flow-head mono-xs"><span class="brk" aria-hidden="true">[2]</span> <span data-i18n="arch.mid.tag">omarchy-themes</span></p>
+            <code class="cmd-line">hermes skin use nord</code>
+            <p class="note" data-i18n-html="arch.mid.note">Hook schreibt <code>~/.hermes/skins/nord.yaml</code> (22 Keys, hex 3- oder 6-stellig), Plugin registriert die Palette im Picker und ⌘K.</p>
+          </li>
+          <li class="flow-cell">
+            <p class="flow-head mono-xs"><span class="brk" aria-hidden="true">[3]</span> <span data-i18n="arch.dst.tag">Hermes UI</span></p>
+            <code class="cmd-line">applyTheme('nord')</code>
+            <p class="note" data-i18n-html="arch.dst.note">Desktop, CLI, TUI — alles in einem Schritt umgefärbt (light/dark + Accent via Rec.709-Luma-Synth).</p>
+          </li>
+        </ol>
+
+        <div class="split">
+          <figure class="shot shot-flow">
+            <img src="assets/screenshots/about.png" width="1600" height="954"
+                 loading="lazy" decoding="async"
+                 alt="How switching works (About-Panel)" data-i18n-alt="shot.about.alt">
+            <figcaption class="mono-xs" data-i18n="shot.about.caption">How switching works (About-Panel)</figcaption>
+          </figure>
+          <dl class="readout" aria-label="Theme-Status" data-i18n-aria-label="readout.aria">
+            <div class="ro"><dt data-i18n="status.theme">theme</dt><dd id="roTheme">tokyo-night</dd></div>
+            <div class="ro"><dt data-i18n="readout.palettes">Paletten</dt><dd>29</dd></div>
+            <div class="ro"><dt data-i18n="readout.skins">Skin-Keys</dt><dd>22</dd></div>
+            <div class="ro"><dt data-i18n="readout.mode">Modus</dt><dd id="roMode">dark</dd></div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================= KOMPONENTEN ======================== -->
+    <section id="components" class="section">
+      <div class="wrap">
+        <h2 data-i18n="comp.h2">Drei Komponenten, ein Theme-Flow.</h2>
+        <p class="lede" data-i18n="comp.lede">
+          Desktop-Plugin registriert die Paletten. Hook synct sie ins Hermes-Skin-File.
+          Generator frischt sie nach jedem Omarchy-Update auf.
         </p>
-        <code class="component-install">make install-hook</code>
-      </article>
-
-      <article class="component-card">
-        <span class="component-tag" data-i18n="comp.gen.tag">Generator</span>
-        <h3 data-i18n="comp.gen.h3">Theme-table generator</h3>
-        <p data-i18n-html="comp.gen.body">
-          Liest <code>colors.toml</code> aus <code>/usr/share/omarchy/themes/</code>
-          (mit <code>--include-user</code> auch aus <code>~/.config/omarchy/themes/</code>) und
-          schreibt den <code>// BEGIN GENERATED THEMES … // END GENERATED THEMES</code>-Block
-          in <code>desktop/plugin.js</code> neu. <code>HOST=&lt;ssh&gt;</code> liest aus der Ferne.
+        <p class="note note-lede" data-i18n="comp.anatomy">
+          Keine der drei Komponenten ist optional — wer nur den Desktop-Picker will, kommt mit Plugin + Generator aus; wer auch CLI/TUI mitsyncen will, ergänzt den Hook.
         </p>
-        <code class="component-install">make generate</code>
-      </article>
-    </div>
-  </section>
 
-  <!-- =========================== DEMO ============================ -->
-  <section id="demo" class="band">
-    <h2 data-i18n="demo.h2">Probier's aus.</h2>
-    <p class="lede" data-i18n-html="demo.lede">
-      29 Standard-Paletten, 5 Light + 24 Dark. Cycle-Button oder Picker — die ganze Seite
-      färbt sich mit, Light/Dark inklusive. Drücke <kbd>T</kbd>, um durch alle Themes zu cyclen.
-    </p>
+        <div class="defs">
+          <article class="def">
+            <div class="def-key">
+              <span class="def-name mono">plugin</span>
+              <span class="tag mono-xs">settings · ⌘K</span>
+            </div>
+            <div class="def-body">
+              <h3 data-i18n="comp.plugin.h3">Desktop plugin</h3>
+              <p data-i18n-html="comp.plugin.body">
+                Registriert jede Omarchy-Palette im Hermes-Picker, als ⌘K-Befehl
+                (<em>Apply Omarchy Theme: &lt;Name&gt;</em>) und auf einer Settings-Karte mit Swatches,
+                Filter und Apply. Jedes Theme bringt Light- und Dark-Palette mit; Brand-Accent wird
+                geteilt, die Gegenpalette wird synthetisiert.
+              </p>
+              <code class="cmd-line cmd-wide">hermes plugins install https://github.com/cabroe/omarchy-themes</code>
+            </div>
+          </article>
 
-    <h3 class="demo-subhead" data-i18n="demo.sub1">Polygon-Picker — alle 29</h3>
-    <div id="pickerGridDemo" class="picker-grid picker-grid--expanded"
-         role="group" aria-label="Theme-Auswahl — alle 29 Themes" data-i18n-aria-label="demo.gridAria"></div>
+          <article class="def">
+            <div class="def-key">
+              <span class="def-name mono">hook</span>
+              <span class="tag mono-xs">theme-set.d</span>
+            </div>
+            <div class="def-body">
+              <h3 data-i18n="comp.hook.h3">Omarchy theme-set hook</h3>
+              <p data-i18n-html="comp.hook.body">
+                Läuft bei jedem <code>omarchy theme set &lt;slug&gt;</code>. Parst die <code>colors.toml</code>
+                (User &gt; System &gt; current), schreibt <code>~/.hermes/skins/&lt;slug&gt;.yaml</code>
+                und aktiviert den Skin via <code>hermes skin use</code>. Reines POSIX-sh, kein Python, exit 0 immer.
+              </p>
+              <code class="cmd-line">make install-hook</code>
+            </div>
+          </article>
 
-    <h3 class="demo-subhead" data-i18n="demo.sub2">Bento — 12 Defaults</h3>
-    <div class="themes-bento" id="themesBento" aria-label="Theme-Bento" data-i18n-aria-label="demo.bentoAria"></div>
-  </section>
+          <article class="def">
+            <div class="def-key">
+              <span class="def-name mono">generator</span>
+              <span class="tag mono-xs">plugin.js</span>
+            </div>
+            <div class="def-body">
+              <h3 data-i18n="comp.gen.h3">Theme-table generator</h3>
+              <p data-i18n-html="comp.gen.body">
+                Liest <code>colors.toml</code> aus <code>/usr/share/omarchy/themes/</code>
+                (mit <code>--include-user</code> auch aus <code>~/.config/omarchy/themes/</code>) und
+                schreibt den <code>// BEGIN GENERATED THEMES … // END GENERATED THEMES</code>-Block
+                in <code>desktop/plugin.js</code> neu. <code>HOST=&lt;ssh&gt;</code> liest aus der Ferne.
+              </p>
+              <code class="cmd-line">make generate</code>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
 
-  <!-- ========================== INSTALL ========================== -->
-  <section id="install" class="band band--tint">
-    <h2 data-i18n="install.h2">In 30 Sekunden drin.</h2>
-    <p class="lede" data-i18n-html="install.lede">
-      Plugin und Hook sind zwei voneinander unabhängige Pfade. Plugin läuft nach Reload,
-      Hook nach <code>make install-hook</code>. Beide idempotent.
-    </p>
+    <!-- ============================ DEMO ============================ -->
+    <section id="demo" class="section">
+      <div class="wrap">
+        <h2 data-i18n="demo.h2">Probier’s aus.</h2>
+        <p class="lede" data-i18n-html="demo.lede">
+          29 Standard-Paletten, 5 Light + 24 Dark. Cycle-Button oder Launcher — die ganze Seite
+          färbt sich mit, Light/Dark inklusive. Drücke <kbd class="kbd">T</kbd>, um durch alle Themes zu cyclen.
+        </p>
 
-    <div class="install-grid">
-      <div class="install-block">
-        <header class="install-block-head">
-          <span class="component-tag" data-i18n="install.plugin.tag">1. Plugin</span>
-          <span class="install-block-meta" data-i18n="install.plugin.meta">in ~3 s · via Hermes CLI</span>
-        </header>
-        <pre class="install-cmd" tabindex="0"><code>hermes plugins install https://github.com/cabroe/omarchy-themes</code></pre>
-        <p class="install-block-note" data-i18n-html="install.plugin.note">
-          Anschließend Hermes Desktop neu laden, ⌘K → <em>Reload desktop plugins</em>.
-          In <em>Settings → Capabilities → Plugins → omarchy-themes</em> einmalig aktivieren.
+        <div class="demo-bar">
+          <span class="demo-count mono" id="demoCount">29 Paletten</span>
+          <button id="cycleBtnDemo" class="btn btn-primary" type="button">
+            <span data-i18n="hero.cycle">Cycle theme →</span><kbd class="kbd">T</kbd>
+          </button>
+          <button id="launcherBtnDemo" class="btn btn-ghost" type="button"
+                  aria-haspopup="dialog" aria-controls="launcher" aria-expanded="false"
+                  data-i18n-aria-label="launcher.openAria">
+            <span data-i18n="hero.launcher">Themes</span><kbd class="kbd">/</kbd>
+          </button>
+        </div>
+
+        <div id="themeGrid" class="tile-grid" role="group"
+             aria-label="Theme-Auswahl — alle 29" data-i18n-aria-label="demo.gridAria"></div>
+
+        <figure class="shot shot-demo">
+          <img src="assets/screenshots/themes-light.png" width="1600" height="954"
+               loading="lazy" decoding="async"
+               alt="Dieselben 29 Paletten in Light" data-i18n-alt="shot.themesLight.alt">
+          <figcaption class="mono-xs" data-i18n="shot.themesLight.caption">Dieselben 29 Paletten in Light</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- =========================== INSTALL ========================== -->
+    <section id="install" class="section section--wash">
+      <div class="wrap">
+        <h2 data-i18n="install.h2">In 30 Sekunden drin.</h2>
+        <p class="lede" data-i18n-html="install.lede">
+          Plugin und Hook sind zwei voneinander unabhängige Pfade. Plugin läuft nach Reload,
+          Hook nach <code>make install-hook</code>. Beide idempotent.
+        </p>
+
+        <div class="installs">
+          <div class="install-row">
+            <div class="install-head">
+              <span class="tag mono-xs" data-i18n="install.plugin.tag">1. Plugin</span>
+              <span class="meta mono-xs" data-i18n="install.plugin.meta">in ~3 s · via Hermes CLI</span>
+            </div>
+            <pre class="cmd-block" tabindex="0"><code>hermes plugins install https://github.com/cabroe/omarchy-themes</code></pre>
+            <p class="note" data-i18n-html="install.plugin.note">
+              Anschließend Hermes Desktop neu laden, ⌘K → <em>Reload desktop plugins</em>.
+              In <em>Settings → Capabilities → Plugins → omarchy-themes</em> einmalig aktivieren.
+            </p>
+          </div>
+
+          <div class="install-row">
+            <div class="install-head">
+              <span class="tag mono-xs" data-i18n="install.hook.tag">2. Hook</span>
+              <span class="meta mono-xs" data-i18n="install.hook.meta">idempotent · aus Plugin-Root</span>
+            </div>
+            <pre class="cmd-block" tabindex="0"><code>make install-hook</code></pre>
+            <p class="note" data-i18n-html="install.hook.note">
+              Kopiert <code>hooks/hermes-skin-sync.sh</code> nach
+              <code>~/.config/omarchy/hooks/theme-set.d/</code>. Re-run jederzeit möglich
+              (überschreibt). Undo mit <code>make uninstall</code>.
+            </p>
+          </div>
+        </div>
+
+        <p class="note note-extras" data-i18n-html="install.extras">
+          <strong>Auto-Sync ausschalten:</strong>
+          <code>touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes</code>
+          — Picker und ⌘K bleiben funktional, der Hook triggert nur nicht mehr.
         </p>
       </div>
+    </section>
+  </main>
 
-      <div class="install-block">
-        <header class="install-block-head">
-          <span class="component-tag" data-i18n="install.hook.tag">2. Hook</span>
-          <span class="install-block-meta" data-i18n="install.hook.meta">idempotent · aus Plugin-Root</span>
-        </header>
-        <pre class="install-cmd" tabindex="0"><code>make install-hook</code></pre>
-        <p class="install-block-note" data-i18n-html="install.hook.note">
-          Kopiert <code>hooks/hermes-skin-sync.sh</code> nach
-          <code>~/.config/omarchy/hooks/theme-set.d/</code>. Re-run jederzeit möglich
-          (überschreibt). Undo mit <code>make uninstall</code>.
-        </p>
-      </div>
-    </div>
-
-    <p class="install-extras" data-i18n-html="install.extras">
-      <strong>Auto-Sync ausschalten:</strong>
-      <code>touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes</code>
-      — Picker und ⌘K bleiben funktional, der Hook triggert nur nicht mehr.
-    </p>
-  </section>
-
-  <!-- =========================== FOOTER ========================== -->
+  <!-- ============================ FOOTER =========================== -->
   <footer class="foot">
-    <div class="foot-grid">
-      <div class="foot-col">
-        <strong>omarchy-themes</strong>
-        <span class="foot-version">v1.2.0</span>
-      </div>
-      <div class="foot-col">
-        <a href="https://github.com/cabroe/omarchy-themes/blob/main/README.md"
-           target="_blank" rel="noopener noreferrer" data-i18n="foot.readme">README →</a>
-        <span class="foot-meta" data-i18n="foot.branch">branch: main</span>
-      </div>
-      <div class="foot-col">
-        <a href="https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml"
-           target="_blank" rel="noopener noreferrer" data-i18n="foot.ci">CI status →</a>
-        <span class="foot-meta" data-i18n="foot.ciMeta">lint + tests on push</span>
-      </div>
-      <div class="foot-col foot-col--end">
-        <span class="foot-tagline" data-i18n="foot.tagline">Omarchy palettes, Hermes-native.</span>
-      </div>
+    <div class="wrap foot-line mono">
+      <span class="foot-brand">omarchy-themes v1.2.0</span>
+      <span class="dot" aria-hidden="true">·</span>
+      <span id="footCount">29 Paletten</span>
+      <span class="dot" aria-hidden="true">·</span>
+      <span data-i18n="foot.branch">branch: main</span>
+      <span class="dot" aria-hidden="true">·</span>
+      <a href="https://github.com/cabroe/omarchy-themes/blob/main/README.md"
+         target="_blank" rel="noopener noreferrer" data-i18n="foot.readme">README →</a>
+      <span class="dot" aria-hidden="true">·</span>
+      <a href="https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml"
+         target="_blank" rel="noopener noreferrer" data-i18n="foot.ci" data-i18n-title="foot.ciMeta">CI status →</a>
     </div>
   </footer>
+
+  <!-- =========================== LAUNCHER ========================== -->
+  <div class="launcher" id="launcher" hidden>
+    <div class="launcher-panel" id="launcherPanel" role="dialog" aria-modal="true" aria-labelledby="launcherTitle">
+      <p class="launcher-label mono-xs" id="launcherTitle" data-i18n="launcher.title">Theme wechseln</p>
+      <div class="launcher-field">
+        <span class="prompt" aria-hidden="true">❯</span>
+        <input id="launcherInput" class="launcher-input" type="text" role="combobox" autocomplete="off"
+               spellcheck="false" aria-expanded="true" aria-controls="launcherList"
+               aria-autocomplete="list" aria-labelledby="launcherTitle"
+               placeholder="Slug tippen …" data-i18n-placeholder="launcher.placeholder">
+      </div>
+      <ul class="launcher-list" id="launcherList" role="listbox" aria-labelledby="launcherTitle"></ul>
+      <p class="launcher-foot mono-xs">
+        <span id="launcherCount" class="launcher-count"></span>
+        <span class="dot" aria-hidden="true">·</span>
+        <span data-i18n="launcher.hint">↑↓ wählen · ↵ anwenden · esc schließen</span>
+      </p>
+    </div>
+  </div>
 
   <script type="module" src="app.js"></script>
 </body>
