@@ -432,6 +432,7 @@ kbd {
 .mock-nav--on { background: var(--accent-wash-2); color: var(--fg); }
 .mock-sub { padding-inline-start: var(--s5); }
 .mock-sub--on { background: var(--accent-wash); color: var(--fg); }
+.mock-sub--child { padding-inline-start: calc(var(--s5) + var(--s4)); }
 
 .mock-main { padding: var(--s3); min-width: 0; min-height: 0; overflow-y: auto; }
 .mock-filter {
