@@ -126,7 +126,7 @@
         <h2 data-i18n="install.h2">In 30 Sekunden drin.</h2>
         <p class="lede" data-i18n-html="install.lede">
           Das Plugin bringt den Desktop-Picker und schaltet ihn bei <code>omarchy theme set</code>
-          automatisch mit. Der Hook ist optional und synct zusätzlich den CLI/TUI-Skin.
+          automatisch mit.
         </p>
 
         <div class="installs">
@@ -142,25 +142,12 @@
             </p>
           </div>
 
-          <div class="install-row">
-            <div class="install-head">
-              <span class="tag mono-xs" data-i18n="install.hook.tag">Optional: Hook</span>
-              <span class="meta mono-xs" data-i18n="install.hook.meta">nur für CLI/TUI-Skin</span>
-            </div>
-            <pre class="cmd-block" tabindex="0"><code>make install-hook</code></pre>
-            <p class="note" data-i18n-html="install.hook.note">
-              Nur nötig, wenn auch der CLI/TUI-Skin mitziehen soll. Kopiert
-              <code>hooks/hermes-skin-sync.sh</code> nach
-              <code>~/.config/omarchy/hooks/theme-set.d/</code>. Re-run jederzeit möglich
-              (überschreibt). Undo mit <code>make uninstall</code>.
-            </p>
-          </div>
         </div>
 
         <p class="note note-extras" data-i18n-html="install.extras">
           <strong>Auto-Sync ausschalten:</strong>
           <code>touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes</code>
-          — Picker und ⌘K bleiben funktional, der Hook triggert nur nicht mehr.
+          — Picker und ⌘K bleiben funktional.
         </p>
       </div>
     </section>

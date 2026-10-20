@@ -94,14 +94,11 @@ export const STRINGS = {
     'demo.count': '{n} Paletten',
 
     'install.h2': 'In 30 Sekunden drin.',
-    'install.lede': 'Das Plugin bringt den Desktop-Picker und schaltet ihn bei <code>omarchy theme set</code> automatisch mit. Der Hook ist optional und synct zusätzlich den CLI/TUI-Skin.',
+    'install.lede': 'Das Plugin bringt den Desktop-Picker und schaltet ihn bei <code>omarchy theme set</code> automatisch mit.',
     'install.plugin.tag': 'Plugin',
     'install.plugin.meta': 'in ~3 s · via Hermes CLI',
     'install.plugin.note': 'Anschließend Hermes Desktop neu laden, ⌘K → <em>Reload desktop plugins</em>. In <em>Settings → Capabilities → Plugins → omarchy-themes</em> einmalig aktivieren.',
-    'install.hook.tag': 'Optional: Hook',
-    'install.hook.meta': 'nur für CLI/TUI-Skin',
-    'install.hook.note': 'Nur nötig, wenn auch der CLI/TUI-Skin mitziehen soll. Kopiert <code>hooks/hermes-skin-sync.sh</code> nach <code>~/.config/omarchy/hooks/theme-set.d/</code>. Re-run jederzeit möglich (überschreibt). Undo mit <code>make uninstall</code>.',
-    'install.extras': '<strong>Auto-Sync ausschalten:</strong> <code>touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes</code> — Picker und ⌘K bleiben funktional, der Hook triggert nur nicht mehr.',
+    'install.extras': '<strong>Auto-Sync ausschalten:</strong> <code>touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes</code> — Picker und ⌘K bleiben funktional.',
 
     'foot.readme': 'README →',
     'foot.branch': 'branch: main',
@@ -204,14 +201,11 @@ export const STRINGS = {
     'demo.count': '{n} palettes',
 
     'install.h2': 'Set up in 30 seconds.',
-    'install.lede': 'The plugin adds the desktop picker and follows <code>omarchy theme set</code> on its own. The hook is optional and also syncs the CLI/TUI skin.',
+    'install.lede': 'The plugin adds the desktop picker and follows <code>omarchy theme set</code> on its own.',
     'install.plugin.tag': 'Plugin',
     'install.plugin.meta': 'in ~3 s · via Hermes CLI',
     'install.plugin.note': 'Then reload Hermes Desktop, ⌘K → <em>Reload desktop plugins</em>. Enable once under <em>Settings → Capabilities → Plugins → omarchy-themes</em>.',
-    'install.hook.tag': 'Optional: hook',
-    'install.hook.meta': 'CLI/TUI skin only',
-    'install.hook.note': 'Only needed if the CLI/TUI skin should follow too. Copies <code>hooks/hermes-skin-sync.sh</code> to <code>~/.config/omarchy/hooks/theme-set.d/</code>. Re-run any time (overwrites). Undo with <code>make uninstall</code>.',
-    'install.extras': '<strong>Turn auto-sync off:</strong> <code>touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes</code> — picker and ⌘K keep working, the hook just stops triggering.',
+    'install.extras': '<strong>Turn auto-sync off:</strong> <code>touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes</code> — picker and ⌘K keep working.',
 
     'foot.readme': 'README →',
     'foot.branch': 'branch: main',
