@@ -16,6 +16,14 @@
 
 ---
 
+## About
+
+Omarchy color schemes as Hermes Desktop themes and CLI/TUI skins
+
+[omarchy.org](https://omarchy.org)
+
+---
+
 ## What it does
 
 `omarchy theme set nord` — and Hermes Desktop switches palette, light/dark mode, and terminal colours in under a second. No manual step needed.

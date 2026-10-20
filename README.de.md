@@ -15,8 +15,17 @@
 
 ---
 
+## Über
+
+Omarchy-Farbschemata als Hermes-Desktop-Themes und CLI/TUI-Skins
+
+[omarchy.org](https://omarchy.org)
+
+---
+
 ## Inhalt
 
+- [Über](#über)
 - [🧩 Komponenten](#-komponenten)
 - [📦 Installation & Benutzung](#-installation--benutzung)
 - [🔄 Themes aktualisieren](#-themes-aktualisieren)
