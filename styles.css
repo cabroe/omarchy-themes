@@ -754,15 +754,67 @@ kbd {
 }
 
 /* ---------- install ---------- */
-.installs { margin-top: var(--s7); border-top: 1px solid var(--border); }
-.install-row {
+/* Zwei gleichrangige Wege (Terminal / App) als Hairline-Karten, danach die
+   Optionen-Zeile und die Deinstallation als abgesetzter, leiserer Block. */
+.paths {
+  display: grid;
+  gap: var(--s4);
+  margin-top: var(--s7);
+}
+.path {
   display: flex;
   flex-direction: column;
   gap: var(--s3);
-  padding-block: var(--s5);
-  border-bottom: 1px solid var(--border);
+  padding: var(--s4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
 }
-.install-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
+.path .cmd-block { background: var(--bg-elev); }
+.path-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
+.path-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--s2);
+  counter-reset: step;
+}
+.path-steps li {
+  position: relative;
+  padding-left: 1.5rem;
+  font-size: var(--text-note);
+  line-height: 1.5;
+  color: var(--fg-muted);
+}
+.path-steps li::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-xs);
+  font-weight: 600;
+  line-height: 1.9;
+  color: var(--accent-text);
+}
+.path-steps em { color: var(--fg); }
+
+.uninstall {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  margin-top: var(--s6);
+  padding-top: var(--s5);
+  border-top: 1px solid var(--border);
+}
+.uninstall-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
+.uninstall .cmd-block {
+  background: transparent;
+  border-left-color: var(--border-strong);
+  color: var(--fg-muted);
+}
+.uninstall .note { max-width: var(--measure); }
 .meta { color: var(--fg-muted); }
 .cmd-block {
   margin: 0;
@@ -773,7 +825,10 @@ kbd {
   border-radius: var(--r-chip);
   font-size: var(--text-mono);
   color: var(--fg);
-  overflow-x: auto;
+  /* Umbruch statt horizontalem Scroll: beim Kopieren bleiben die Zeilenumbrueche
+     weich, der Befehl kommt also weiterhin einzeilig in der Zwischenablage an. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   tab-size: 2;
 }
 .cmd-block code { font-size: var(--text-mono); }
@@ -940,16 +995,8 @@ body.launcher-open { overflow: hidden; }
   .def { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--s5); }
   .def-key { grid-column: span 4; flex-direction: column; align-items: flex-start; gap: var(--s2); }
   .def-body { grid-column: span 8; }
-  .install-row {
-    display: grid;
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: var(--s3) var(--s5);
-    align-items: start;
-  }
-  .install-head { grid-column: span 12; }
-  /* Keine Seitenspalte mehr: Befehl und Hinweise laufen ueber die volle Breite. */
-  .install-row .cmd-block { grid-column: span 12; }
-  .install-row .note-wide { grid-column: span 12; }
+  /* Terminal bekommt mehr Breite: so passt der Befehl ab ~1100px in eine Zeile. */
+  .paths { grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); }
 }
 
 @media (min-width: 1121px) {

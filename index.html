@@ -129,46 +129,55 @@
           automatisch mit.
         </p>
 
-        <div class="installs">
-          <div class="install-row">
-            <div class="install-head">
-              <span class="tag mono-xs" data-i18n="install.plugin.tag">Plugin</span>
-              <span class="meta mono-xs" data-i18n="install.plugin.meta">CLI oder App · in ~3 s</span>
+        <div class="paths">
+          <!-- Weg 1: ein Befehl im Terminal -->
+          <div class="path">
+            <div class="path-head">
+              <span class="tag mono-xs" data-i18n="install.terminal.tag">Terminal</span>
+              <span class="meta mono-xs" data-i18n="install.terminal.meta">ein Befehl · ~3 s</span>
             </div>
             <pre class="cmd-block" tabindex="0"><code>hermes plugins install https://github.com/cabroe/omarchy-themes</code></pre>
-            <p class="note note-wide" data-i18n-html="install.plugin.app">
-              <strong>Ohne Terminal:</strong> <em>Settings → Capabilities → Plugins</em> →
-              <em>Von Git installieren</em>, Repository-URL einfügen, <em>Repository prüfen</em>,
-              <em>Installieren</em>. Die App legt das Desktop-Plugin ab und schaltet es direkt ein.
-            </p>
           </div>
 
-          <p class="note note-extras" data-i18n-html="install.extras">
-            <strong>Auto-Sync ausschalten:</strong>
-            <code>touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes</code>
-            — Picker und ⌘K bleiben funktional.
-          </p>
-
-          <div class="install-row">
-            <div class="install-head">
-              <span class="tag mono-xs" data-i18n="install.uninstall.tag">Deinstallation</span>
-              <span class="meta mono-xs" data-i18n="install.uninstall.meta">entfernt Plugin und Grant</span>
+          <!-- Weg 2: derselbe Vorgang in der App, Schritt fuer Schritt -->
+          <div class="path">
+            <div class="path-head">
+              <span class="tag mono-xs" data-i18n="install.app.tag">App</span>
+              <span class="meta mono-xs" data-i18n="install.app.meta">ohne Terminal</span>
             </div>
-            <pre class="cmd-block" tabindex="0"><code>hermes plugins remove omarchy-themes</code></pre>
-            <p class="note note-wide" data-i18n-html="install.uninstall.app">
-              <strong>Ohne Terminal:</strong> dieselbe Seite → Papierkorb in der Zeile
-              <em>omarchy-themes</em> → <em>Deinstallieren</em>. Die App löscht den Ordner und
-              entlädt das Plugin sofort — ein Neustart ist dafür nicht nötig.
-            </p>
-            <p class="note note-wide" data-i18n-html="install.uninstall.cleanup">
-              Reste, die bleiben dürfen: die Skin-Dateien unter
-              <code>~/.hermes/skins/&lt;slug&gt;.yaml</code>. Hast du den Auto-Sync per Toggle
-              abgeschaltet, liegt zusätzlich
-              <code>~/.local/state/omarchy/toggles/skip-hermes-theme-changes</code> herum — löschen,
-              wenn du ihn nicht mehr brauchst.
-            </p>
+            <ol class="path-steps">
+              <li data-i18n-html="install.app.s1"><em>Settings → Capabilities → Plugins</em></li>
+              <li data-i18n-html="install.app.s2"><em>Von Git installieren</em></li>
+              <li data-i18n-html="install.app.s3">Repository-URL einfügen, <em>Repository prüfen</em></li>
+              <li data-i18n-html="install.app.s4"><em>Installieren</em> — die App legt das Plugin ab und aktiviert es</li>
+            </ol>
           </div>
+        </div>
 
+        <p class="note note-extras" data-i18n-html="install.extras">
+          <strong>Auto-Sync ausschalten:</strong>
+          <code>touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes</code>
+          — Picker und ⌘K bleiben funktional.
+        </p>
+
+        <div class="uninstall">
+          <div class="uninstall-head">
+            <span class="tag mono-xs" data-i18n="install.uninstall.tag">Deinstallation</span>
+            <span class="meta mono-xs" data-i18n="install.uninstall.meta">entfernt Plugin und Grant</span>
+          </div>
+          <pre class="cmd-block" tabindex="0"><code>hermes plugins remove omarchy-themes</code></pre>
+          <p class="note" data-i18n-html="install.uninstall.app">
+            <strong>Ohne Terminal:</strong> dieselbe Seite → Papierkorb in der Zeile
+            <em>omarchy-themes</em> → <em>Deinstallieren</em>. Die App löscht den Ordner und
+            entlädt das Plugin sofort — ein Neustart ist dafür nicht nötig.
+          </p>
+          <p class="note" data-i18n-html="install.uninstall.cleanup">
+            Reste, die bleiben dürfen: die Skin-Dateien unter
+            <code>~/.hermes/skins/&lt;slug&gt;.yaml</code>. Hast du den Auto-Sync per Toggle
+            abgeschaltet, liegt zusätzlich
+            <code>~/.local/state/omarchy/toggles/skip-hermes-theme-changes</code> herum — löschen,
+            wenn du ihn nicht mehr brauchst.
+          </p>
         </div>
       </div>
     </section>
