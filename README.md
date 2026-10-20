@@ -10,8 +10,6 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/cabroe/omarchy-themes/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/cabroe/omarchy-themes?style=flat-square)](LICENSE)
 
-🏠 **Homepage:** [cabroe.github.io/omarchy-themes](https://cabroe.github.io/omarchy-themes/)
-
 </div>
 
 ---
@@ -20,7 +18,7 @@
 
 Omarchy color schemes as Hermes Desktop themes and CLI/TUI skins
 
-[omarchy.org](https://omarchy.org)
+**Homepage:** [cabroe.github.io/omarchy-themes](https://cabroe.github.io/omarchy-themes/) · upstream: [omarchy.org](https://omarchy.org)
 
 ---
 
