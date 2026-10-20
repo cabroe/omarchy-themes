@@ -4,7 +4,7 @@
 
 **Omarchy-Paletten, Hermes-nativ — ein `theme set`, Desktop-Picker + CLI + TUI wechseln synchron.**
 
-🏠 **Homepage:** [github.com/cabroe/omarchy-themes](https://github.com/cabroe/omarchy-themes)
+🏠 **Homepage:** [cabroe.github.io/omarchy-themes](https://cabroe.github.io/omarchy-themes/)
 
 [![en](https://img.shields.io/badge/lang-en-blue.svg)](README.md)
 [![de](https://img.shields.io/badge/lang-de-blue.svg)](README.de.md)

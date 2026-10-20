@@ -10,7 +10,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/cabroe/omarchy-themes/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/cabroe/omarchy-themes?style=flat-square)](LICENSE)
 
-🏠 **Homepage:** [github.com/cabroe/omarchy-themes](https://github.com/cabroe/omarchy-themes)
+🏠 **Homepage:** [cabroe.github.io/omarchy-themes](https://cabroe.github.io/omarchy-themes/)
 
 </div>
 
