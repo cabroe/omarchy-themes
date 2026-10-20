@@ -12,7 +12,7 @@ export const LANGS = ['de', 'en'];
 export const STRINGS = {
   de: {
     'meta.title': 'omarchy-themes · Hermes-nativ',
-    'meta.description': 'Omarchy-Paletten, Hermes-nativ — Plugin für Desktop, ⌘K und CLI/TUI-Skin. Bidirektionaler Sync, ein Plugin, drei Komponenten.',
+    'meta.description': 'Omarchy-Paletten, Hermes-nativ — Plugin für Desktop, ⌘K und CLI/TUI-Skin. Omarchy setzt das Theme, Hermes Desktop folgt.',
     'a11y.skip': 'Zum Inhalt springen',
     'lang.groupAria': 'Sprache',
 
@@ -24,7 +24,7 @@ export const STRINGS = {
 
     'hero.kicker': 'omarchy · hermes desktop plugin',
     'hero.title': 'Omarchy-Themes, Hermes-nativ.',
-    'hero.lede': 'Ein <code>omarchy</code>-Theme-Set — und Desktop-Picker, ⌘K und CLI/TUI-Skin wechseln synchron. Ein Plugin, drei Komponenten, eine Wahrheit pro Klick.',
+    'hero.lede': 'Ein <code>omarchy</code>-Theme-Set — und Desktop-Picker, ⌘K und CLI/TUI-Skin wechseln mit. Ein Plugin, drei Komponenten, eine Richtung: von Omarchy nach Hermes.',
     'hero.cycle': 'Cycle theme →',
     'hero.launcher': 'Themes',
     'status.theme': 'theme',
@@ -68,8 +68,8 @@ export const STRINGS = {
     'mock.about.nosync': 'Auto-Switch aus:',
     'mock.about.log': 'Hook-Log:',
 
-    'arch.h2': 'Bidirektionaler Sync. Eine Wahrheit pro Klick.',
-    'arch.lede': '<code>omarchy theme set</code> schreibt über den Hook ins Hermes-Skin-File. Der Hermes-Picker ruft denselben <code>skin use</code>-Pfad zurück. Pro Aktion gewinnt genau eine Seite.',
+    'arch.h2': 'Sync in eine Richtung: Omarchy → Hermes.',
+    'arch.lede': '<code>omarchy theme set</code> schreibt über den Hook ins Hermes-Skin-File und setzt <code>display.skin</code> in der Hermes-Config. Der Desktop-Picker wählt danach nur noch Themes in Hermes aus; er schreibt nichts nach Omarchy zurück.',
     'arch.flowAria': 'Theme-Sync-Flow',
     'arch.cli.tag': 'Omarchy CLI',
     'arch.cli.note': 'Source-of-Truth für Theme-Colors via <code>colors.toml</code> (User &gt; System &gt; current).',
@@ -122,7 +122,7 @@ export const STRINGS = {
 
   en: {
     'meta.title': 'omarchy-themes · Hermes-native',
-    'meta.description': 'Omarchy colour schemes in Hermes — a plugin for the desktop, ⌘K and the CLI/TUI skin. Bidirectional sync, one plugin, three components.',
+    'meta.description': 'Omarchy colour schemes in Hermes — a plugin for the desktop, ⌘K and the CLI/TUI skin. Omarchy sets the theme, Hermes Desktop follows.',
     'a11y.skip': 'Skip to content',
     'lang.groupAria': 'Language',
 
@@ -134,7 +134,7 @@ export const STRINGS = {
 
     'hero.kicker': 'omarchy · hermes desktop plugin',
     'hero.title': 'Omarchy themes, Hermes-native.',
-    'hero.lede': 'One <code>omarchy</code> theme set — and the desktop picker, ⌘K and the CLI/TUI skin switch in sync. One plugin, three components, one source of truth per click.',
+    'hero.lede': 'One <code>omarchy</code> theme set — and the desktop picker, ⌘K and the CLI/TUI skin come along. One plugin, three components, one direction: Omarchy into Hermes.',
     'hero.cycle': 'Cycle theme →',
     'hero.launcher': 'Themes',
     'status.theme': 'theme',
@@ -178,8 +178,8 @@ export const STRINGS = {
     'mock.about.nosync': 'Turn auto-sync off:',
     'mock.about.log': 'Hook log:',
 
-    'arch.h2': 'Bidirectional sync. One source of truth per click.',
-    'arch.lede': '<code>omarchy theme set</code> writes into the Hermes skin file through the hook. The Hermes picker calls back into the same <code>skin use</code> path. Exactly one side wins per action.',
+    'arch.h2': 'One sync, one direction: Omarchy → Hermes.',
+    'arch.lede': '<code>omarchy theme set</code> writes into the Hermes skin file through the hook and sets <code>display.skin</code> in the Hermes config. The desktop picker then only selects themes inside Hermes; it writes nothing back to Omarchy.',
     'arch.flowAria': 'Theme sync flow',
     'arch.cli.tag': 'Omarchy CLI',
     'arch.cli.note': 'Source of truth for theme colours via <code>colors.toml</code> (user &gt; system &gt; current).',
