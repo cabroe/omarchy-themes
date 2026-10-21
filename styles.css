@@ -831,16 +831,14 @@ kbd {
 }
 .cmd-block code { font-size: var(--text-mono); }
 /* ---------- install: Sekundaer-Band ---------- */
-/* Unter den beiden Karten eine Hairline ueber die volle Breite: darin die
-   Option und die Deinstallation — gleiche Grammatik (Tag, Meta, Command-Bar,
+/* Unter den Karten: Option und Deinstallation ohne Trennlinie — der Abstand
+   gruppiert, nicht eine Regel. Gleiche Grammatik (Tag, Meta, Command-Bar,
    Notiz auf Mass), nur leiser als die Karten. */
 .band {
   display: flex;
   flex-direction: column;
-  gap: var(--s5);
-  margin-top: var(--s6);
-  padding-top: var(--s5);
-  border-top: 1px solid var(--border);
+  gap: var(--s6);
+  margin-top: var(--s7);
 }
 
 /* ---------- footer ---------- */
