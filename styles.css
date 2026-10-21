@@ -412,7 +412,7 @@ kbd {
 .mock-here { color: var(--fg); font-weight: 600; }
 
 .mock-body { display: grid; grid-template-columns: 1fr; }
-/* Der Picker zeigt 29 Themes. Ohne Deckel waere das Mockup ~800px hoch und
+/* Der Picker zeigt 20 Themes. Ohne Deckel waere das Mockup ~800px hoch und
    drueckte die Sektionen darunter nach unten; die Kartenliste scrollt wie das
    echte Settings-Fenster. */
 .mock-picker,

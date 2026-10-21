@@ -1,5 +1,5 @@
 // Kontrast-Check: verifiziert die in app.js berechneten Text-Tokens gegen die
-// Flaechen, auf denen sie tatsaechlich liegen, ueber alle 29 Paletten.
+// Flaechen, auf denen sie tatsaechlich liegen, ueber alle 20 Paletten.
 // Aufruf: node tools/contrast-check.mjs [verzeichnis]   (Default: Repo-Root)
 //
 // Warum dieses Werkzeug existiert: der fruehere Harness pruefte --fg-muted nur
