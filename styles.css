@@ -45,6 +45,9 @@ html { scrollbar-gutter: stable; }
   --measure: 62ch;
   --gutter: clamp(1.25rem, 4vw, 2rem);
   --topbar-h: 48px;
+  /* Zweizeilige Topbar unter 1024px, gemessen: 74.8px bei 481-1023px; bei
+     <=480px kommt eine eigene Status-Zeile dazu -> 102px-Override im 480px-Block. */
+  --topbar-h-mobile: 75px;
 
   /* Theme-Fallbacks = tokyo-night; applyTheme() ueberschreibt alle */
   --bg: #1a1b26;
@@ -1017,9 +1020,11 @@ body.launcher-open { overflow: hidden; }
   .topbar-link { order: 4; }
   .topnav { order: 5; flex-basis: 100%; margin-inline-start: 0; gap: var(--s4); }
   .skip-link:focus { top: var(--s2); }
+  html { scroll-padding-top: calc(var(--topbar-h-mobile) + var(--s2)); }
 }
 
 @media (max-width: 480px) {
+  :root { --topbar-h-mobile: 102px; }
   .topbar-link { display: none; }
   .brand-ver { display: none; }
   .lang-switch { order: 2; }

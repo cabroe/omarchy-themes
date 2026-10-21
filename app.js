@@ -171,7 +171,7 @@ function liftTo(color, towards, against, target, step = 0.01, cap = 1.0) {
 
 // Akzent als Textfarbe: erst pruefen, dann Richtung fg entsaettigen. Gemessen
 // gegen --accent-wash-2, weil dort Tile-Ring und aktive Launcher-Zeile liegen.
-function accentText(accent, fg, wash2, target = 4.5, cap = 0.75) {
+function accentText(accent, fg, wash2, target = 4.7, cap = 0.75) {
   if (contrast(accent, wash2) >= target) return accent;
   const lifted = liftTo(accent, fg, wash2, target, 0.01, cap);
   return contrast(lifted, wash2) >= target ? lifted : fg;
@@ -227,7 +227,7 @@ function applyTheme(slug, { persist = true } = {}) {
   // --accent-wash-2 (aktives Tile, gewaehlte Launcher-Zeile). wash-2 ist die
   // accent-staerkste Flaeche -> gegen sie gerechnet haelt der Ton automatisch
   // auch auf bg und bg-elev.
-  const fgMuted = dimToContrast(fg, wash2, 4.5);
+  const fgMuted = dimToContrast(fg, wash2, 4.7);
   const accentTxt = accentText(accent, fg, wash2);
   const accentFg = pickOnColor(accent);
 

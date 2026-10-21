@@ -7,7 +7,7 @@
 // (.tile-mode) und die gewaehlte Launcher-Zeile (.launcher-mode) auf
 // --accent-wash-2 liegen und dort 3.35-4.45 statt >= 4.5 erreichten.
 //
-// Gepruefte Paare (die tatsaechlich zusammen auftreten, Ziel AA 4.5):
+// Gepruefte Paare (die tatsaechlich zusammen auftreten, Ziel 4.7):
 //   --fg-muted    vs --bg, --bg-elev, --accent-wash-2
 //   --accent-text vs --bg, --accent-wash, --accent-wash-2
 // Hinweis: --ok/--warn/--err wurden mit S9 entfernt (keine Nutzung, kein
@@ -93,7 +93,7 @@ function liftTo(color, towards, against, target, step = 0.01, cap = 1.0) {
   return out;
 }
 
-function accentText(accent, fg, wash2, target = 4.5, cap = 0.75) {
+function accentText(accent, fg, wash2, target = 4.7, cap = 0.75) {
   if (contrast(accent, wash2) >= target) return accent;
   const lifted = liftTo(accent, fg, wash2, target, 0.01, cap);
   return contrast(lifted, wash2) >= target ? lifted : fg;
@@ -104,7 +104,7 @@ const fgOf = (t) => parseColor(t.c.foreground || t.c.dark_foreground || '#a9b1d6
 const accentOf = (t) => parseColor(t.c.accent || t.c.blue || '#7aa2f7');
 
 // ---- Pruefung ----
-const TARGET = 4.5;
+const TARGET = 4.7;
 let violations = 0;
 let worst = { ratio: Infinity, slug: '', pair: '' };
 
@@ -144,4 +144,4 @@ if (violations) {
   console.log(`${violations} Verstoesse`);
   process.exit(1);
 }
-console.log('ok — alle Text-Tokens halten AA 4.5 gegen ihre tatsaechlichen Flaechen');
+console.log(`ok — alle Text-Tokens halten AA 4.7 gegen ihre tatsaechlichen Flaechen`);

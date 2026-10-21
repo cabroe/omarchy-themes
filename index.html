@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark light">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="theme-color" content="#1a1b26">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'none'">
   <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=(), accelerometer=(), magnetometer=()">
   <title>omarchy-themes · Hermes-nativ</title>
   <meta name="description" content="Omarchy-Paletten, Hermes-nativ — ein Plugin für Picker und ⌘K in Hermes Desktop; der CLI/TUI-Skin folgt über den Hook. Omarchy setzt das Theme, Hermes Desktop folgt.">
@@ -19,17 +19,6 @@
   <link rel="canonical" href="https://cabroe.github.io/omarchy-themes/">
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='2' fill='%231a1b26'/%3E%3Cpath d='M5 3.5 10.5 8 5 12.5' stroke='%237aa2f7' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <!-- Inline script: setzt data-theme synchron VOR Modul-Init, damit applyTheme() den saved-Wert
-       ohne Race uebernehmen kann. Das vollstaendige Token-Set wird in app.js am :root gesetzt;
-       eine 20-Theme-Spiegelung in styles.css wuerde driften (kein Build). -->
-  <script>
-    (function () {
-      try {
-        var saved = localStorage.getItem('omarchy-theme');
-        if (saved) document.documentElement.setAttribute('data-theme', saved);
-      } catch (e) {}
-    })();
-  </script>
 </head>
 <body>
   <a class="skip-link" href="#main" data-i18n="a11y.skip">Zum Inhalt springen</a>
@@ -78,7 +67,7 @@
             </button>
             <button id="launcherBtn" class="btn btn-ghost" type="button"
                     aria-haspopup="dialog" aria-controls="launcher" aria-expanded="false"
-                    data-i18n-aria-label="launcher.openAria">
+                    aria-label="Theme-Launcher öffnen" data-i18n-aria-label="launcher.openAria">
               <span data-i18n="hero.launcher">Themes</span><kbd class="kbd">/</kbd>
             </button>
           </div>
@@ -88,7 +77,7 @@
                einem Bild zusammen; die Karten sind nur per Maus bedienbar
                (tabindex="-1", in app.js gesetzt). Die Tastatur- und AT-Steuerung
                liegt bei der Theme-Auswahl in #demo — nicht doppelt hier. -->
-          <div class="mock mock-picker" id="pickerMock" role="img" data-i18n-aria-label="mock.picker.aria">
+          <div class="mock mock-picker" id="pickerMock" role="img" aria-label="Nachbau des Hermes-Settings-Pickers: Theme-Grid mit Swatches und Apply-Button, färbt sich mit der gewählten Palette" data-i18n-aria-label="mock.picker.aria">
             <div class="mock-bar">
               <span class="mock-dot mock-dot--close" aria-hidden="true"></span>
               <span class="mock-dot mock-dot--min" aria-hidden="true"></span>
@@ -231,7 +220,7 @@
         <div class="split">
           <figure class="shot shot-flow">
             <!-- Wie der Picker: role="img" + aria-label, Inhalt nur fuer Maus/AT als Bild. -->
-            <div class="mock mock--about" id="aboutMock" role="img" data-i18n-aria-label="mock.about.aria">
+            <div class="mock mock--about" id="aboutMock" role="img" aria-label="Nachbau des About-Panels: Wechselkette omarchy theme set → Hook → Skin → Oberfläche, mit Live-Zählern für Paletten, Dark und Light" data-i18n-aria-label="mock.about.aria">
               <div class="mock-bar">
                 <span class="mock-dot mock-dot--close" aria-hidden="true"></span>
                 <span class="mock-dot mock-dot--min" aria-hidden="true"></span>
@@ -320,7 +309,7 @@
           </button>
           <button id="launcherBtnDemo" class="btn btn-ghost" type="button"
                   aria-haspopup="dialog" aria-controls="launcher" aria-expanded="false"
-                  data-i18n-aria-label="launcher.openAria">
+                  aria-label="Theme-Launcher öffnen" data-i18n-aria-label="launcher.openAria">
             <span data-i18n="hero.launcher">Themes</span><kbd class="kbd">/</kbd>
           </button>
         </div>
@@ -348,7 +337,7 @@
          target="_blank" rel="noopener noreferrer" data-i18n="foot.readme">README →</a>
       <span class="dot" aria-hidden="true">·</span>
       <a href="https://github.com/cabroe/omarchy-themes/actions/workflows/ci.yml"
-         target="_blank" rel="noopener noreferrer" data-i18n="foot.ci" data-i18n-title="foot.ciMeta">CI status →</a>
+         target="_blank" rel="noopener noreferrer" data-i18n="foot.ci" data-i18n-title="foot.ciMeta" title="lint + tests on push">CI status →</a>
     </div>
   </footer>
 
