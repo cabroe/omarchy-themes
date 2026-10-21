@@ -11,7 +11,7 @@
 //
 // Tastatur: T = naechstes Theme, Shift+T = vorheriges, / = Launcher.
 
-import { THEMES } from './themes.js';
+import { THEMES, SKIN_KEYS } from './themes.js';
 // i18n als `tr`, weil in mehreren Schleifen `t` fuer ein Theme steht.
 import { initI18n, onLangChange, t as tr } from './i18n.js';
 
@@ -26,7 +26,9 @@ const statusSlug  = document.getElementById('statusSlug');
 const statusMode  = document.getElementById('statusMode');
 const roTheme     = document.getElementById('roTheme');
 const roPalettes  = document.getElementById('roPalettes');
+const roSkins     = document.getElementById('roSkins');
 const roMode      = document.getElementById('roMode');
+const archMidNote = document.getElementById('archMidNote');
 const grid        = document.getElementById('themeGrid');
 const mockGrid    = document.getElementById('mockGrid');
 const mockTotal   = document.getElementById('mockTotal');
@@ -412,6 +414,13 @@ function relabelTiles() {
   // Readout-Zaehler aus THEMES statt aus dem HTML: `make generate` aendert die
   // Tabelle, dann stimmt die Zahl ohne Copy-Edit.
   if (roPalettes) roPalettes.textContent = String(n);
+  // Skin-Keys ebenso aus SKIN_KEYS (themes.js) statt aus dem HTML.
+  if (roSkins) roSkins.textContent = String(SKIN_KEYS);
+  // `arch.mid.note` enthaelt {n}; applyI18n() ruft t() ohne vars, deshalb steht
+  // der Key nicht mehr als data-i18n-html im HTML und wird hier gesetzt
+  // (Muster wie demo.count/launcher.count). Laeuft auch beim Sprachwechsel,
+  // weil relabel() -> relabelTiles() haengt.
+  if (archMidNote) archMidNote.innerHTML = tr('arch.mid.note', { n: SKIN_KEYS });
 }
 
 renderTiles();

@@ -73,7 +73,7 @@ export const STRINGS = {
     'arch.cli.tag': 'Omarchy CLI',
     'arch.cli.note': 'Source of Truth für die Theme-Farben ist <code>colors.toml</code> — der Hook liest zuerst <code>current</code> (frisch erzeugt), dann das User-Overlay, dann das System-Theme.',
     'arch.mid.tag': 'omarchy-themes',
-    'arch.mid.note': 'Hook schreibt <code>~/.hermes/skins/nord.yaml</code> (22 Keys, hex 3- oder 6-stellig), Plugin registriert die Palette im Picker und ⌘K.',
+    'arch.mid.note': 'Hook schreibt <code>~/.hermes/skins/nord.yaml</code> ({n} Keys, hex 3- oder 6-stellig), Plugin registriert die Palette im Picker und ⌘K.',
     'arch.dst.tag': 'Hermes UI',
     'arch.dst.note': 'Hermes Desktop färbt sich mit der Doppel-Palette um; Light/Dark und die synthetisierte Gegenpalette laufen über Rec.709-Luma, der Accent bleibt das Omarchy-Original. Den CLI/TUI-Skin bringt bereits Schritt 2 mit.',
 
@@ -180,7 +180,7 @@ export const STRINGS = {
     'arch.cli.tag': 'Omarchy CLI',
     'arch.cli.note': 'The source of truth for theme colours is <code>colors.toml</code> — the hook reads <code>current</code> first (freshly generated), then the user overlay, then the system theme.',
     'arch.mid.tag': 'omarchy-themes',
-    'arch.mid.note': 'Hook writes <code>~/.hermes/skins/nord.yaml</code> (22 keys, 3- or 6-digit hex); the plugin registers the palette in the picker and ⌘K.',
+    'arch.mid.note': 'Hook writes <code>~/.hermes/skins/nord.yaml</code> ({n} keys, 3- or 6-digit hex); the plugin registers the palette in the picker and ⌘K.',
     'arch.dst.tag': 'Hermes UI',
     'arch.dst.note': 'Hermes Desktop repaints with the dual palette; light/dark and the synthesised counterpart run on Rec.709 luma, the accent stays the native Omarchy one. The CLI/TUI skin already comes from step 2.',
 

@@ -24,3 +24,9 @@ export const THEMES = [
   { slug:'vantablack', mode:'dark', c:{accent:'#8d8d8d',selection:'#1a1a1a',muted:'#7a7a7a',background:'#000000',dark_background:'#090909',darker_background:'#070707',lighter_background:'#1a1a1a',foreground:'#ffffff',dark_foreground:'#505050',bright_foreground:'#ffffff',red:'#a4a4a4',yellow:'#cecece',green:'#b6b6b6',cyan:'#b0b0b0',blue:'#8d8d8d',magenta:'#9b9b9b',bright_red:'#a4a4a4',bright_yellow:'#cecece',bright_green:'#b6b6b6',bright_cyan:'#b0b0b0',bright_blue:'#8d8d8d',bright_magenta:'#9b9b9b'} },
   { slug:'white', mode:'light', c:{accent:'#6e6e6e',selection:'#c0c0c0',muted:'#808080',background:'#ffffff',dark_background:'#f5f5f5',darker_background:'#e8e8e8',lighter_background:'#c0c0c0',foreground:'#000000',dark_foreground:'#c0c0c0',bright_foreground:'#000000',red:'#2a2a2a',yellow:'#4a4a4a',green:'#3a3a3a',cyan:'#3e3e3e',blue:'#1a1a1a',magenta:'#2e2e2e',bright_red:'#2a2a2a',bright_yellow:'#4a4a4a',bright_green:'#3a3a3a',bright_cyan:'#3e3e3e',bright_blue:'#1a1a1a',bright_magenta:'#2e2e2e'} },
 ];
+
+// Anzahl Farb-Keys, die `hooks/hermes-skin-sync.sh` schreibt; Quelle: 22
+// `printf '  <key>: …'`-Zeilen. Drift-Gate im main-Repo
+// (`.github/workflows/pages-consistency.yml`) vergleicht diesen Wert gegen den
+// Hook. Readout (#roSkins) und `arch.mid.note` lesen nur noch von hier.
+export const SKIN_KEYS = 22;
