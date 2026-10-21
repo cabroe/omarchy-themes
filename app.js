@@ -2,7 +2,7 @@
 //
 // Farben kommen ausschliesslich aus applyTheme(): alle abgeleiteten Tokens
 // (Flaechen, Linien, gedimmter Text, Akzent-Text, Statusfarben) werden gegen die
-// Flaeche gerechnet, auf der sie tatsaechlich liegen — 29 Paletten, 5 davon light.
+// Flaeche gerechnet, auf der sie tatsaechlich liegen — 20 Paletten, 5 davon light.
 //
 // WICHTIG (Vertragsregel): die Farb-Helfer rechnen intern mit [r,g,b]-Tupeln und
 // serialisieren erst am Ende zu Hex. Der frueher benutzte mix()->'rgb(...)' Pfad
@@ -298,7 +298,7 @@ function syncPressed(slug) {
 //
 // Die Karten sind nur per Maus bedienbar (tabindex="-1"): der Container steht
 // als role="img", die echte Tastatur-Steuerung liegt beim #themeGrid. Sonst
-// haetten wir dieselben 29 Themes zweimal im Tab-Order.
+// haetten wir dieselben 20 Themes zweimal im Tab-Order.
 function renderMockCards() {
   if (!mockGrid) return;
   const frag = document.createDocumentFragment();

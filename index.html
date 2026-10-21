@@ -21,7 +21,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='2' fill='%231a1b26'/%3E%3Cpath d='M5 3.5 10.5 8 5 12.5' stroke='%237aa2f7' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <!-- Inline script: setzt data-theme synchron VOR Modul-Init, damit applyTheme() den saved-Wert
        ohne Race uebernehmen kann. Das vollstaendige Token-Set wird in app.js am :root gesetzt;
-       eine 29-Theme-Spiegelung in styles.css wuerde driften (kein Build). -->
+       eine 20-Theme-Spiegelung in styles.css wuerde driften (kein Build). -->
   <script>
     (function () {
       try {
@@ -145,6 +145,10 @@
               <span class="meta mono-xs" data-i18n="install.terminal.meta">ein Befehl · ~3 s</span>
             </div>
             <pre class="cmd-block" tabindex="0"><code>hermes plugins install https://github.com/cabroe/omarchy-themes</code></pre>
+            <p class="note" data-i18n-html="install.terminal.note">
+              Danach unter <em>Settings → Capabilities → Plugins</em> einmal aktivieren, falls das
+              Plugin nicht bereits aktiv ist.
+            </p>
           </div>
 
           <!-- Weg 2: derselbe Vorgang in der App, Schritt fuer Schritt -->
@@ -175,6 +179,10 @@
               <span class="meta mono-xs" data-i18n="install.uninstall.meta">ein Befehl · entfernt Plugin und Config-Einträge</span>
             </div>
             <pre class="cmd-block" tabindex="0"><code>hermes plugins remove omarchy-themes</code></pre>
+            <p class="note" data-i18n-html="install.uninstall.restart">
+              Danach Hermes Desktop neu starten — erst dann hört das Plugin auf, seine Themes zu
+              registrieren.
+            </p>
             <p class="note" data-i18n-html="install.uninstall.app">
               <strong>Ohne Terminal:</strong> dieselbe Seite → Papierkorb in der Zeile
               <em>omarchy-themes</em> → <em>Deinstallieren</em>. Die App löscht den Ordner und
@@ -206,7 +214,7 @@
           <li class="flow-cell">
             <p class="flow-head mono-xs"><span class="brk" aria-hidden="true">[1]</span> <span data-i18n="arch.cli.tag">Omarchy CLI</span></p>
             <code class="cmd-line">omarchy theme set nord</code>
-            <p class="note" data-i18n-html="arch.cli.note">Source-of-Truth für Theme-Colors via <code>colors.toml</code> (User &gt; System &gt; current).</p>
+            <p class="note" data-i18n-html="arch.cli.note">Source of Truth für die Theme-Farben ist <code>colors.toml</code> — der Hook liest zuerst <code>current</code> (frisch erzeugt), dann das User-Overlay, dann das System-Theme.</p>
           </li>
           <li class="flow-cell">
             <p class="flow-head mono-xs"><span class="brk" aria-hidden="true">[2]</span> <span data-i18n="arch.mid.tag">omarchy-themes</span></p>
@@ -216,7 +224,7 @@
           <li class="flow-cell">
             <p class="flow-head mono-xs"><span class="brk" aria-hidden="true">[3]</span> <span data-i18n="arch.dst.tag">Hermes UI</span></p>
             <code class="cmd-line">applyTheme('nord')</code>
-            <p class="note" data-i18n-html="arch.dst.note">Desktop, CLI, TUI — alles in einem Schritt umgefärbt (light/dark + Accent via Rec.709-Luma-Synth).</p>
+            <p class="note" data-i18n-html="arch.dst.note">Hermes Desktop färbt sich mit der Doppel-Palette um; Light/Dark und die synthetisierte Gegenpalette laufen über Rec.709-Luma, der Accent bleibt das Omarchy-Original. Den CLI/TUI-Skin bringt bereits Schritt 2 mit.</p>
           </li>
         </ol>
 
@@ -261,13 +269,13 @@
                   <span class="mock-about-repo">github.com/cabroe/omarchy-themes</span>
                 </p>
                 <p class="mock-about-lede" data-i18n="mock.about.lede">
-                  Bringt die Omarchy-Themes nach Hermes Desktop — jedes Omarchy-Theme wird
+                  Bringt die Omarchy-Themes nach Hermes Desktop — jedes registrierte Theme wird
                   hier wählbar, und der Wechsel färbt die Oberfläche mit.
                 </p>
                 <!-- Zahlen kommen live aus THEMES (app.js), nicht hartkodiert. -->
                 <dl class="mock-stats">
-                  <div class="mock-stat"><dt data-i18n="readout.palettes">Paletten</dt><dd id="mockTotal">29</dd></div>
-                  <div class="mock-stat"><dt data-i18n="mock.about.dark">dark</dt><dd id="mockDark">24</dd></div>
+                  <div class="mock-stat"><dt data-i18n="readout.palettes">Paletten</dt><dd id="mockTotal">20</dd></div>
+                  <div class="mock-stat"><dt data-i18n="mock.about.dark">dark</dt><dd id="mockDark">15</dd></div>
                   <div class="mock-stat"><dt data-i18n="mock.about.light">light</dt><dd id="mockLight">5</dd></div>
                 </dl>
                 <h4 class="mock-h4" data-i18n="mock.about.how">So wird gewechselt</h4>
@@ -286,7 +294,7 @@
           </figure>
           <dl class="readout" aria-label="Theme-Status" data-i18n-aria-label="readout.aria">
             <div class="ro"><dt data-i18n="status.theme">theme</dt><dd id="roTheme">tokyo-night</dd></div>
-            <div class="ro"><dt data-i18n="readout.palettes">Paletten</dt><dd id="roPalettes">29</dd></div>
+            <div class="ro"><dt data-i18n="readout.palettes">Paletten</dt><dd id="roPalettes">20</dd></div>
             <div class="ro"><dt data-i18n="readout.skins">Skin-Keys</dt><dd>22</dd></div>
             <div class="ro"><dt data-i18n="readout.mode">Modus</dt><dd id="roMode">dark</dd></div>
           </dl>
@@ -300,12 +308,13 @@
       <div class="wrap">
         <h2 data-i18n="demo.h2">Probier’s aus.</h2>
         <p class="lede" data-i18n-html="demo.lede">
-          Alle Standard-Paletten, Light und Dark gemischt. Cycle-Button oder Launcher — die ganze
-          Seite färbt sich mit, Light/Dark inklusive. Drücke <kbd class="kbd">T</kbd>, um durch alle Themes zu cyclen.
+          Die Paletten, die das Plugin registriert, Light und Dark gemischt. Cycle-Button oder
+          Launcher — die ganze Seite färbt sich mit, Light/Dark inklusive. Drücke <kbd class="kbd">T</kbd>,
+          um durch alle Themes zu cyclen.
         </p>
 
         <div class="demo-bar">
-          <span class="demo-count mono" id="demoCount">29 Paletten</span>
+          <span class="demo-count mono" id="demoCount">20 Paletten</span>
           <button id="cycleBtnDemo" class="btn btn-primary" type="button">
             <span data-i18n="hero.cycle">Cycle theme →</span><kbd class="kbd">T</kbd>
           </button>
@@ -317,7 +326,7 @@
         </div>
 
         <div id="themeGrid" class="tile-grid" role="group"
-             aria-label="Theme-Auswahl — alle Paletten" data-i18n-aria-label="demo.gridAria"></div>
+             aria-label="Theme-Auswahl — die registrierten Paletten" data-i18n-aria-label="demo.gridAria"></div>
         <!-- Kein dritter Screenshot: das Picker-Mockup im Hero ist live und
              faerbt sich bei jedem Klick mit — eine Light-Variante davon waere
              dieselbe Aussage in zwei Formaten. -->
@@ -331,7 +340,7 @@
     <div class="wrap foot-line mono">
       <span class="foot-brand">omarchy-themes v1.2.0</span>
       <span class="dot" aria-hidden="true">·</span>
-      <span id="footCount">29 Paletten</span>
+      <span id="footCount">20 Paletten</span>
       <span class="dot" aria-hidden="true">·</span>
       <span data-i18n="foot.branch">branch: main</span>
       <span class="dot" aria-hidden="true">·</span>
