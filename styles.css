@@ -764,6 +764,7 @@ kbd {
 .path {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   gap: var(--s3);
   padding: var(--s4);
   border: 1px solid var(--border);
@@ -804,16 +805,13 @@ kbd {
   display: flex;
   flex-direction: column;
   gap: var(--s3);
-  margin-top: var(--s6);
-  padding-top: var(--s5);
-  border-top: 1px solid var(--border);
 }
 .uninstall-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
-.uninstall .cmd-block {
-  background: transparent;
-  border-left-color: var(--border-strong);
-  color: var(--fg-muted);
-}
+/* Dieselbe Command-Grammatik wie in den beiden Karten: ein Befehl sieht ueberall
+   gleich aus — und traegt in der Sekundaer-Band dieselbe Textbreite wie die
+   Notizen daneben/darunter. Die Deinstallation bleibt durch Position, Hairline
+   und Notizen leiser, nicht durch eine andere Bar. */
+.uninstall .cmd-block { max-width: var(--measure); }
 .uninstall .note { max-width: var(--measure); }
 .meta { color: var(--fg-muted); }
 .cmd-block {
@@ -832,13 +830,17 @@ kbd {
   tab-size: 2;
 }
 .cmd-block code { font-size: var(--text-mono); }
-.note-extras { margin-top: var(--s5); }
-.note-extras code {
-  font-size: 0.92em;
-  background: var(--accent-wash);
-  color: var(--fg);
-  border-radius: var(--r-chip);
-  padding: 1px 4px;
+/* ---------- install: Sekundaer-Band ---------- */
+/* Unter den beiden Karten eine Hairline ueber die volle Breite: darin die
+   Option und die Deinstallation — gleiche Grammatik (Tag, Meta, Command-Bar,
+   Notiz auf Mass), nur leiser als die Karten. */
+.band {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+  margin-top: var(--s6);
+  padding-top: var(--s5);
+  border-top: 1px solid var(--border);
 }
 
 /* ---------- footer ---------- */
@@ -1036,6 +1038,11 @@ body.launcher-open { overflow: hidden; }
   :root { --gutter: 20px; }
   .tile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cmd-block { white-space: pre-wrap; overflow-wrap: anywhere; }
+  /* Tag und Meta stehen auf dem Desktop nebeneinander; auf schmalen Viewports
+     bricht die Meta sonst mitten im Wort um. Gestapelt gilt fuer alle drei
+     Koepfe dieselbe Regel (Terminal, App, Deinstallation). */
+  .path-head,
+  .uninstall-head { flex-direction: column; align-items: flex-start; gap: var(--s1); }
 }
 
 /* ---------- motion ---------- */
