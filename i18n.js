@@ -12,19 +12,18 @@ export const LANGS = ['de', 'en'];
 export const STRINGS = {
   de: {
     'meta.title': 'omarchy-themes · Hermes-nativ',
-    'meta.description': 'Omarchy-Paletten, Hermes-nativ — Plugin für Desktop, ⌘K und CLI/TUI-Skin. Omarchy setzt das Theme, Hermes Desktop folgt.',
+    'meta.description': 'Omarchy-Paletten, Hermes-nativ — ein Plugin für Picker und ⌘K in Hermes Desktop; der CLI/TUI-Skin folgt über den Hook. Omarchy setzt das Theme, Hermes Desktop folgt.',
     'a11y.skip': 'Zum Inhalt springen',
     'lang.groupAria': 'Sprache',
 
     'nav.aria': 'Sektionen',
     'nav.flow': 'Flow',
-    'nav.components': 'Komponenten',
     'nav.demo': 'Demo',
     'nav.install': 'Install',
 
     'hero.kicker': 'omarchy · hermes desktop plugin',
     'hero.title': 'Omarchy-Themes, Hermes-nativ.',
-    'hero.lede': 'Ein Hermes-Desktop-Plugin, das Omarchy-Themes nach Hermes Desktop synct — inklusive der Themes, die du selbst installiert hast. <code>omarchy theme set nord</code>, und Picker, ⌘K und CLI/TUI-Skin färben sich mit.',
+    'hero.lede': 'Ein Hermes-Desktop-Plugin, das Omarchy-Themes nach Hermes Desktop synct — inklusive der Themes, die du selbst installiert hast. <code>omarchy theme set nord</code>, und Picker und ⌘K färben sich mit. Der CLI/TUI-Skin folgt, sobald der Hook installiert ist (<code>make install-hook</code>).',
     'hero.cycle': 'Cycle theme →',
     'hero.launcher': 'Themes',
     'status.theme': 'theme',
@@ -54,7 +53,7 @@ export const STRINGS = {
 
     'mock.about.aria': 'Nachbau des About-Panels: Wechselkette omarchy theme set → Hook → Skin → Oberfläche, mit Live-Zählern für Paletten, Dark und Light',
     'mock.about.caption': 'How switching works (About-Panel)',
-    'mock.about.lede': 'Bricht die Omarchy-Themes in Hermes Desktop — jedes Omarchy-Theme wird hier wählbar, und der Wechsel färbt die Oberfläche mit.',
+    'mock.about.lede': 'Bringt die Omarchy-Themes nach Hermes Desktop — jedes Omarchy-Theme wird hier wählbar, und der Wechsel färbt die Oberfläche mit.',
     'mock.about.dark': 'dark',
     'mock.about.light': 'light',
     'mock.about.how': 'So wird gewechselt',
@@ -78,19 +77,9 @@ export const STRINGS = {
     'arch.dst.tag': 'Hermes UI',
     'arch.dst.note': 'Desktop, CLI, TUI — alles in einem Schritt umgefärbt (light/dark + Accent via Rec.709-Luma-Synth).',
 
-    'comp.h2': 'Drei Komponenten, ein Theme-Flow.',
-    'comp.lede': 'Desktop-Plugin registriert die Paletten. Hook synct sie ins Hermes-Skin-File. Generator frischt sie nach jedem Omarchy-Update auf.',
-    'comp.anatomy': 'Keine der drei Komponenten ist optional — wer nur den Desktop-Picker will, kommt mit Plugin + Generator aus; wer auch CLI/TUI mitsyncen will, ergänzt den Hook.',
-    'comp.plugin.h3': 'Desktop plugin',
-    'comp.plugin.body': 'Registriert jede Omarchy-Palette im Hermes-Picker, als ⌘K-Befehl (<em>Apply Omarchy Theme: &lt;Name&gt;</em>) und auf einer Settings-Karte mit Swatches, Filter und Apply. Jedes Theme bringt Light- und Dark-Palette mit; Brand-Accent wird geteilt, die Gegenpalette wird synthetisiert.',
-    'comp.hook.h3': 'Omarchy theme-set hook',
-    'comp.hook.body': 'Läuft bei jedem <code>omarchy theme set &lt;slug&gt;</code>. Parst die <code>colors.toml</code> (User &gt; System &gt; current), schreibt <code>~/.hermes/skins/&lt;slug&gt;.yaml</code> und aktiviert den Skin via <code>hermes skin use</code>. Reines POSIX-sh, kein Python, exit 0 immer.',
-    'comp.gen.h3': 'Theme-table generator',
-    'comp.gen.body': 'Liest <code>colors.toml</code> aus <code>/usr/share/omarchy/themes/</code> (mit <code>--include-user</code> auch aus <code>~/.config/omarchy/themes/</code>) und schreibt den <code>// BEGIN GENERATED THEMES … // END GENERATED THEMES</code>-Block in <code>desktop/plugin.js</code> neu. <code>HOST=&lt;ssh&gt;</code> liest aus der Ferne.',
-
     'demo.h2': 'Probier’s aus.',
-    'demo.lede': '29 Standard-Paletten, 5 Light + 24 Dark. Cycle-Button oder Launcher — die ganze Seite färbt sich mit, Light/Dark inklusive. Drücke <kbd>T</kbd>, um durch alle Themes zu cyclen.',
-    'demo.gridAria': 'Theme-Auswahl — alle 29 Themes',
+    'demo.lede': 'Alle Standard-Paletten, Light und Dark gemischt. Cycle-Button oder Launcher — die ganze Seite färbt sich mit, Light/Dark inklusive. Drücke <kbd>T</kbd>, um durch alle Themes zu cyclen.',
+    'demo.gridAria': 'Theme-Auswahl — alle Paletten',
     'demo.count': '{n} Paletten',
 
     'install.h2': 'In 30 Sekunden drin.',
@@ -128,19 +117,18 @@ export const STRINGS = {
 
   en: {
     'meta.title': 'omarchy-themes · Hermes-native',
-    'meta.description': 'Omarchy colour schemes in Hermes — a plugin for the desktop, ⌘K and the CLI/TUI skin. Omarchy sets the theme, Hermes Desktop follows.',
+    'meta.description': 'Omarchy colour schemes in Hermes — a plugin for the picker and ⌘K in Hermes Desktop; the CLI/TUI skin follows through the hook. Omarchy sets the theme, Hermes Desktop follows.',
     'a11y.skip': 'Skip to content',
     'lang.groupAria': 'Language',
 
     'nav.aria': 'Sections',
     'nav.flow': 'Flow',
-    'nav.components': 'Components',
     'nav.demo': 'Demo',
     'nav.install': 'Install',
 
     'hero.kicker': 'omarchy · hermes desktop plugin',
     'hero.title': 'Omarchy themes, Hermes-native.',
-    'hero.lede': 'A Hermes Desktop plugin that syncs Omarchy themes into Hermes Desktop, including any themes you installed yourself. Run <code>omarchy theme set nord</code>, and the picker, ⌘K and the CLI/TUI skin recolour with it.',
+    'hero.lede': 'A Hermes Desktop plugin that syncs Omarchy themes into Hermes Desktop, including any themes you installed yourself. Run <code>omarchy theme set nord</code> and the picker and ⌘K recolour with it. The CLI/TUI skin follows once the hook is installed (<code>make install-hook</code>).',
     'hero.cycle': 'Cycle theme →',
     'hero.launcher': 'Themes',
     'status.theme': 'theme',
@@ -194,19 +182,9 @@ export const STRINGS = {
     'arch.dst.tag': 'Hermes UI',
     'arch.dst.note': 'Desktop, CLI, TUI — all recoloured in one step (light/dark + accent via Rec.709 luma synthesis).',
 
-    'comp.h2': 'Three components, one theme flow.',
-    'comp.lede': 'The desktop plugin registers the palettes. The hook syncs them into the Hermes skin file. The generator refreshes them after every Omarchy update.',
-    'comp.anatomy': 'None of the three is optional — if you only want the desktop picker, plugin + generator are enough; add the hook if you also want the CLI/TUI synced.',
-    'comp.plugin.h3': 'Desktop plugin',
-    'comp.plugin.body': 'Registers every Omarchy palette in the Hermes picker, as a ⌘K command (<em>Apply Omarchy Theme: &lt;name&gt;</em>) and on a settings card with swatches, filter and apply. Each theme ships a light and a dark palette; the brand accent is shared, the counter-palette is synthesised.',
-    'comp.hook.h3': 'Omarchy theme-set hook',
-    'comp.hook.body': 'Runs on every <code>omarchy theme set &lt;slug&gt;</code>. Parses <code>colors.toml</code> (user &gt; system &gt; current), writes <code>~/.hermes/skins/&lt;slug&gt;.yaml</code> and activates the skin via <code>hermes skin use</code>. Pure POSIX sh, no Python, always exit 0.',
-    'comp.gen.h3': 'Theme-table generator',
-    'comp.gen.body': 'Reads <code>colors.toml</code> from <code>/usr/share/omarchy/themes/</code> (with <code>--include-user</code> also from <code>~/.config/omarchy/themes/</code>) and rewrites the <code>// BEGIN GENERATED THEMES … // END GENERATED THEMES</code> block in <code>desktop/plugin.js</code>. <code>HOST=&lt;ssh&gt;</code> reads remotely.',
-
     'demo.h2': 'Try it.',
-    'demo.lede': '29 stock palettes, 5 light + 24 dark. Cycle button or launcher — the whole page recolours along, light/dark included. Press <kbd>T</kbd> to cycle through every theme.',
-    'demo.gridAria': 'Theme selection — all 29 themes',
+    'demo.lede': 'All stock palettes, light and dark mixed. Cycle button or launcher — the whole page recolours along, light/dark included. Press <kbd>T</kbd> to cycle through every theme.',
+    'demo.gridAria': 'Theme selection — all palettes',
     'demo.count': '{n} palettes',
 
     'install.h2': 'Set up in 30 seconds.',
@@ -299,6 +277,13 @@ export function applyI18n(root = document) {
 
   const desc = document.querySelector('meta[name="description"]');
   if (desc) desc.setAttribute('content', t('meta.description'));
+
+  // Social-Preview folgt der Sprache: og:title/og:description sind die
+  // statischen DE-Fallbacks im <head>, hier werden sie mit uebersetzt.
+  for (const [prop, value] of [['og:title', t('meta.title')], ['og:description', t('meta.description')]]) {
+    const meta = document.querySelector(`meta[property="${prop}"]`);
+    if (meta) meta.setAttribute('content', value);
+  }
 
   for (const el of root.querySelectorAll('[data-i18n]')) {
     el.textContent = t(el.dataset.i18n);

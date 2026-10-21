@@ -9,7 +9,14 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'none'">
   <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=(), accelerometer=(), magnetometer=()">
   <title>omarchy-themes · Hermes-nativ</title>
-  <meta name="description" content="Omarchy-Paletten, Hermes-nativ — Plugin für Desktop, ⌘K und CLI/TUI-Skin. Omarchy setzt das Theme, Hermes Desktop folgt.">
+  <meta name="description" content="Omarchy-Paletten, Hermes-nativ — ein Plugin für Picker und ⌘K in Hermes Desktop; der CLI/TUI-Skin folgt über den Hook. Omarchy setzt das Theme, Hermes Desktop folgt.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="omarchy-themes">
+  <meta property="og:title" content="omarchy-themes · Hermes-nativ">
+  <meta property="og:description" content="Omarchy-Paletten, Hermes-nativ — ein Plugin für Picker und ⌘K in Hermes Desktop; der CLI/TUI-Skin folgt über den Hook. Omarchy setzt das Theme, Hermes Desktop folgt.">
+  <meta property="og:url" content="https://cabroe.github.io/omarchy-themes/">
+  <meta name="twitter:card" content="summary">
+  <link rel="canonical" href="https://cabroe.github.io/omarchy-themes/">
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='2' fill='%231a1b26'/%3E%3Cpath d='M5 3.5 10.5 8 5 12.5' stroke='%237aa2f7' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <!-- Inline script: setzt data-theme synchron VOR Modul-Init, damit applyTheme() den saved-Wert
@@ -62,7 +69,8 @@
           <p class="lede" data-i18n-html="hero.lede">
             Ein Hermes-Desktop-Plugin, das Omarchy-Themes nach Hermes Desktop synct — inklusive
             der Themes, die du selbst installiert hast. <code>omarchy theme set nord</code>, und
-            Picker, ⌘K und CLI/TUI-Skin färben sich mit.
+            Picker und ⌘K färben sich mit. Der CLI/TUI-Skin folgt, sobald der Hook installiert
+            ist (<code>make install-hook</code>).
           </p>
           <div class="cta">
             <button id="cycleBtn" class="btn btn-primary" type="button">
@@ -149,7 +157,7 @@
               <li data-i18n-html="install.app.s1"><em>Settings → Capabilities → Plugins</em></li>
               <li data-i18n-html="install.app.s2"><em>Von Git installieren</em></li>
               <li data-i18n-html="install.app.s3">Repository-URL einfügen, <em>Repository prüfen</em></li>
-              <li data-i18n-html="install.app.s4"><em>Installieren</em> — die App legt das Plugin ab und aktiviert es</li>
+              <li data-i18n-html="install.app.s4"><em>Installieren</em> — die App schaltet das Plugin direkt ein</li>
             </ol>
           </div>
         </div>
@@ -251,7 +259,7 @@
                   <span class="mock-about-repo">github.com/cabroe/omarchy-themes</span>
                 </p>
                 <p class="mock-about-lede" data-i18n="mock.about.lede">
-                  Bridgets Omarchy-Themes in Hermes Desktop — jedes Omarchy-Theme wird
+                  Bringt die Omarchy-Themes nach Hermes Desktop — jedes Omarchy-Theme wird
                   hier wählbar, und der Wechsel färbt die Oberfläche mit.
                 </p>
                 <!-- Zahlen kommen live aus THEMES (app.js), nicht hartkodiert. -->
@@ -276,7 +284,7 @@
           </figure>
           <dl class="readout" aria-label="Theme-Status" data-i18n-aria-label="readout.aria">
             <div class="ro"><dt data-i18n="status.theme">theme</dt><dd id="roTheme">tokyo-night</dd></div>
-            <div class="ro"><dt data-i18n="readout.palettes">Paletten</dt><dd>29</dd></div>
+            <div class="ro"><dt data-i18n="readout.palettes">Paletten</dt><dd id="roPalettes">29</dd></div>
             <div class="ro"><dt data-i18n="readout.skins">Skin-Keys</dt><dd>22</dd></div>
             <div class="ro"><dt data-i18n="readout.mode">Modus</dt><dd id="roMode">dark</dd></div>
           </dl>
@@ -290,8 +298,8 @@
       <div class="wrap">
         <h2 data-i18n="demo.h2">Probier’s aus.</h2>
         <p class="lede" data-i18n-html="demo.lede">
-          29 Standard-Paletten, 5 Light + 24 Dark. Cycle-Button oder Launcher — die ganze Seite
-          färbt sich mit, Light/Dark inklusive. Drücke <kbd class="kbd">T</kbd>, um durch alle Themes zu cyclen.
+          Alle Standard-Paletten, Light und Dark gemischt. Cycle-Button oder Launcher — die ganze
+          Seite färbt sich mit, Light/Dark inklusive. Drücke <kbd class="kbd">T</kbd>, um durch alle Themes zu cyclen.
         </p>
 
         <div class="demo-bar">
@@ -307,7 +315,7 @@
         </div>
 
         <div id="themeGrid" class="tile-grid" role="group"
-             aria-label="Theme-Auswahl — alle 29" data-i18n-aria-label="demo.gridAria"></div>
+             aria-label="Theme-Auswahl — alle Paletten" data-i18n-aria-label="demo.gridAria"></div>
         <!-- Kein dritter Screenshot: das Picker-Mockup im Hero ist live und
              faerbt sich bei jedem Klick mit — eine Light-Variante davon waere
              dieselbe Aussage in zwei Formaten. -->

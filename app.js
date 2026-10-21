@@ -25,6 +25,7 @@ const launcherBtns = [document.getElementById('launcherBtn'), document.getElemen
 const statusSlug  = document.getElementById('statusSlug');
 const statusMode  = document.getElementById('statusMode');
 const roTheme     = document.getElementById('roTheme');
+const roPalettes  = document.getElementById('roPalettes');
 const roMode      = document.getElementById('roMode');
 const grid        = document.getElementById('themeGrid');
 const mockGrid    = document.getElementById('mockGrid');
@@ -408,6 +409,9 @@ function relabelTiles() {
   const n = THEMES.length;
   if (demoCount) demoCount.textContent = tr('demo.count', { n });
   if (footCount) footCount.textContent = tr('demo.count', { n });
+  // Readout-Zaehler aus THEMES statt aus dem HTML: `make generate` aendert die
+  // Tabelle, dann stimmt die Zahl ohne Copy-Edit.
+  if (roPalettes) roPalettes.textContent = String(n);
 }
 
 renderTiles();
