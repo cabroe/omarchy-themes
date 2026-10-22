@@ -18,22 +18,30 @@ name: Pages consistency
 #
 #   push main         -> github.sha             (der gepushte Commit)
 #   pull_request main -> github.sha             (PR-Merge-Commit = PR + Base)
-#   push gh-pages     -> Default-Branch (main)  (Code-Stand, nie die Seite)
+#   Ref gh-pages      -> Default-Branch (main)  (Code-Stand, nie die Seite)
 #   workflow_dispatch -> github.sha             (Ref, auf dem gestartet wurde)
 #
 # Der zweite Checkout (path: pages) ist in allen Faellen die Seite. Damit
-# prueft die Matrix push main / pull_request main / push gh-pages jeweils den
-# *Code*-Stand gegen die Seite — nie die Seite als Code.
+# prueft jeder Lauf den *Code*-Stand gegen die Seite — nie die Seite als Code.
 #
-# Voraussetzung fuer den gh-pages-Trigger: GitHub liest Workflow-Dateien aus
-# dem gepushten Ref, dieser Trigger feuert also erst, wenn diese Datei auch auf
-# gh-pages liegt (dort laeuft dann sogar diese Fassung, nicht die auf main).
-# gh-pages wird in diesem Repo nicht per Workflow deployt, sondern von Hand
-# gepflegt — solange die Datei dort fehlt, ist der Trigger inert und schadet
-# nicht; main und pull_request sind davon unabhaengig.
+# Voraussetzung fuer den gh-pages-Trigger waere, dass diese Datei auch auf
+# gh-pages liegt — GitHub liest Workflow-Dateien aus dem gepushten Ref. Sie
+# liegt dort nicht (`git ls-tree -r origin/gh-pages` kennt kein `.github/`),
+# und gh-pages wird in diesem Repo von Hand gepflegt, nicht per Workflow
+# deployt. Der Trigger `push: gh-pages` war damit inert und ist deshalb
+# gestrichen (Chief-Entscheidung nach Abnahme W1g, Befund W1e-1): eine Quelle
+# der Wahrheit statt einer zweiten Kopie des Workflows auf dem Seiten-Branch.
+# Restrisiko, bewusst getragen: ein direkt auf gh-pages committeter Drift wird
+# nicht sofort geprueft, sondern beim naechsten Push/PR auf main — dieselbe
+# Abdeckung wie vor dem Trigger.
+#
+# Der Ref-Aufloeser bleibt trotzdem scharf: `workflow_dispatch` kann auf dem
+# Ref gh-pages gestartet werden, und ohne Guard wuerde der Code-Checkout dann
+# die Seite auschecken (Befund W1e-2, irrefuehrender Exit 2). Der Guard prueft
+# deshalb den Ref, nicht das Event.
 on:
   push:
-    branches: [main, gh-pages]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -60,11 +68,12 @@ jobs:
       - name: Resolve code ref (never the pushed gh-pages tree)
         id: code-ref
         env:
-          EVENT_NAME: ${{ github.event_name }}
           REF_NAME: ${{ github.ref }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          if [ "$EVENT_NAME" = "push" ] && [ "$REF_NAME" = "refs/heads/gh-pages" ]; then
+          # Guard auf den REF, nicht auf das Event (W1e-2): ein dispatch auf dem
+          # Ref gh-pages wuerde sonst die Seite als Code auschecken.
+          if [ "$REF_NAME" = "refs/heads/gh-pages" ]; then
             if [ -z "$DEFAULT_BRANCH" ] || [ "$DEFAULT_BRANCH" = "gh-pages" ]; then
               echo "FAIL: default branch is '${DEFAULT_BRANCH:-<unset>}' — no code tree to compare the page against"
               exit 2
