@@ -136,8 +136,9 @@ The generator replaces only the `// BEGIN GENERATED THEMES … // END GENERATED 
 **Requirements:** Node ≥ 22 · Python ≥ 3.11 · `shellcheck`
 
 ```bash
-make check          # lint + tests (CI gate)
+make check          # lint + tests + pages-check (CI gate)
 make test           # node tests/smoke.mjs && sh tests/hook.sh
+make pages-check    # gh-pages drift gate (PAGES_DIR=<checkout>; prints a visible SKIP without one)
 make lint           # node --check + py_compile + shellcheck
 make install-githooks   # pre-push: blocks on baked-table drift (run 'make generate', commit, retry)
 ```
@@ -165,7 +166,7 @@ omarchy-themes/
 │   ├── hook.sh
 │   ├── theme-switch-smoke.sh
 │   └── stubs/
-├── .github/workflows/              # ci.yml · live-theme-smoke.yml · regen-themes.yml
+├── .github/workflows/              # ci.yml · pages-consistency.yml · live-theme-smoke.yml · regen-themes.yml
 ├── .githooks/pre-push
 ├── plugin.yaml
 └── Makefile

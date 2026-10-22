@@ -70,7 +70,7 @@ Ohne Terminal: Settings → Capabilities → Plugins → *Von Git installieren*,
 
 **Reste nach der Deinstallation:** Skin-Dateien unter `~/.hermes/skins/<slug>.yaml` und — falls gesetzt — der Auto-Sync-Toggle unter `~/.local/state/omarchy/toggles/`; löschen, wenn du sie nicht mehr brauchst.
 
-**Entwicklung:** Node ≥ 22, Python ≥ 3.11, `shellcheck`. `make check` = Lint + Tests; `make install-githooks` aktiviert Pre-push-`generate-check`-Guard (blockt den Push bei Drift — kein Auto-Commit mehr).
+**Entwicklung:** Node ≥ 22, Python ≥ 3.11, `shellcheck`. `make check` = Lint + Tests + `pages-check` (Drift-Gate gegen die Homepage; ohne gh-pages-Checkout ein sichtbarer SKIP); `make install-githooks` aktiviert Pre-push-`generate-check`-Guard (blockt den Push bei Drift — kein Auto-Commit mehr).
 
 **Was du bekommst:**
 - Jedes Omarchy-Theme erscheint als `omarchy-<slug>` im Picker, in ⌘K (`Apply Omarchy Theme: <Name>`) und in der Settings-Kartenansicht mit Swatches/Filter/*Apply*. `catppuccin` und `everforest` kollidieren mit Hermes-Built-ins und werden im Picker übersprungen (Hermes ist Source of Truth).
@@ -90,8 +90,9 @@ Nach einem Omarchy-Update: `make generate` (`HOST=<ssh-Host>` liest per SSH) bau
 ## 🧪 Tests
 
 ```bash
-make check    # = lint + test
+make check    # = lint + test + pages-check
 make test     # node tests/smoke.mjs && sh tests/hook.sh
+make pages-check  # Drift-Gate gegen die Homepage (PAGES_DIR=<checkout>; ohne Checkout sichtbarer SKIP)
 make lint     # node --check + py_compile + shellcheck
 ```
 
@@ -99,7 +100,7 @@ make lint     # node --check + py_compile + shellcheck
 - **`tests/hook.sh`** — Skin-YAML (22 Keys, 3-stelliges Hex), Skip bei unbekannt, Exit 0 bei Fehler, Fallback auf Omarchy-erzeugte `colors.toml`.
 - **`tests/theme-switch-smoke.sh`** — Live `omarchy theme set` per SSH (`make theme-smoke HOST=omarchy`). Mutiert User-State; nicht in `make check`.
 
-CI: drei Workflows. `ci.yml` (Lint + Tests auf Push/PR, manuelle `workflow_dispatch`). `live-theme-smoke.yml` führt Smoke auf Self-hosted-omarchy-Runner aus (manuell `workflow_dispatch`, sonntags 04:00 UTC, `push` auf `main` wenn Smoke/Hook/Workflow ändern). `regen-themes.yml` regeneriert die Baked-Table wöchentlich (montags 04:00 UTC) und öffnet einen PR wenn Drift entstanden ist; manuell via `workflow_dispatch`. Dedizierte Label-gepinnte Runner; vor Trigger starten, danach stoppen.
+CI: vier Workflows. `ci.yml` (Lint + Tests auf Push/PR, manuelle `workflow_dispatch`). `pages-consistency.yml` erzwingt das Drift-Gate zwischen `main` und `gh-pages` (checkt beide Branches getrennt aus, läuft GitHub-hosted, schlägt bei Drift fehl). `live-theme-smoke.yml` führt Smoke auf Self-hosted-omarchy-Runner aus (manuell `workflow_dispatch`, sonntags 04:00 UTC, `push` auf `main` wenn Smoke/Hook/Workflow ändern). `regen-themes.yml` regeneriert die Baked-Table wöchentlich (montags 04:00 UTC) und öffnet einen PR wenn Drift entstanden ist; manuell via `workflow_dispatch`. Dedizierte Label-gepinnte Runner; vor Trigger starten, danach stoppen.
 
 ---
 
@@ -111,7 +112,7 @@ omarchy-themes/
 ├── hooks/hermes-skin-sync.sh # Omarchy-theme-set-Hook → Hermes CLI/TUI-Skin
 ├── scripts/generate-themes.py  # colors.toml → Theme-Tabelle in plugin.js
 ├── tests/{smoke.mjs,hook.sh,theme-switch-smoke.sh,stubs/}
-├── .github/workflows/        # ci.yml, live-theme-smoke.yml, regen-themes.yml
+├── .github/workflows/        # ci.yml, pages-consistency.yml, live-theme-smoke.yml, regen-themes.yml
 ├── .githooks/pre-push        # generate-check-Guard
 └── Makefile
 ```
