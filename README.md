@@ -24,7 +24,7 @@ Omarchy color schemes as Hermes Desktop themes and CLI/TUI skins
 
 ## What it does
 
-`omarchy theme set nord` — and Hermes Desktop switches palette, light/dark mode, and terminal colours in under a second. No manual step needed.
+`omarchy theme set nord` — and Hermes Desktop switches palette, light/dark mode, and terminal colours in under a second. No manual step needed for the desktop half.
 
 **Three parts, one flow:**
 
@@ -58,7 +58,7 @@ hermes plugins install https://github.com/cabroe/omarchy-themes
 
 Without a terminal: Settings → Capabilities → Plugins → *Install from Git*, paste `https://github.com/cabroe/omarchy-themes`, *Review repository*, *Install* — the app installs and enables it in one go.
 
-**Optional: the terminal skin (hook).** The desktop themes work without this step. `omarchy theme set` also repaints the Hermes CLI/TUI, and that half is a hook: `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh`. On the plugin page (Settings → Capabilities → Plugins → `omarchy-themes`) the *Terminal-Skin (Hook)* row sits above the theme cards — *Installieren* writes the file, *Entfernen* removes it again. From a checkout, `make install-hook` does the same.
+**Optional: the terminal skin (hook).** The desktop themes work without this step. `omarchy theme set` also repaints the Hermes CLI/TUI, and that half is a hook: `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh`. On the plugin page (Settings → Capabilities → Plugins → `omarchy-themes`) the *Terminal-Skin (Hook)* row sits above the theme cards. Its buttons are labelled in German: *Installieren* writes the file, *Entfernen* removes it again. From a checkout, `make install-hook` does the same.
 
 ---
 
