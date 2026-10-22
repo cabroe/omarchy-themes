@@ -52,10 +52,13 @@ The About page documents how the sync works and lists the theme counts:
 
 ```bash
 hermes plugins install https://github.com/cabroe/omarchy-themes
-# then: Settings → Capabilities → Plugins → omarchy-themes → enable
+# then: ⌘K → "Reload desktop plugins", and
+#       Settings → Capabilities → Plugins → omarchy-themes → enable
 ```
 
 Without a terminal: Settings → Capabilities → Plugins → *Install from Git*, paste `https://github.com/cabroe/omarchy-themes`, *Review repository*, *Install* — the app installs and enables it in one go.
+
+**Optional: the terminal skin (hook).** The desktop themes work without this step. `omarchy theme set` also repaints the Hermes CLI/TUI, and that half is a hook: `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh`. On the plugin page (Settings → Capabilities → Plugins → `omarchy-themes`) the *Terminal-Skin (Hook)* row sits above the theme cards — *Installieren* writes the file, *Entfernen* removes it again. From a checkout, `make install-hook` does the same.
 
 ---
 
@@ -69,6 +72,8 @@ hermes plugins remove omarchy-themes
 The command deletes the plugin folder and drops its entries from the Hermes config (plugin list, grants), so nothing has to be edited by hand. Afterwards `display.skin` still points at the last Omarchy skin — `hermes skin use default` switches back to a builtin palette.
 
 Without a terminal: Settings → Capabilities → Plugins → trash icon on the `omarchy-themes` row → *Uninstall*. The app deletes the folder and unloads the plugin right away; no restart needed.
+
+One leftover does not go away by itself: `hermes plugins remove` deletes the plugin folder, but not the hook under `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh`. It stays and keeps setting the CLI/TUI skin on every `omarchy theme set`. Remove it with *Entfernen* on the plugin page before you uninstall, or afterwards with `make uninstall-hook` (alias: `make uninstall`) from a checkout — that target is a single `rm -f` on that path.
 
 Leftovers you may keep: the skin files under `~/.hermes/skins/<slug>.yaml` and — if you set it — the auto-sync toggle under `~/.local/state/omarchy/toggles/`.
 

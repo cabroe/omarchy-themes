@@ -60,9 +60,13 @@ Die About-Seite erklärt den Sync-Mechanismus und zählt die Themes auf:
 
 Ohne Terminal: Settings → Capabilities → Plugins → *Von Git installieren*, `https://github.com/cabroe/omarchy-themes` einfügen, *Repository prüfen*, *Installieren* — die App installiert und aktiviert in einem Schritt.
 
+**Optional: Terminal-Skin (Hook).** Die Desktop-Themes funktionieren ohne diesen Schritt. `omarchy theme set` färbt auch die Hermes-CLI/TUI um, und diese Hälfte ist ein Hook: `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh`. Auf der Plugin-Seite (Settings → Capabilities → Plugins → `omarchy-themes`) sitzt über den Theme-Karten die Zeile *Terminal-Skin (Hook)* — *Installieren* schreibt die Datei, *Entfernen* entfernt sie wieder. Aus einem Checkout erledigt `make install-hook` dasselbe.
+
 **Deinstallation:** `hermes plugins remove omarchy-themes`, dann Hermes Desktop neu starten. Der Befehl löscht das Plugin-Verzeichnis und entfernt seine Einträge aus der Hermes-Config (Plugin-Liste, Freigaben) — manuell nacharbeiten musst du nichts. `display.skin` zeigt danach weiter auf den zuletzt aktiven Omarchy-Skin; `hermes skin use default` holt eine eingebaute Palette zurück.
 
 **Deinstallation ohne Terminal:** Settings → Capabilities → Plugins → Papierkorb in der Zeile `omarchy-themes` → *Deinstallieren*. Die App löscht den Ordner und entlädt das Plugin sofort, ein Neustart ist dafür nicht nötig.
+
+**Ein Rest bleibt von selbst:** `hermes plugins remove` löscht das Plugin-Verzeichnis, aber nicht den Hook unter `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh`. Er bleibt liegen und setzt bei jedem `omarchy theme set` weiter den CLI/TUI-Skin. Entfernen mit *Entfernen* auf der Plugin-Seite, bevor du deinstallierst, oder danach mit `make uninstall-hook` (Alias: `make uninstall`) aus einem Checkout — das Ziel ist ein einzelnes `rm -f` auf diesen Pfad.
 
 **Reste nach der Deinstallation:** Skin-Dateien unter `~/.hermes/skins/<slug>.yaml` und — falls gesetzt — der Auto-Sync-Toggle unter `~/.local/state/omarchy/toggles/`; löschen, wenn du sie nicht mehr brauchst.
 
