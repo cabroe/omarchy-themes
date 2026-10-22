@@ -288,6 +288,23 @@ p code, .note code, .lede code, dd code {
 .lang-btn + .lang-btn { border-left: 1px solid var(--border-strong); }
 .lang-btn:hover { background: var(--bg-elev-2); color: var(--fg); }
 .lang-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
+/* A5-1: .lang-switch clippt (overflow:hidden haelt die Chip-Form), der globale
+   Aussenring (outline-offset: 2px) wird deshalb weggeschnitten -> Fokus war
+   unsichtbar. Ersatz: Ring INNEN als inset-box-shadow (Muster wie beim Tile),
+   kein Layout-Effekt, kein Border-Zuwachs. Der Outline entfaellt, weil sein
+   innerer Schenkel zwischen DE und EN durch die Clip-Kante lugt. Auf dem
+   gedrueckten Segment liegt der Ring auf --accent; dort ist --accent-text nur
+   1.0-2.1:1, deshalb Ringfarbe = Textfarbe --accent-fg (4.9-16.2:1). */
+.lang-btn:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 var(--focus-w) var(--accent-text);
+}
+.lang-btn[aria-pressed="true"]:focus-visible { box-shadow: inset 0 0 0 var(--focus-w) var(--accent-fg); }
+/* Windows-High-Contrast kennt keine box-shadow -> Ring dort als Innen-Outline
+   (negativer Offset bleibt innerhalb der Clip-Kante). */
+@media (forced-colors: active) {
+  .lang-btn:focus-visible { outline: var(--focus-w) solid; outline-offset: -4px; }
+}
 
 /* ---------- hero ---------- */
 .hero { padding-block: clamp(2.5rem, 5vw, 4rem); }
