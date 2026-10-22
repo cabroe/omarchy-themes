@@ -1,0 +1,72 @@
+name: Pages consistency
+
+# Erzwingt das Drift-Gate zwischen dem main-Branch (desktop/plugin.js, hooks/)
+# und dem deployten gh-pages-Branch (Homepage). Der Job ist bewusst getrennt von
+# ci.yml: ci.yml laeuft als Matrix und ruft `make check` auf, das ohne lokalen
+# gh-pages-Checkout sichtbar skippt — genau dieses Skippen darf hier nicht
+# passieren, deshalb ruft dieser Job das Gate direkt mit festem PAGES_DIR auf.
+#
+# `gh-pages` als push-Branch greift erst, sobald diese Datei auch auf gh-pages
+# liegt (GitHub liest Workflow-Dateien aus dem gepushten Ref); schadet bis dahin
+# nicht und deckt danach Drift in beide Richtungen ab.
+on:
+  push:
+    branches: [main, gh-pages]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: pages-consistency-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  pages-consistency:
+    name: gh-pages drift gate
+    # GitHub-hosted, NICHT self-hosted: der self-hosted Runner ist offline
+    # (siehe Analyse A3: Jobs liefen 24 h in den Timeout, steps: []).
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      # Externe Actions auf Commit-SHA gepinnt — Tags/Branches sind mutable und
+      # ein kompromittierter Tag wuerde jeden Lauf mitnehmen. Dieselben Pins wie
+      # in ci.yml, damit ein Renovate/Dependabot-Bump beide Dateien zusammen trifft.
+      - name: Checkout main (plugin + hook)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: main
+          persist-credentials: false
+
+      - name: Checkout gh-pages (deployed homepage)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: gh-pages
+          path: pages
+          persist-credentials: false
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+
+      - name: Show checked-out commits
+        run: |
+          echo "main     $(git -C main rev-parse HEAD)"
+          echo "gh-pages $(git -C pages rev-parse HEAD)"
+
+      - name: Enforce gate (drift fails the job)
+        working-directory: main
+        env:
+          PAGES_DIR: ${{ github.workspace }}/pages
+        run: |
+          # Kein Skip-Pfad in CI: fehlt der Checkout, ist das ein harter Fehler
+          # (Exit 2), kein stilles Ueberspringen. Exit 1 = Drift, Exit 2 = Parse/IO.
+          test -f "$PAGES_DIR/themes.js" || {
+            echo "FAIL: no gh-pages checkout at $PAGES_DIR (themes.js missing)"
+            exit 2
+          }
+          python3 scripts/check-pages-consistency.py --pages "$PAGES_DIR" --root .

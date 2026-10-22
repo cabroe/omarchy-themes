@@ -11,10 +11,11 @@ GEN_ARGS = $(if $(HOST),--remote $(HOST))
 INSTALL_HOOK_DIR ?= $(HOME)/.config/omarchy/hooks/theme-set.d
 INSTALL_HOOK     ?= $(INSTALL_HOOK_DIR)/hermes-skin-sync.sh
 
-.PHONY: help check test lint generate generate-system generate-check install-hook uninstall-hook uninstall install-githooks theme-smoke
+.PHONY: help check test lint pages-check generate generate-system generate-check install-hook uninstall-hook uninstall install-githooks theme-smoke
 
 help:
-	@echo "make check              lint + tests (local, no Omarchy needed)"
+	@echo "make check              lint + tests + pages-check (local, no Omarchy needed)"
+	@echo "make pages-check        gh-pages drift gate (PAGES_DIR=<checkout>; skips visibly without one)"
 	@echo "make generate           regenerate theme table (system themes; HOST=<ssh host> to read remotely; pass --include-user to bake user themes too)"
 	@echo "make generate-system    regenerate theme table (system themes only — same as 'generate' since the default already excludes user themes)"
 	@echo "make generate-check     fail if plugin.js is out of date (same sources as 'generate')"
@@ -23,11 +24,15 @@ help:
 	@echo "make install-githooks   activate .githooks/ (pre-push generate-check) for this clone"
 	@echo "make theme-smoke        run end-to-end theme-switch test over SSH (HOST=<ssh host>, default 'omarchy')"
 
-check: lint test
+# `check` = lint + test + pages-check. Das Drift-Gate haengt von einem
+# *optionalen* gh-pages-Checkout ab und gehoert deshalb nicht in `test` (das
+# bleibt die host-freie, deterministische Suite): beide Targets laufen hier
+# zusammen, und pages-check ueberspringt ohne Checkout sichtbar mit Exit 0.
+check: lint test pages-check
 
 lint:
 	node --check desktop/plugin.js tests/palette-parity.mjs
-	python3 -m py_compile scripts/generate-themes.py scripts/embed-hook.py __init__.py
+	python3 -m py_compile scripts/generate-themes.py scripts/embed-hook.py scripts/check-pages-consistency.py __init__.py
 	shellcheck hooks/hermes-skin-sync.sh tests/hook.sh tests/theme-switch-smoke.sh tests/palette-parity.sh .githooks/pre-push
 
 test:
@@ -35,6 +40,26 @@ test:
 	sh tests/hook.sh
 	sh tests/palette-parity.sh
 	python3 scripts/embed-hook.py --check
+
+# Drift-Gate zwischen main (desktop/plugin.js, hooks/) und dem deployten
+# gh-pages-Branch. Checkout-Aufloesung: PAGES_DIR-Env -> ./pages -> keiner.
+# Ohne aufloesbaren Checkout wird bewusst NICHT still uebersprungen: es gibt
+# eine sichtbare SKIP-Zeile und Exit 0, damit `make check` auf jedem Host ohne
+# gh-pages-Klon gruen bleibt. Erzwungen wird das Gate in CI
+# (.github/workflows/pages-consistency.yml), das das Script direkt aufruft —
+# dort ist ein fehlender Checkout ein harter Fehler (Exit 2), kein Skip.
+pages-check:
+	@dir='$(PAGES_DIR)'; \
+	if [ -z "$$dir" ] && [ -d pages ]; then dir='./pages'; fi; \
+	if [ -z "$$dir" ]; then \
+	  echo "SKIP: no gh-pages checkout (PAGES_DIR unset, ./pages missing) — pages drift gate not enforced"; \
+	  exit 0; \
+	fi; \
+	if [ ! -d "$$dir" ]; then \
+	  echo "SKIP: no gh-pages checkout at $$dir (PAGES_DIR points to a missing directory) — pages drift gate not enforced"; \
+	  exit 0; \
+	fi; \
+	python3 scripts/check-pages-consistency.py --pages "$$dir" --root .
 
 generate:
 	python3 scripts/generate-themes.py $(GEN_ARGS)
