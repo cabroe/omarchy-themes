@@ -5,11 +5,22 @@ Compares (and exits non-zero on any drift):
   1. Theme set:     slug entries in <pages>/themes.js against the RAW block in
                     desktop/plugin.js minus BUILTIN_NAMES. Prints a plain-text
                     diff table (missing / unexpected / mode mismatch) plus
-                    Dark/Light counts.
-  2. Skin keys:     SKIN_KEYS constant in <pages>/themes.js against the number
+                    Dark/Light counts. A slug that appears twice is content
+                    drift (exit 1), not an unreadable input (exit 2).
+  2. Theme colors:  every key/value pair inside each theme's `c:{…}` object
+                    (accent, background, foreground, … — the same key set the
+                    hook writes) compared value by value between the plugin's
+                    RAW block and <pages>/themes.js. This is *not* cosmetic:
+                    app.js renders `theme.c.accent` / `.background` /
+                    `.foreground` straight into the swatches, chips and the
+                    live preview, and themes.js declares itself GENERATED
+                    ("Do not edit by hand"). A colour edited on the page alone
+                    is therefore drift against the generator's output.
+                    Hex comparison is case-insensitive.
+  3. Skin keys:     SKIN_KEYS constant in <pages>/themes.js against the number
                     of `printf '  key:'` emission lines in
                     hooks/hermes-skin-sync.sh.
-  3. Counter prose: no-JS fallback counters #mockTotal and #roPalettes in
+  4. Counter prose: no-JS fallback counters #mockTotal and #roPalettes in
                     <pages>/index.html must match the expected theme count.
 
 Parsing note: the RAW block in desktop/plugin.js is *nested* — each entry looks
@@ -19,8 +30,11 @@ field lives inside `c:`. A flat `\\{[^{}]*\\}` regex therefore matches the inner
 scanner that skips strings and comments, so nesting depth is irrelevant.
 
 Read-only: writes nothing, calls nothing.
-Exit codes: 0 = in sync, 1 = drift, 2 = parse/IO error (unreadable or
-unparseable input — never silently treated as drift).
+Exit codes: 0 = in sync, 1 = drift (wrong/missing/extra/duplicate theme,
+mismatched mode, mismatched colour, wrong SKIN_KEYS, wrong counter),
+2 = parse/IO error (unreadable, empty or unparseable input — never silently
+treated as drift, and never used for content problems: in CI exit 2 means the
+checkout itself is broken).
 Usage: check-pages-consistency.py [--pages PAGES_DIR] [--root REPO_ROOT]
        (PAGES_DIR env var is honoured when --pages is omitted)
 """
@@ -36,6 +50,10 @@ from pathlib import Path
 # aligned) and slug:'x' (gh-pages themes.js, single quotes).
 SLUG_RE = re.compile(r"""slug:\s*["']([^"']+)["']""")
 MODE_RE = re.compile(r"""mode:\s*["'](dark|light)["']""")
+# One `key:"#rrggbb"` pair inside a theme's c:{…} block. `mode:"dark"` also
+# lives in there (plugin side) but carries no '#' and is therefore skipped;
+# mode is compared separately in check 1.
+COLOR_KEY_RE = re.compile(r"""([A-Za-z_][A-Za-z0-9_]*)\s*:\s*["'](#[0-9A-Fa-f]{3,8})["']""")
 
 EXIT_OK, EXIT_DRIFT, EXIT_PARSE = 0, 1, 2
 
@@ -138,6 +156,32 @@ def top_level_blocks(src: str, array_open_pos: int) -> list[str]:
     return blocks
 
 
+def color_map(entry: str, what: str) -> dict[str, str]:
+    """{colour key: '#lowercase hex'} from the `c:{…}` block of one entry.
+
+    Both generated formats carry the colours in `c:{…}` — on the plugin side
+    `mode` sits in the same object, on the page side it sits next to it — so
+    only hex-valued pairs are collected here.
+    """
+    m = re.search(r"\bc\s*:\s*", entry)
+    if m is None:
+        raise ParseError(f"{what} entry without `c:{{…}}` colour block: {entry[:80]!r}")
+    open_pos = m.end()
+    if open_pos >= len(entry) or entry[open_pos] != "{":
+        raise ParseError(f"{what} entry: `c:` is not followed by `{{`: {entry[:80]!r}")
+    body = entry[open_pos:match_bracket(entry, open_pos, "{", "}") + 1]
+    colors: dict[str, str] = {}
+    for key, value in COLOR_KEY_RE.findall(body):
+        key = key.strip()
+        value = value.strip().lower()
+        if key in colors and colors[key] != value:
+            raise ParseError(f"{what} entry sets `{key}` twice ({colors[key]} / {value})")
+        colors[key] = value
+    if not colors:
+        raise ParseError(f"{what} entry has no colour key/value pairs: {entry[:80]!r}")
+    return colors
+
+
 def find_array_open(src: str, marker: str, what: str, path: Path) -> int:
     start = src.find(marker)
     if start == -1:
@@ -148,8 +192,13 @@ def find_array_open(src: str, marker: str, what: str, path: Path) -> int:
     return open_pos
 
 
-def parse_entries(src: str, marker: str, what: str, path: Path) -> list[tuple[str, str]]:
-    """[(slug, mode)] from the object array introduced by `marker`."""
+def parse_entries(src: str, marker: str, what: str, path: Path) -> tuple[list[dict], list[str]]:
+    """([{slug, mode, colors}], [duplicate slugs]) from the array at `marker`.
+
+    A duplicate slug is *content* drift (two entries for one theme), so it is
+    reported back to the caller instead of raised as a ParseError: the caller
+    turns it into exit 1. Only unreadable/unparseable input stays exit 2.
+    """
     blocks = top_level_blocks(src, find_array_open(src, marker, what, path))
     if not blocks:
         raise ParseError(f"{what} is empty in {path}")
@@ -164,12 +213,11 @@ def parse_entries(src: str, marker: str, what: str, path: Path) -> list[tuple[st
                 f"{what} entry without mode (expected `mode:\"dark\"|\"light\"` "
                 f"inside the entry): {entry[:80]!r}"
             )
-        out.append((sm.group(1), mm.group(1)))
-    seen = {slug for slug, _ in out}
-    if len(seen) != len(out):
-        dupes = sorted(s for s, n in Counter(slug for slug, _ in out).items() if n > 1)
-        raise ParseError(f"{what} contains duplicate slugs: {', '.join(dupes)}")
-    return out
+        out.append({"slug": sm.group(1), "mode": mm.group(1),
+                    "colors": color_map(entry, what)})
+    counts = Counter(e["slug"] for e in out)
+    dupes = sorted(s for s, n in counts.items() if n > 1)
+    return out, dupes
 
 
 def parse_builtin_names(plugin_src: str, plugin_path: Path) -> set[str]:
@@ -227,22 +275,25 @@ def main() -> int:
 
     try:
         # ---- 1. Theme set: RAW minus BUILTIN_NAMES vs. pages/themes.js ------
-        raw = parse_entries(plugin_src, "const RAW = ", "RAW", plugin_path)
+        raw, raw_dupes = parse_entries(plugin_src, "const RAW = ", "RAW", plugin_path)
         builtins = parse_builtin_names(plugin_src, plugin_path)
-        page = parse_entries(themes_src, "export const THEMES = ", "THEMES", themes_path)
+        page, page_dupes = parse_entries(themes_src, "export const THEMES = ",
+                                        "THEMES", themes_path)
     except ParseError as exc:
         print(f"PARSE ERROR: {exc}")
         return EXIT_PARSE
 
-    soll = [(slug, mode) for slug, mode in raw if slug not in builtins]
-    soll_slugs = {slug for slug, _ in soll}
-    soll_mode_map = dict(soll)
-    soll_modes = Counter(mode for _, mode in soll)
+    soll = [e for e in raw if e["slug"] not in builtins]
+    soll_slugs = {e["slug"] for e in soll}
+    soll_mode_map = {e["slug"]: e["mode"] for e in soll}
+    soll_color_map = {e["slug"]: e["colors"] for e in soll}
+    soll_modes = Counter(e["mode"] for e in soll)
 
-    page_slugs = [slug for slug, _ in page]
-    page_mode_map = dict(page)
+    page_slugs = [e["slug"] for e in page]
+    page_mode_map = {e["slug"]: e["mode"] for e in page}
+    page_color_map = {e["slug"]: e["colors"] for e in page}
     page_set = set(page_slugs)
-    page_modes = Counter(mode for _, mode in page)
+    page_modes = Counter(e["mode"] for e in page)
 
     missing = sorted(soll_slugs - page_set)      # expected on the page, absent
     extra = sorted(page_set - soll_slugs)        # on the page, not expected
@@ -255,17 +306,23 @@ def main() -> int:
     print(f"1. Theme set: plugin (RAW minus BUILTIN_NAMES) = {len(soll_slugs)} "
           f"(RAW {len(raw)} - builtin collisions {len(raw) - len(soll_slugs)}), "
           f"pages/themes.js = {len(page_slugs)}")
-    if missing or extra or mode_mismatch:
+    if missing or extra or mode_mismatch or raw_dupes or page_dupes:
         failures += 1
         print("   FAIL: theme sets diverge")
-        print(f"   {'slug':<24} status")
-        print(f"   {'-' * 24} {'-' * 40}")
-        for slug in missing:
-            print(f"   {slug:<24} fehlt (in plugin.js, nicht auf der Seite)")
-        for slug in extra:
-            print(f"   {slug:<24} ueberzaehlig (auf der Seite, nicht in plugin.js)")
-        for slug, want, got in mode_mismatch:
-            print(f"   {slug:<24} mode plugin={want} / page={got}")
+        if missing or extra or mode_mismatch:
+            print(f"   {'slug':<24} status")
+            print(f"   {'-' * 24} {'-' * 40}")
+            for slug in missing:
+                print(f"   {slug:<24} fehlt (in plugin.js, nicht auf der Seite)")
+            for slug in extra:
+                print(f"   {slug:<24} ueberzaehlig (auf der Seite, nicht in plugin.js)")
+            for slug, want, got in mode_mismatch:
+                print(f"   {slug:<24} mode plugin={want} / page={got}")
+        for label, dupes in (("plugin.js (RAW)", raw_dupes),
+                             (str(themes_path), page_dupes)):
+            if dupes:
+                print(f"   FAIL: doppelte Slugs in {label}: {', '.join(dupes)} "
+                      f"— zwei Eintraege fuer ein Theme sind Inhaltsdrift")
     else:
         print("   ok: set match")
 
@@ -278,7 +335,37 @@ def main() -> int:
     else:
         print("   ok: Dark/Light counts match")
 
-    # ---- 2. SKIN_KEYS constant vs. hook emission lines ----------------------
+    # ---- 2. Theme colors: RAW c:{…} vs. pages/themes.js c:{…} ---------------
+    # app.js renders theme.c.accent/.background/.foreground as swatches, so a
+    # colour that only exists on the page is drift against the generated table.
+    color_diffs = []                     # (slug, key, plugin value, page value)
+    for slug in sorted(soll_slugs & page_set):
+        want = soll_color_map[slug]
+        got = page_color_map[slug]
+        for key in sorted(set(want) | set(got)):
+            if key not in got:
+                color_diffs.append((slug, key, want[key], "fehlt"))
+            elif key not in want:
+                color_diffs.append((slug, key, "fehlt", got[key]))
+            elif want[key] != got[key]:
+                color_diffs.append((slug, key, want[key], got[key]))
+
+    color_keys = sorted({k for colors in soll_color_map.values() for k in colors})
+    print(f"2. Theme colors: {len(soll_slugs & page_set)} shared themes × "
+          f"{len(color_keys)} keys verglichen")
+    if color_diffs:
+        failures += 1
+        print("   FAIL: Farbwerte weichen ab (die Seite rendert diese Werte)")
+        print(f"   {'slug':<24} {'key':<20} plugin / page")
+        print(f"   {'-' * 24} {'-' * 20} {'-' * 24}")
+        for slug, key, want, got in color_diffs[:15]:
+            print(f"   {slug:<24} {key:<20} {want} / {got}")
+        if len(color_diffs) > 15:
+            print(f"   … {len(color_diffs) - 15} weitere Farbabweichungen")
+    else:
+        print("   ok: all colour values match")
+
+    # ---- 3. SKIN_KEYS constant vs. hook emission lines ----------------------
     try:
         hook_keys = parse_skin_keys(hook_src, hook_path)
     except ParseError as exc:
@@ -288,19 +375,19 @@ def main() -> int:
     sk_m = re.search(r"export const SKIN_KEYS = (\d+)", themes_src)
     if sk_m is None:
         failures += 1
-        print(f"2. Skin keys: FAIL: SKIN_KEYS constant not found in {themes_path} "
+        print(f"3. Skin keys: FAIL: SKIN_KEYS constant not found in {themes_path} "
               f"(hook emits {len(hook_keys)} keys: {', '.join(hook_keys)})")
     else:
         sk_val = int(sk_m.group(1))
-        print(f"2. Skin keys: SKIN_KEYS = {sk_val}, hook emission lines = {len(hook_keys)}")
+        print(f"3. Skin keys: SKIN_KEYS = {sk_val}, hook emission lines = {len(hook_keys)}")
         if sk_val != len(hook_keys):
             failures += 1
             print(f"   FAIL: SKIN_KEYS ({sk_val}) != hook emission lines ({len(hook_keys)})")
         else:
             print("   ok: match")
 
-    # ---- 3. Counter prose: #mockTotal / #roPalettes fallbacks ---------------
-    print(f"3. Counter prose: expected no-JS fallback = {len(soll_slugs)}")
+    # ---- 4. Counter prose: #mockTotal / #roPalettes fallbacks ---------------
+    print(f"4. Counter prose: expected no-JS fallback = {len(soll_slugs)}")
     for el_id in ("mockTotal", "roPalettes"):
         m = re.search(rf'id="{el_id}">(\d+)<', index_src)
         if m is None:
@@ -317,7 +404,8 @@ def main() -> int:
     if failures:
         print(f"\nFAIL: {failures} check(s) failed — gh-pages has drifted from main.")
         return EXIT_DRIFT
-    print("\nPASS: gh-pages in sync with the plugin (theme set, SKIN_KEYS, counters).")
+    print("\nPASS: gh-pages in sync with the plugin "
+          "(theme set, colours, SKIN_KEYS, counters).")
     return EXIT_OK
 
 

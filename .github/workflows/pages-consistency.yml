@@ -6,9 +6,31 @@ name: Pages consistency
 # gh-pages-Checkout sichtbar skippt — genau dieses Skippen darf hier nicht
 # passieren, deshalb ruft dieser Job das Gate direkt mit festem PAGES_DIR auf.
 #
-# `gh-pages` als push-Branch greift erst, sobald diese Datei auch auf gh-pages
-# liegt (GitHub liest Workflow-Dateien aus dem gepushten Ref); schadet bis dahin
-# nicht und deckt danach Drift in beide Richtungen ab.
+# F1 — der Code-Ref wird pro Trigger explizit aufgeloest (Mechanismus b).
+# actions/checkout ohne `ref:` nimmt den Ref, der den Workflow ausgeloest hat.
+# Bei einem Push auf gh-pages waere das die *deployte Seite*: der erste
+# Checkout (path: main) lieferte dann gh-pages-Inhalt, das Gate faende
+# scripts/check-pages-consistency.py nicht und endete dauerhaft mit Exit 2.
+# Ein pauschales `ref: main` waere aber genauso falsch: bei pull_request
+# muesste dann main gegen gh-pages geprueft werden statt der PR-Inhalt — genau
+# die Drift, fuer die das Gate gebaut ist, bliebe unentdeckt. Deshalb loest
+# der erste Step den Code-Ref explizit auf:
+#
+#   push main         -> github.sha             (der gepushte Commit)
+#   pull_request main -> github.sha             (PR-Merge-Commit = PR + Base)
+#   push gh-pages     -> Default-Branch (main)  (Code-Stand, nie die Seite)
+#   workflow_dispatch -> github.sha             (Ref, auf dem gestartet wurde)
+#
+# Der zweite Checkout (path: pages) ist in allen Faellen die Seite. Damit
+# prueft die Matrix push main / pull_request main / push gh-pages jeweils den
+# *Code*-Stand gegen die Seite — nie die Seite als Code.
+#
+# Voraussetzung fuer den gh-pages-Trigger: GitHub liest Workflow-Dateien aus
+# dem gepushten Ref, dieser Trigger feuert also erst, wenn diese Datei auch auf
+# gh-pages liegt (dort laeuft dann sogar diese Fassung, nicht die auf main).
+# gh-pages wird in diesem Repo nicht per Workflow deployt, sondern von Hand
+# gepflegt — solange die Datei dort fehlt, ist der Trigger inert und schadet
+# nicht; main und pull_request sind davon unabhaengig.
 on:
   push:
     branches: [main, gh-pages]
@@ -32,12 +54,33 @@ jobs:
     permissions:
       contents: read
     steps:
+      # F1: Code-Ref VOR jedem Checkout aufloesen. Shell statt verschachtelter
+      # `&&`/`||`-Expressions, damit die Matrix oben eins zu eins im Log steht.
+      # Kein Secret, keine Schreibrechte, kein Netzzugriff.
+      - name: Resolve code ref (never the pushed gh-pages tree)
+        id: code-ref
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$EVENT_NAME" = "push" ] && [ "$REF_NAME" = "refs/heads/gh-pages" ]; then
+            if [ -z "$DEFAULT_BRANCH" ] || [ "$DEFAULT_BRANCH" = "gh-pages" ]; then
+              echo "FAIL: default branch is '${DEFAULT_BRANCH:-<unset>}' — no code tree to compare the page against"
+              exit 2
+            fi
+            echo "ref=$DEFAULT_BRANCH" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          fi
+
       # Externe Actions auf Commit-SHA gepinnt — Tags/Branches sind mutable und
       # ein kompromittierter Tag wuerde jeden Lauf mitnehmen. Dieselben Pins wie
       # in ci.yml, damit ein Renovate/Dependabot-Bump beide Dateien zusammen trifft.
-      - name: Checkout main (plugin + hook)
+      - name: Checkout code (${{ steps.code-ref.outputs.ref }})
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ steps.code-ref.outputs.ref }}
           path: main
           persist-credentials: false
 
@@ -53,10 +96,12 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Show checked-out commits
+      - name: Show trigger and checked-out commits
         run: |
-          echo "main     $(git -C main rev-parse HEAD)"
-          echo "gh-pages $(git -C pages rev-parse HEAD)"
+          echo "event:     ${{ github.event_name }} on ${{ github.ref }}"
+          echo "code ref:  ${{ steps.code-ref.outputs.ref }} (requested)"
+          echo "code       $(git -C main rev-parse HEAD)"
+          echo "gh-pages   $(git -C pages rev-parse HEAD)"
 
       - name: Enforce gate (drift fails the job)
         working-directory: main

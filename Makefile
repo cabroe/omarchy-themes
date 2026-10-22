@@ -16,6 +16,7 @@ INSTALL_HOOK     ?= $(INSTALL_HOOK_DIR)/hermes-skin-sync.sh
 help:
 	@echo "make check              lint + tests + pages-check (local, no Omarchy needed)"
 	@echo "make pages-check        gh-pages drift gate (PAGES_DIR=<checkout>; skips visibly without one)"
+	@echo "                        (make reports every failing recipe as its own exit 2 — the gate's real code is printed as 'gate exit code: N')"
 	@echo "make generate           regenerate theme table (system themes; HOST=<ssh host> to read remotely; pass --include-user to bake user themes too)"
 	@echo "make generate-system    regenerate theme table (system themes only — same as 'generate' since the default already excludes user themes)"
 	@echo "make generate-check     fail if plugin.js is out of date (same sources as 'generate')"
@@ -33,12 +34,13 @@ check: lint test pages-check
 lint:
 	node --check desktop/plugin.js tests/palette-parity.mjs
 	python3 -m py_compile scripts/generate-themes.py scripts/embed-hook.py scripts/check-pages-consistency.py __init__.py
-	shellcheck hooks/hermes-skin-sync.sh tests/hook.sh tests/theme-switch-smoke.sh tests/palette-parity.sh .githooks/pre-push
+	shellcheck hooks/hermes-skin-sync.sh tests/hook.sh tests/theme-switch-smoke.sh tests/palette-parity.sh tests/pages-gate.sh .githooks/pre-push
 
 test:
 	node --enable-source-maps tests/smoke.mjs
 	sh tests/hook.sh
 	sh tests/palette-parity.sh
+	sh tests/pages-gate.sh
 	python3 scripts/embed-hook.py --check
 
 # Drift-Gate zwischen main (desktop/plugin.js, hooks/) und dem deployten
@@ -48,6 +50,14 @@ test:
 # gh-pages-Klon gruen bleibt. Erzwungen wird das Gate in CI
 # (.github/workflows/pages-consistency.yml), das das Script direkt aufruft —
 # dort ist ein fehlender Checkout ein harter Fehler (Exit 2), kein Skip.
+#
+# Exit-Code-Semantik des Gates: 0 = in sync, 1 = Drift, 2 = Parse/IO.
+# `make` kann diese Codes NICHT durchreichen: jeder fehlgeschlagene Recipe
+# endet mit make-eigenem Status 2 — also derselben Zahl wie der Parse-Fehler
+# des Gates. Deshalb faengt die Recipe den Code ab, druckt ihn sichtbar als
+# `gate exit code: N` und beendet sich damit (make meldet dann weiterhin 2).
+# Die Kalibrierung der Codes selbst laeuft host-frei in `make test`
+# (tests/pages-gate.sh, synthetisches Fixture).
 pages-check:
 	@dir='$(PAGES_DIR)'; \
 	if [ -z "$$dir" ] && [ -d pages ]; then dir='./pages'; fi; \
@@ -59,7 +69,10 @@ pages-check:
 	  echo "SKIP: no gh-pages checkout at $$dir (PAGES_DIR points to a missing directory) — pages drift gate not enforced"; \
 	  exit 0; \
 	fi; \
-	python3 scripts/check-pages-consistency.py --pages "$$dir" --root .
+	status=0; \
+	python3 scripts/check-pages-consistency.py --pages "$$dir" --root . || status=$$?; \
+	echo "gate exit code: $$status (0 = in sync, 1 = drift, 2 = parse/IO)"; \
+	exit $$status
 
 generate:
 	python3 scripts/generate-themes.py $(GEN_ARGS)
