@@ -117,7 +117,7 @@ omarchy-themes/
 └── Makefile
 ```
 
-Install-Ziel: `~/.hermes/desktop-plugins/omarchy-themes/plugin.js` (auto), `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh` (manuell `make install-hook`).
+Install-Ziel: `~/.hermes/desktop-plugins/omarchy-themes/plugin.js` (auto), `~/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh` (über die Zeile *Terminal-Skin (Hook)* auf der Plugin-Seite; Fallback `make install-hook`).
 
 ---
 
