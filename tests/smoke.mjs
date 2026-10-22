@@ -610,7 +610,9 @@ files.delete(COLORS)
     if (typeof node.type === 'function') return findButton(node.type(node.props))
     return findButton(node.props?.children)
   }
-  const btn = findButton(pluginMod.HookSection(hookCtx))
+  // The host renders a settings page's components with their props object, and
+  // HookSection's props are `{ ctx }` (BrowsePage: jsx(HookSection, { ctx })).
+  const btn = findButton(pluginMod.HookSection({ ctx: hookCtx }))
   assert.ok(btn, 'HookSection renders an Installieren button')
   btn.props.onClick()
   await settle()
@@ -618,6 +620,152 @@ files.delete(COLORS)
   assert.equal(writes[0][0], '/home/u/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh', 'hook target path')
   assert.ok(writes[0][1].startsWith('#!/bin/sh'), 'embedded hook script is written')
   window.hermesDesktop = prevBridge
+}
+
+// ---------------------------------------------------------------------------
+// Shared helpers for the two P1 regression blocks below. The SDK stubs render
+// nothing (Button returns null), so a HookSection tree is plain elements, and
+// the Installieren button is the element whose single child is that label.
+// ---------------------------------------------------------------------------
+const hookTarget = '/home/u/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh'
+const findInstaller = node => {
+  if (Array.isArray(node)) {
+    for (const n of node) { const hit = findInstaller(n); if (hit) return hit }
+    return null
+  }
+  if (!node || typeof node !== 'object') return null
+  if (node.props?.children === 'Installieren') return node
+  if (typeof node.type === 'function') return findInstaller(node.type(node.props))
+  return findInstaller(node.props?.children)
+}
+
+// ---------------------------------------------------------------------------
+// A1-1 (P1) — the hook status is read on EVERY mount. `hookChecked` used to be
+// a MODULE-level flag: the first mount of the process read the file, every
+// later mount skipped the read and rendered the initial `installed: false`, so
+// a re-opened settings page claimed "nicht installiert" over a hook that really
+// existed — and its Install button then overwrote that hook. The latch must be
+// per component instance (a re-render keeps it, an unmount drops it).
+//
+// Evidence = the bridge's readFileText counter (the contract this task names):
+// one read per mount, a fresh read on every remount, and never a second read
+// inside the same mount. The rendered status line cannot be asserted here: the
+// SDK stub's useState setter is a no-op and a tree is a snapshot taken at
+// render time, i.e. always before the async refresh lands. `state.installed`
+// is exactly what the read sets, so the counter is the observable.
+// ---------------------------------------------------------------------------
+{
+  const prevBridge = window.hermesDesktop
+  const reads = []
+  const writes = []
+  const installed = new Map() // path → content; missing key = hook absent
+  window.hermesDesktop = {
+    desktopPluginsRoot: async () => '/home/u/.hermes/desktop-plugins',
+    getMachineProfile: async () => ({ username: 'u' }),
+    readFileText: async p => { reads.push(p); return installed.has(p) ? { text: installed.get(p) } : { error: 'ENOENT' } },
+    writeTextFile: async (path, content) => { writes.push([path, content]); return { path } },
+    trashPath: async () => {},
+  }
+  const hookCtx = { ...ctx, os: { notify: () => {}, writeClipboard: () => true }, setTimeout: fn => fn() }
+  // One mount = one HookSection() call. Dropping the returned tree is the
+  // unmount: the component instance (and its per-instance state) is gone.
+  const mount = async () => { const tree = pluginMod.HookSection({ ctx: hookCtx }); await settle(); return tree }
+
+  // The hook is really installed (hook file present with content).
+  installed.set(hookTarget, '#!/bin/sh\nexit 0\n')
+  await mount()
+  assert.equal(reads.length, 1, 'first mount reads the hook status exactly once')
+  assert.equal(reads[0], hookTarget, 'the status read targets the hook file')
+
+  // Unmount → remount (close and re-open the settings page): the status MUST be
+  // read again instead of being answered from a process-wide flag.
+  await mount()
+  assert.equal(reads.length, 2,
+    'remount must RE-READ the hook status (one read per mount, not one per process)')
+
+  // The other direction: the hook was removed meanwhile (`make uninstall-hook`
+  // in a terminal, a fresh Omarchy install). The next mount must see that too,
+  // so the status cannot be stale in either direction.
+  installed.delete(hookTarget)
+  await mount()
+  assert.equal(reads.length, 3, 'every further mount reads again — no state across mounts')
+  assert.equal(writes.length, 0, 'mounting alone never writes the hook')
+
+  window.hermesDesktop = prevBridge
+}
+
+// ---------------------------------------------------------------------------
+// A1-2 (P1) — the hook lives in the USER's config dir, not in the Hermes data
+// dir. `omarchyHookPath()` used to strip a `/.hermes` suffix off HERMES_HOME;
+// with HERMES_HOME=/srv/hermes that produced /srv/.config/omarchy/... — a path
+// Omarchy never executes, while the status still said "installiert".
+// The bridge offers no home IPC (apps/desktop/electron/preload.ts exposes only
+// `desktopPluginsRoot` and `getMachineProfile`), so the home comes from the
+// SHAPE of HERMES_HOME (`…/.hermes` → its parent) or from
+// `getMachineProfile().username` → `/home/<user>` (same candidates as
+// omarchyThemeNamePath). No probe-by-read: the hook does not exist before the
+// install, so a read-test would discard the right candidate. No home at all →
+// no path (the page reports that instead of writing to a guessed path).
+// ---------------------------------------------------------------------------
+{
+  // `undefined` username = a bridge without a machine profile (older build).
+  const runCase = async ({ hermesHome, username }) => {
+    const reads = []
+    const writes = []
+    const prevBridge = window.hermesDesktop
+    window.hermesDesktop = {
+      desktopPluginsRoot: async () => hermesHome + '/desktop-plugins',
+      ...(username === undefined ? {} : { getMachineProfile: async () => ({ username }) }),
+      readFileText: async p => { reads.push(p); return { error: 'ENOENT' } },
+      writeTextFile: async (path, content) => { writes.push([path, content]); return { path } },
+      trashPath: async () => {},
+    }
+    const hookCtx = { ...ctx, os: { notify: () => {}, writeClipboard: () => true }, setTimeout: fn => fn() }
+    const tree = pluginMod.HookSection({ ctx: hookCtx })
+    await settle()
+    const btn = findInstaller(tree)
+    if (btn) { btn.props.onClick(); await settle() }
+    window.hermesDesktop = prevBridge
+    return { reads, writes, hasButton: Boolean(btn) }
+  }
+
+  // Case 1: default HERMES_HOME = $HOME/.hermes → $HOME/.config/omarchy/…
+  const a = await runCase({ hermesHome: '/home/u/.hermes', username: 'u' })
+  assert.deepEqual(a.writes.map(w => w[0]), [hookTarget],
+    'HERMES_HOME=$HOME/.hermes → hook under $HOME/.config/omarchy/')
+  // Mount + post-install refresh both read the same, resolved path.
+  assert.ok(a.reads.length >= 1, 'the mount reads the hook status')
+  assert.deepEqual([...new Set(a.reads)], [hookTarget], 'the status read uses the same $HOME path')
+
+  // Case 2: custom HERMES_HOME (/srv/hermes) → the SAME $HOME path, never
+  // /srv/.config/... — this is the regression the old suffix-strip caused.
+  const b = await runCase({ hermesHome: '/srv/hermes', username: 'u' })
+  assert.deepEqual(b.writes.map(w => w[0]), [hookTarget],
+    'HERMES_HOME=/srv/hermes → hook still under $HOME/.config/omarchy/, not /srv/.config/...')
+  assert.ok(b.reads.length >= 1, 'the mount reads the hook status')
+  assert.deepEqual([...new Set(b.reads)], [hookTarget],
+    'the status read follows the user home, not the Hermes data dir')
+  assert.ok(!b.reads.concat(b.writes.map(w => w[0])).some(p => String(p).startsWith('/srv/')),
+    'no bridge call may target /srv/… (that is HERMES_HOME, not a home)')
+
+  // Case 3: neither a `~/.hermes` shape nor a username → no path. The page must
+  // not claim "installiert" and must not touch a guessed path.
+  // The message it sets is a state update that the SDK stub's no-op setState
+  // cannot repaint (a tree is a render-time snapshot), so the fallback is
+  // enforced twice: no bridge call at a guessed path, and the no-home branch is
+  // wired into the component the page renders.
+  const c = await runCase({ hermesHome: '/srv/hermes', username: undefined })
+  assert.equal(c.hasButton, true, 'the page still offers Installieren (it explains why it cannot)')
+  assert.deepEqual(c.writes, [], 'no resolvable home → nothing is written (no guessed path)')
+  assert.deepEqual(c.reads, [], 'no resolvable home → no guessed path is read either')
+  assert.match(String(pluginMod.HookSection), /msg: HOOK_NO_HOME/,
+    'the page reports the unresolvable home (msg path) instead of claiming "installiert"')
+
+  // The resolver itself, directly: null instead of a guessed path.
+  assert.equal(await pluginMod.omarchyHookPath({ desktopPluginsRoot: async () => '/srv/hermes/desktop-plugins' }), null,
+    'omarchyHookPath() returns null when no home can be resolved')
+  assert.equal(await pluginMod.omarchyHookPath({ desktopPluginsRoot: async () => '/srv/hermes/desktop-plugins', getMachineProfile: async () => ({ username: 'u' }) }),
+    hookTarget, 'omarchyHookPath() falls back to /home/<user> from the machine profile')
 }
 
 Date.now = realNow

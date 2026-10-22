@@ -839,11 +839,43 @@ async function readText(bridge, path) {
   return typeof file?.text === 'string' ? file.text : null
 }
 
-// Ziel des Terminal-Skin-Hooks: ~/.config/omarchy/hooks/theme-set.d/<script>.
+// Ziel des Terminal-Skin-Hooks: <userhome>/.config/omarchy/hooks/theme-set.d/<script>.
 // Omarchy führt Hooks mit `bash` aus, das Exec-Bit ist also nicht nötig.
+//
+// Das ist das CONFIG-Verzeichnis des Nutzers, nicht das Hermes-Datenverzeichnis:
+// HERMES_HOME ist frei wählbar (/srv/hermes, ein zweiter Checkout, ein
+// Server-Home). Die alte Ableitung hat nur ein literales `/.hermes`-Suffix
+// abgeschnitten und sonst HERMES_HOME selbst als Home genommen — bei
+// HERMES_HOME=/srv/hermes also /srv/hermes/.config/omarchy/..., bei
+// /srv/.hermes → /srv/.config/omarchy/.... Beide Pfade liegen im
+// Datenverzeichnis; dort führt Omarchy nie einen Hook aus, der Status meldete
+// aber „installiert".
+//
+// Kandidaten wie in omarchyThemeNamePath(), aber OHNE Probe-Lesen: der Hook
+// existiert vor der Installation nicht, ein Lesetest würde also regelmässig den
+// richtigen Kandidaten verwerfen. Die Form des HERMES_HOME entscheidet, danach
+// der OS-Benutzername aus der Bridge (getMachineProfile) → /home/<user>; die
+// Desktop-Bridge bietet kein weiteres Home-IPC an, und Omarchy ist Linux-only.
+// Bleibt beides leer, gibt es KEINEN Pfad: der Aufrufer meldet das, statt zu raten.
 async function omarchyHookPath(bridge) {
-  const home = (await hermesHomeOf(bridge)).replace(/[\\/]\.hermes$/, '')
-  return home + '/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh'
+  const rel = '/.config/omarchy/hooks/theme-set.d/hermes-skin-sync.sh'
+  let hermesHome = ''
+  try {
+    hermesHome = String(await hermesHomeOf(bridge))
+  } catch {
+    // Kein desktopPluginsRoot an dieser Bridge — der Benutzername trägt allein.
+  }
+  if (/[\\/]\.hermes$/.test(hermesHome)) return hermesHome.replace(/[\\/]\.hermes$/, '') + rel
+  let user = ''
+  try {
+    user = String((await bridge.getMachineProfile?.())?.username ?? '')
+  } catch {
+    // Kein Maschinenprofil (ältere Bridge) — dann bleibt es beim fehlenden Home.
+  }
+  // Nur ein nackter Login-Name darf in den Pfad: alles andere wäre ein
+  // geratener Pfad (oder ein Pfad-Ausbruch).
+  if (/^[A-Za-z0-9._-]+$/.test(user)) return '/home/' + user + rel
+  return null
 }
 
 // Omarchy's toggle convention: the flag is a file in toggles/.
@@ -1070,11 +1102,20 @@ function ThemeCard({ entry, ctx }) {
 // Datei (Parent muss existieren — ~/.config/omarchy/hooks/theme-set.d/ tut das
 // auf Omarchy). Der Hook-Text ist oben eingebettet.
 // ---------------------------------------------------------------------------
-let hookChecked = false
+// Wird der Hook-Pfad nicht auflösbar (kein Home an dieser Bridge), sagt die
+// Seite das — sie zeigt dann weder „installiert" noch schreibt sie irgendwohin.
+const HOOK_NO_HOME = 'Home-Verzeichnis nicht auflösbar — Hook-Pfad unbekannt. Nutze `make install-hook`.'
 
-function HookSection({ ctx }) {
+function HookSection({ ctx = {} }) {
   const bridge = typeof window === 'undefined' ? undefined : window.hermesDesktop
   const [state, setState] = useState({ installed: false, busy: false, msg: '' })
+  // Latch pro Mount, nicht pro Prozess: `useState` gehört zur Component-Instanz,
+  // ein Re-Render behält ihn (also kein zweiter Read pro Mount), ein Unmount
+  // wirft ihn weg — der nächste Mount liest den Status neu. Das alte
+  // Module-Flag `hookChecked` blieb über Mounts hinweg true, deshalb behauptete
+  // eine neu geöffnete Settings-Seite „nicht installiert" über einem real
+  // vorhandenen Hook, und der Install-Button hat ihn überschrieben.
+  const [hookRead, setHookRead] = useState(false)
 
   const refresh = async () => {
     if (!bridge?.readFileText) {
@@ -1083,14 +1124,18 @@ function HookSection({ ctx }) {
     }
     try {
       const path = await omarchyHookPath(bridge)
+      if (!path) {
+        setState(s => ({ ...s, installed: false, msg: HOOK_NO_HOME }))
+        return
+      }
       const file = await bridge.readFileText(path).catch(() => null)
-      setState(s => ({ ...s, installed: typeof file?.text === 'string' && file.text.length > 0 }))
+      setState(s => ({ ...s, installed: typeof file?.text === 'string' && file.text.length > 0, msg: '' }))
     } catch (e) {
       setState(s => ({ ...s, msg: 'Hook-Status nicht lesbar.' }))
     }
   }
-  if (!hookChecked) {
-    hookChecked = true
+  if (!hookRead) {
+    setHookRead(true)
     if (ctx.setTimeout) ctx.setTimeout(() => { void refresh() }, 0)
     else void refresh()
   }
@@ -1107,6 +1152,10 @@ function HookSection({ ctx }) {
     setState(s => ({ ...s, busy: true, msg: '' }))
     try {
       const path = await omarchyHookPath(bridge)
+      if (!path) {
+        setState(s => ({ ...s, busy: false, installed: false, msg: HOOK_NO_HOME }))
+        return
+      }
       if (install) await bridge.writeTextFile(path, HOOK_SCRIPT)
       else await bridge.trashPath(path)
       ctx.os?.notify?.({ title: 'omarchy-themes', body: install ? 'Terminal-Skin-Hook installiert.' : 'Terminal-Skin-Hook entfernt.' })
