@@ -50,7 +50,9 @@ test:
 # `make check` auf jedem Host ohne gh-pages-Klon gruen ist, wird aber laut gesagt:
 # `⚠ SKIP — PAGES DRIFT GATE DID NOT RUN` plus Verweis auf die CI-Erzwingung und
 # auf `PAGES_STRICT=1`, das einen fehlenden Checkout zum harten Fehler (Exit 2)
-# macht. Kalibriert in `make test` (tests/pages-check-enforcement.sh), weil eine
+# macht. PAGES_STRICT=0 schaltet die Erzwingung explizit aus (Shell-Konvention
+# 0 = falsch); jeder andere nicht-leere Wert wirkt wie 1. Kalibriert in `make
+# test` (tests/pages-check-enforcement.sh), weil eine
 # blosse "SKIP"-Zeile in einem Abnahmelog nicht von "Gate gelaufen" zu
 # unterscheiden war (QA-Befund t_1048777b).
 # Erzwungen wird das Gate in CI
@@ -66,6 +68,7 @@ test:
 # (tests/pages-gate.sh, synthetisches Fixture).
 pages-check:
 	@dir='$(PAGES_DIR)'; strict='$(PAGES_STRICT)'; [ -n "$$strict" ] || strict="$${PAGES_STRICT:-}"; \
+	case "$$strict" in 0) strict='' ;; esac; \
 	if [ -z "$$dir" ] && [ -d pages ]; then dir='./pages'; fi; \
 	if [ -z "$$dir" ]; then \
 	  if [ -n "$$strict" ]; then \

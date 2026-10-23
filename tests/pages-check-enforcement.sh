@@ -36,4 +36,16 @@ out=$(cd "$ROOT" && PAGES_STRICT=1 PAGES_DIR="$MISSING" make -s pages-check 2>&1
 [ "$code" -ne 0 ] || fail "strict-Fall (Umgebung): Exit 0, erwartet != 0"
 printf 'ok — PAGES_STRICT aus der Umgebung wirkt (exit %s)\n' "$code"
 
-printf 'ok — pages-check enforcement: 3 Faelle\n'
+# 4. PAGES_STRICT=0 schaltet die Erzwingung aus (Makefile-Kommentar: 0 = aus,
+#    jeder andere nicht-leere Wert wirkt wie 1): exit 0 wie der Skip-Fall.
+out=$(cd "$ROOT" && make -s pages-check PAGES_DIR="$MISSING" PAGES_STRICT=0 2>&1) && code=0 || code=$?
+[ "$code" -eq 0 ] || fail "PAGES_STRICT=0 (make-Variable): Exit $code, erwartet 0"
+case $out in *"DID NOT RUN"*) ;; *) fail "PAGES_STRICT=0: Skip-Warnung fehlt: $out" ;; esac
+printf 'ok — PAGES_STRICT=0 als make-Variable schaltet die Erzwingung aus (exit %s)\n' "$code"
+
+# 5. PAGES_STRICT=0 aus der Umgebung: muss genauso wirken.
+out=$(cd "$ROOT" && PAGES_STRICT=0 PAGES_DIR="$MISSING" make -s pages-check 2>&1) && code=0 || code=$?
+[ "$code" -eq 0 ] || fail "PAGES_STRICT=0 (Umgebung): Exit $code, erwartet 0"
+printf 'ok — PAGES_STRICT=0 aus der Umgebung wirkt (exit %s)\n' "$code"
+
+printf 'ok — pages-check enforcement: 5 Faelle\n'
