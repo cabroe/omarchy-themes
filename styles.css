@@ -774,8 +774,8 @@ kbd {
 }
 
 /* ---------- install ---------- */
-/* Zwei gleichrangige Wege (Terminal / App) als Hairline-Karten, danach die
-   Optionen-Zeile und die Deinstallation als abgesetzter, leiserer Block. */
+/* Zwei gleichrangige Wege (Terminal / App) als Hairline-Karten. Die
+   Deinstallation in der Sekundaer-Band nutzt dieselbe Kartenform. */
 .paths {
   display: grid;
   gap: var(--s4);
@@ -824,15 +824,15 @@ kbd {
 .uninstall {
   display: flex;
   flex-direction: column;
-  gap: var(--s3);
+  gap: var(--s4);
 }
 .uninstall-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
-/* Dieselbe Command-Grammatik wie in den beiden Karten: ein Befehl sieht ueberall
-   gleich aus — und traegt in der Sekundaer-Band dieselbe Textbreite wie die
-   Notizen daneben/darunter. Die Deinstallation bleibt durch Position, Hairline
-   und Notizen leiser, nicht durch eine andere Bar. */
-.uninstall .cmd-block { max-width: var(--measure); }
-.uninstall .note { max-width: var(--measure); }
+/* Die Deinstallation nutzt dieselben zwei Karten wie die Installation: erst die
+   Kopfzeile mit Tag und Meta, darunter .paths mit Terminal- und App-Weg, danach
+   die Reste-Notiz auf Textmass. Nur der Abstand zum Kopf wird zurueckgenommen —
+   .paths bringt sonst sein eigenes margin-top aus der Installationssektion mit. */
+.uninstall .paths { margin-top: 0; }
+.uninstall > .note { max-width: var(--measure); }
 .meta { color: var(--fg-muted); }
 .cmd-block {
   margin: 0;
@@ -852,8 +852,8 @@ kbd {
 .cmd-block code { font-size: var(--text-mono); }
 /* ---------- install: Sekundaer-Band ---------- */
 /* Unter den Karten: Option und Deinstallation ohne Trennlinie — der Abstand
-   gruppiert, nicht eine Regel. Gleiche Grammatik (Tag, Meta, Command-Bar,
-   Notiz auf Mass), nur leiser als die Karten. */
+   gruppiert, nicht eine Regel. Gleiche Grammatik wie die Karten (Tag, Meta,
+   Kartenpaar, Notiz auf Mass), nur durch Position und Groesse nachgeordnet. */
 .band {
   display: flex;
   flex-direction: column;

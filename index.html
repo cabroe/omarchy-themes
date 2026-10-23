@@ -177,18 +177,37 @@
           <div class="uninstall">
             <div class="uninstall-head">
               <span class="tag mono-xs" data-i18n="install.uninstall.tag">Deinstallation</span>
-              <span class="meta mono-xs" data-i18n="install.uninstall.meta">ein Befehl · entfernt Plugin und Config-Einträge</span>
+              <span class="meta mono-xs" data-i18n="install.uninstall.meta">zwei Wege · Terminal oder App</span>
             </div>
-            <pre class="cmd-block" tabindex="0"><code>hermes plugins remove omarchy-themes</code></pre>
-            <p class="note" data-i18n-html="install.uninstall.restart">
-              Danach Hermes Desktop neu starten — erst dann hört das Plugin auf, seine Themes zu
-              registrieren.
-            </p>
-            <p class="note" data-i18n-html="install.uninstall.app">
-              <strong>Ohne Terminal:</strong> dieselbe Seite → Papierkorb in der Zeile
-              <em>omarchy-themes</em> → <em>Deinstallieren</em>. Die App löscht den Ordner und
-              entlädt das Plugin sofort — ein Neustart ist dafür nicht nötig.
-            </p>
+
+            <div class="paths">
+              <!-- Weg 1: ein Befehl im Terminal -->
+              <div class="path">
+                <div class="path-head">
+                  <span class="tag mono-xs" data-i18n="install.uninstall.term.tag">Terminal</span>
+                  <span class="meta mono-xs" data-i18n="install.uninstall.term.meta">ein Befehl · entfernt Plugin und Config-Einträge</span>
+                </div>
+                <pre class="cmd-block" tabindex="0"><code>hermes plugins remove omarchy-themes</code></pre>
+                <p class="note" data-i18n-html="install.uninstall.restart">
+                  Danach Hermes Desktop neu starten — erst dann hört das Plugin auf, seine Themes zu
+                  registrieren.
+                </p>
+              </div>
+
+              <!-- Weg 2: dieselbe Deinstallation in der App, Schritt fuer Schritt -->
+              <div class="path">
+                <div class="path-head">
+                  <span class="tag mono-xs" data-i18n="install.uninstall.app.tag">App</span>
+                  <span class="meta mono-xs" data-i18n="install.uninstall.app.meta">drei Schritte · ohne Terminal</span>
+                </div>
+                <ol class="path-steps">
+                  <li data-i18n-html="install.uninstall.app.s1"><em>Settings → Capabilities → Plugins</em></li>
+                  <li data-i18n-html="install.uninstall.app.s2">Papierkorb in der Zeile <em>omarchy-themes</em></li>
+                  <li data-i18n-html="install.uninstall.app.s3"><em>Deinstallieren</em> — die App entlädt das Plugin sofort, ohne Neustart</li>
+                </ol>
+              </div>
+            </div>
+
             <p class="note" data-i18n-html="install.uninstall.cleanup">
               Reste, die bleiben dürfen: die Skin-Dateien unter
               <code>~/.hermes/skins/&lt;slug&gt;.yaml</code>. Hast du den Auto-Sync per Toggle
