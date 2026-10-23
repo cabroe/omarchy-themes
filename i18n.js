@@ -276,6 +276,16 @@ export function t(key, vars) {
   return out;
 }
 
+// Kennt die aktive Sprache oder die DE-Referenz diesen Key? applyI18n laesst
+// unbekannte Keys stehen, damit das Element seinen statischen HTML-Fallback
+// behaelt. Real aufgetreten: ein veraltetes i18n.js im Browser-Cache
+// (cache-control max-age=600) zusammen mit frischem index.html liess
+// `install.tag`/`install.meta` als rohe Keys auf der Seite stehen — in
+// Grossbuchstaben, weil .tag text-transform: uppercase traegt.
+export function hasKey(key) {
+  return Object.hasOwn(STRINGS[lang], key) || Object.hasOwn(STRINGS.de, key);
+}
+
 export function onLangChange(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
@@ -306,21 +316,27 @@ export function applyI18n(root = document) {
   }
 
   for (const el of root.querySelectorAll('[data-i18n]')) {
+    if (!hasKey(el.dataset.i18n)) continue;
     el.textContent = t(el.dataset.i18n);
   }
   for (const el of root.querySelectorAll('[data-i18n-html]')) {
+    if (!hasKey(el.dataset.i18nHtml)) continue;
     el.innerHTML = t(el.dataset.i18nHtml);
   }
   for (const el of root.querySelectorAll('[data-i18n-aria-label]')) {
+    if (!hasKey(el.dataset.i18nAriaLabel)) continue;
     el.setAttribute('aria-label', t(el.dataset.i18nAriaLabel));
   }
   for (const el of root.querySelectorAll('[data-i18n-title]')) {
+    if (!hasKey(el.dataset.i18nTitle)) continue;
     el.setAttribute('title', t(el.dataset.i18nTitle));
   }
   for (const el of root.querySelectorAll('[data-i18n-alt]')) {
+    if (!hasKey(el.dataset.i18nAlt)) continue;
     el.setAttribute('alt', t(el.dataset.i18nAlt));
   }
   for (const el of root.querySelectorAll('[data-i18n-placeholder]')) {
+    if (!hasKey(el.dataset.i18nPlaceholder)) continue;
     el.setAttribute('placeholder', t(el.dataset.i18nPlaceholder));
   }
   for (const btn of root.querySelectorAll('[data-lang-btn]')) {
