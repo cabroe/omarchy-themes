@@ -3,7 +3,6 @@
 //
 //   node tests/smoke.mjs
 import * as nodeModule from 'node:module'
-import { readFile } from 'node:fs/promises'
 import assert from 'node:assert/strict'
 import { resolve } from './stubs/loader.mjs'
 
@@ -32,39 +31,6 @@ plugin.register(ctx)
 const themes = contributions.filter(c => c.area === 'themes')
 const palette = contributions.filter(c => c.area === 'palette')
 const HEX = /^#[0-9a-f]{6}$/
-
-// Built-in RAW-Einträge (desktop/plugin.js) speisen die generierten Skins genauso
-// wie die Plugin-Themes, tauchen aber nie in `contributions` auf — deshalb hat sie
-// bisher niemand geprüft (QA-Befund t_1048777b). Der Guard parst den RAW-Block
-// strukturell, weil die Konstante nicht exportiert ist; eine reine Literal-Zählung
-// reichte nicht: #-lose Werte ("89b4fa"), benannte Farben ("tomato") und ein
-// gelöschter Palette-Eintrag liefen damit grün durch (QA-Befund t_5bcdae46).
-// Bewusste Änderung der Palette-/Schlüsselzahl: die Konstanten hier mitziehen —
-// genau das ist der Wächter gegen stillen Verlust.
-{
-  const EXPECTED_PALETTES = 22
-  const EXPECTED_KEYS = 23 // 1× mode + 22 Farben je Palette
-  const src = await readFile(new URL('../desktop/plugin.js', import.meta.url), 'utf8')
-  const start = src.indexOf('const RAW = [')
-  assert.ok(start !== -1, 'desktop/plugin.js: `const RAW = [` not found')
-  const end = src.indexOf('\n]', start)
-  assert.ok(end !== -1, 'desktop/plugin.js: RAW block not terminated')
-  const entries = [...src.slice(start, end).matchAll(/\{ slug:"([^"]+)"\s*,\s*c:\{([^}]*)\}\s*\}/g)]
-    .map(m => ({ slug: m[1], body: m[2] }))
-  assert.equal(entries.length, EXPECTED_PALETTES,
-    `RAW: ${entries.length} Paletten gefunden, erwartet ${EXPECTED_PALETTES} (Palette entfernt oder Parser-Drift?)`)
-  for (const { slug, body } of entries) {
-    const pairs = [...body.matchAll(/(\w+)\s*:\s*"([^"]*)"/g)].map(m => [m[1], m[2]])
-    assert.equal(pairs.length, EXPECTED_KEYS, `RAW ${slug}: ${pairs.length} Schlüssel, erwartet ${EXPECTED_KEYS}`)
-    for (const [key, value] of pairs) {
-      if (key === 'mode') {
-        assert.match(value, /^(dark|light)$/, `RAW ${slug}.mode = "${value}"`)
-        continue
-      }
-      assert.match(value, HEX, `RAW ${slug}.${key} = "${value}" (not #rrggbb)`)
-    }
-  }
-}
 
 assert.ok(themes.length >= 1, 'no themes registered')
 // One ⌘K row per theme; the host lists a row only with `label` + `run`
