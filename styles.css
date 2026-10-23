@@ -774,8 +774,9 @@ kbd {
 }
 
 /* ---------- install ---------- */
-/* Zwei gleichrangige Wege (Terminal / App) als Hairline-Karten. Die
-   Deinstallation in der Sekundaer-Band nutzt dieselbe Kartenform. */
+/* Zwei gleichrangige Wege (Terminal / App) als Hairline-Karten, je Block unter
+   einer eigenen Kopfzeile. Installation und Deinstallation nutzen dieselbe
+   Kartenform und denselben Kopf (siehe .block-head). */
 .paths {
   display: grid;
   gap: var(--s4);
@@ -821,17 +822,20 @@ kbd {
 }
 .path-steps em { color: var(--fg); }
 
+/* Installation und Deinstallation teilen eine Blockgrammatik: Kopfzeile mit Tag
+   und Meta, darunter .paths mit Terminal- und App-Weg, danach die Schlussnotiz
+   auf Textmass. Nur der Abstand zum Kopf wird zurueckgenommen — .paths bringt
+   sonst sein eigenes margin-top aus dem Sektionsrhythmus mit. */
+.install,
 .uninstall {
   display: flex;
   flex-direction: column;
   gap: var(--s4);
 }
-.uninstall-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
-/* Die Deinstallation nutzt dieselben zwei Karten wie die Installation: erst die
-   Kopfzeile mit Tag und Meta, darunter .paths mit Terminal- und App-Weg, danach
-   die Reste-Notiz auf Textmass. Nur der Abstand zum Kopf wird zurueckgenommen —
-   .paths bringt sonst sein eigenes margin-top aus der Installationssektion mit. */
+.block-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
+.install .paths,
 .uninstall .paths { margin-top: 0; }
+.install > .note,
 .uninstall > .note { max-width: var(--measure); }
 .meta { color: var(--fg-muted); }
 .cmd-block {
@@ -851,9 +855,9 @@ kbd {
 }
 .cmd-block code { font-size: var(--text-mono); }
 /* ---------- install: Sekundaer-Band ---------- */
-/* Unter den Karten: Option und Deinstallation ohne Trennlinie — der Abstand
-   gruppiert, nicht eine Regel. Gleiche Grammatik wie die Karten (Tag, Meta,
-   Kartenpaar, Notiz auf Mass), nur durch Position und Groesse nachgeordnet. */
+/* Die beiden Bloecke (Installation, Deinstallation) ohne Trennlinie — der
+   Abstand gruppiert, nicht eine Regel. Beide teilen Kopfzeile, Kartenpaar und
+   Schlussnotiz; die Deinstallation ist nur durch Position nachgeordnet. */
 .band {
   display: flex;
   flex-direction: column;
@@ -1059,10 +1063,10 @@ body.launcher-open { overflow: hidden; }
   .tile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cmd-block { white-space: pre-wrap; overflow-wrap: anywhere; }
   /* Tag und Meta stehen auf dem Desktop nebeneinander; auf schmalen Viewports
-     bricht die Meta sonst mitten im Wort um. Gestapelt gilt fuer alle drei
-     Koepfe dieselbe Regel (Terminal, App, Deinstallation). */
+     bricht die Meta sonst mitten im Wort um. Gestapelt gilt fuer alle Koepfe
+     dieselbe Regel (Terminal, App, Installation, Deinstallation). */
   .path-head,
-  .uninstall-head { flex-direction: column; align-items: flex-start; gap: var(--s1); }
+  .block-head { flex-direction: column; align-items: flex-start; gap: var(--s1); }
 }
 
 /* ---------- motion ---------- */

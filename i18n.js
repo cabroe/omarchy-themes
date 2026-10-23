@@ -84,6 +84,8 @@ export const STRINGS = {
 
     'install.h2': 'In 30 Sekunden drin.',
     'install.lede': 'Das Plugin bringt den Desktop-Picker und schaltet ihn bei <code>omarchy theme set</code> automatisch mit.',
+    'install.tag': 'Installation',
+    'install.meta': 'zwei Wege · Terminal oder App',
     'install.terminal.tag': 'Terminal',
     'install.terminal.meta': 'ein Befehl · ~3 s',
     'install.terminal.note': 'Danach unter <em>Settings → Capabilities → Plugins</em> einmal aktivieren, falls das Plugin nicht bereits aktiv ist.',
@@ -197,6 +199,8 @@ export const STRINGS = {
 
     'install.h2': 'Set up in 30 seconds.',
     'install.lede': 'The plugin adds the desktop picker and follows <code>omarchy theme set</code> on its own.',
+    'install.tag': 'Installation',
+    'install.meta': 'two ways · terminal or app',
     'install.terminal.tag': 'Terminal',
     'install.terminal.meta': 'one command · ~3 s',
     'install.terminal.note': 'Then enable it once under <em>Settings → Capabilities → Plugins</em> if it is not already active.',

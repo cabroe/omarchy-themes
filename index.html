@@ -138,44 +138,53 @@
           automatisch mit.
         </p>
 
-        <div class="paths">
-          <!-- Weg 1: ein Befehl im Terminal -->
-          <div class="path">
-            <div class="path-head">
-              <span class="tag mono-xs" data-i18n="install.terminal.tag">Terminal</span>
-              <span class="meta mono-xs" data-i18n="install.terminal.meta">ein Befehl · ~3 s</span>
+        <div class="band">
+          <!-- Dieselbe Blockgrammatik wie die Deinstallation: Kopfzeile mit Tag
+               und Meta, zwei Weg-Karten, Schlussnotiz auf Textmass. -->
+          <div class="install">
+            <div class="block-head">
+              <span class="tag mono-xs" data-i18n="install.tag">Installation</span>
+              <span class="meta mono-xs" data-i18n="install.meta">zwei Wege · Terminal oder App</span>
             </div>
-            <pre class="cmd-block" tabindex="0"><code>hermes plugins install https://github.com/cabroe/omarchy-themes</code></pre>
-            <p class="note" data-i18n-html="install.terminal.note">
-              Danach unter <em>Settings → Capabilities → Plugins</em> einmal aktivieren, falls das
-              Plugin nicht bereits aktiv ist.
+
+            <div class="paths">
+              <!-- Weg 1: ein Befehl im Terminal -->
+              <div class="path">
+                <div class="path-head">
+                  <span class="tag mono-xs" data-i18n="install.terminal.tag">Terminal</span>
+                  <span class="meta mono-xs" data-i18n="install.terminal.meta">ein Befehl · ~3 s</span>
+                </div>
+                <pre class="cmd-block" tabindex="0"><code>hermes plugins install https://github.com/cabroe/omarchy-themes</code></pre>
+                <p class="note" data-i18n-html="install.terminal.note">
+                  Danach unter <em>Settings → Capabilities → Plugins</em> einmal aktivieren, falls das
+                  Plugin nicht bereits aktiv ist.
+                </p>
+              </div>
+
+              <!-- Weg 2: derselbe Vorgang in der App, Schritt fuer Schritt -->
+              <div class="path">
+                <div class="path-head">
+                  <span class="tag mono-xs" data-i18n="install.app.tag">App</span>
+                  <span class="meta mono-xs" data-i18n="install.app.meta">vier Schritte · ohne Terminal</span>
+                </div>
+                <ol class="path-steps">
+                  <li data-i18n-html="install.app.s1"><em>Settings → Capabilities → Plugins</em></li>
+                  <li data-i18n-html="install.app.s2"><em>Von Git installieren</em></li>
+                  <li data-i18n-html="install.app.s3">Repository-URL einfügen, <em>Repository prüfen</em></li>
+                  <li data-i18n-html="install.app.s4"><em>Installieren</em> — die App schaltet das Plugin direkt ein</li>
+                </ol>
+              </div>
+            </div>
+
+            <p class="note" data-i18n-html="install.extras">
+              <strong>Auto-Sync ausschalten:</strong>
+              <code>touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes</code>
+              — Picker und ⌘K bleiben funktional.
             </p>
           </div>
 
-          <!-- Weg 2: derselbe Vorgang in der App, Schritt fuer Schritt -->
-          <div class="path">
-            <div class="path-head">
-              <span class="tag mono-xs" data-i18n="install.app.tag">App</span>
-              <span class="meta mono-xs" data-i18n="install.app.meta">vier Schritte · ohne Terminal</span>
-            </div>
-            <ol class="path-steps">
-              <li data-i18n-html="install.app.s1"><em>Settings → Capabilities → Plugins</em></li>
-              <li data-i18n-html="install.app.s2"><em>Von Git installieren</em></li>
-              <li data-i18n-html="install.app.s3">Repository-URL einfügen, <em>Repository prüfen</em></li>
-              <li data-i18n-html="install.app.s4"><em>Installieren</em> — die App schaltet das Plugin direkt ein</li>
-            </ol>
-          </div>
-        </div>
-
-        <div class="band">
-          <p class="note" data-i18n-html="install.extras">
-            <strong>Auto-Sync ausschalten:</strong>
-            <code>touch ~/.local/state/omarchy/toggles/skip-hermes-theme-changes</code>
-            — Picker und ⌘K bleiben funktional.
-          </p>
-
           <div class="uninstall">
-            <div class="uninstall-head">
+            <div class="block-head">
               <span class="tag mono-xs" data-i18n="install.uninstall.tag">Deinstallation</span>
               <span class="meta mono-xs" data-i18n="install.uninstall.meta">zwei Wege · Terminal oder App</span>
             </div>
