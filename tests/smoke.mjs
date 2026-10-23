@@ -3,6 +3,7 @@
 //
 //   node tests/smoke.mjs
 import * as nodeModule from 'node:module'
+import { readFile } from 'node:fs/promises'
 import assert from 'node:assert/strict'
 import { resolve } from './stubs/loader.mjs'
 
@@ -31,6 +32,24 @@ plugin.register(ctx)
 const themes = contributions.filter(c => c.area === 'themes')
 const palette = contributions.filter(c => c.area === 'palette')
 const HEX = /^#[0-9a-f]{6}$/
+
+// Built-in RAW-Einträge (desktop/plugin.js) speisen die generierten Skins genauso
+// wie die Plugin-Themes, tauchen aber nie in `contributions` auf — deshalb hat sie
+// bisher niemand geprüft: ein abgeschnittener Hex (`#89b4f`) lief grün durch
+// (gefunden in der QA-Abnahme t_1048777b, dort per Mutation belegt). Der Guard
+// arbeitet auf dem Quelltext des RAW-Blocks, weil die Konstante nicht exportiert ist.
+{
+  const src = await readFile(new URL('../desktop/plugin.js', import.meta.url), 'utf8')
+  const start = src.indexOf('const RAW = [')
+  assert.ok(start !== -1, 'desktop/plugin.js: `const RAW = [` not found')
+  const end = src.indexOf('\n]', start)
+  assert.ok(end !== -1, 'desktop/plugin.js: RAW block not terminated')
+  const literals = [...src.slice(start, end).matchAll(/#[0-9A-Za-z]+/g)].map(m => m[0])
+  // Jeder Eintrag traegt mindestens zwei Farben; zu wenige Literale = Parser-Drift.
+  assert.ok(literals.length >= 44, `RAW block: only ${literals.length} colour literals parsed`)
+  const bad = literals.filter(v => !HEX.test(v))
+  assert.deepEqual(bad, [], `RAW colour literals not #rrggbb: ${bad.join(', ')}`)
+}
 
 assert.ok(themes.length >= 1, 'no themes registered')
 // One ⌘K row per theme; the host lists a row only with `label` + `run`

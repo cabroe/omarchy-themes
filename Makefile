@@ -34,22 +34,28 @@ check: lint test pages-check
 lint:
 	node --check desktop/plugin.js tests/palette-parity.mjs
 	python3 -m py_compile scripts/generate-themes.py scripts/embed-hook.py scripts/check-pages-consistency.py __init__.py
-	shellcheck hooks/hermes-skin-sync.sh tests/hook.sh tests/theme-switch-smoke.sh tests/palette-parity.sh tests/pages-gate.sh .githooks/pre-push
+	shellcheck hooks/hermes-skin-sync.sh tests/hook.sh tests/theme-switch-smoke.sh tests/palette-parity.sh tests/pages-gate.sh tests/pages-check-enforcement.sh .githooks/pre-push
 
 test:
 	node --enable-source-maps tests/smoke.mjs
 	sh tests/hook.sh
 	sh tests/palette-parity.sh
 	sh tests/pages-gate.sh
+	sh tests/pages-check-enforcement.sh
 	python3 scripts/embed-hook.py --check
 
 # Drift-Gate zwischen main (desktop/plugin.js, hooks/) und dem deployten
 # gh-pages-Branch. Checkout-Aufloesung: PAGES_DIR-Env -> ./pages -> keiner.
-# Ohne aufloesbaren Checkout wird bewusst NICHT still uebersprungen: es gibt
-# eine sichtbare SKIP-Zeile und Exit 0, damit `make check` auf jedem Host ohne
-# gh-pages-Klon gruen bleibt. Erzwungen wird das Gate in CI
-# (.github/workflows/pages-consistency.yml), das das Script direkt aufruft —
-# dort ist ein fehlender Checkout ein harter Fehler (Exit 2), kein Skip.
+# Ohne aufloesbaren Checkout laeuft das Gate nicht — das bleibt Exit 0, damit
+# `make check` auf jedem Host ohne gh-pages-Klon gruen ist, wird aber laut gesagt:
+# `⚠ SKIP — PAGES DRIFT GATE DID NOT RUN` plus Verweis auf die CI-Erzwingung und
+# auf `PAGES_STRICT=1`, das einen fehlenden Checkout zum harten Fehler (Exit 2)
+# macht. Kalibriert in `make test` (tests/pages-check-enforcement.sh), weil eine
+# blosse "SKIP"-Zeile in einem Abnahmelog nicht von "Gate gelaufen" zu
+# unterscheiden war (QA-Befund t_1048777b).
+# Erzwungen wird das Gate in CI
+# (.github/workflows/pages-consistency.yml), das das Script direkt aufruft — dort
+# ist ein fehlender Checkout ein harter Fehler (Exit 2), kein Skip.
 #
 # Exit-Code-Semantik des Gates: 0 = in sync, 1 = Drift, 2 = Parse/IO.
 # `make` kann diese Codes NICHT durchreichen: jeder fehlgeschlagene Recipe
@@ -59,14 +65,28 @@ test:
 # Die Kalibrierung der Codes selbst laeuft host-frei in `make test`
 # (tests/pages-gate.sh, synthetisches Fixture).
 pages-check:
-	@dir='$(PAGES_DIR)'; \
+	@dir='$(PAGES_DIR)'; strict='$(PAGES_STRICT)'; [ -n "$$strict" ] || strict="$${PAGES_STRICT:-}"; \
 	if [ -z "$$dir" ] && [ -d pages ]; then dir='./pages'; fi; \
 	if [ -z "$$dir" ]; then \
-	  echo "SKIP: no gh-pages checkout (PAGES_DIR unset, ./pages missing) — pages drift gate not enforced"; \
+	  if [ -n "$$strict" ]; then \
+	    echo "FAIL: no gh-pages checkout (PAGES_DIR unset, ./pages missing) and PAGES_STRICT is set — pages drift gate cannot run" >&2; \
+	    exit 2; \
+	  fi; \
+	  echo "⚠ SKIP — PAGES DRIFT GATE DID NOT RUN: no gh-pages checkout (PAGES_DIR unset, ./pages missing)."; \
+	  echo "  This run did NOT check main against the deployed pages. Enforced in CI:"; \
+	  echo "  .github/workflows/pages-consistency.yml (missing checkout there is a hard failure, exit 2)."; \
+	  echo "  For a hard failure locally: make pages-check PAGES_STRICT=1"; \
 	  exit 0; \
 	fi; \
 	if [ ! -d "$$dir" ]; then \
-	  echo "SKIP: no gh-pages checkout at $$dir (PAGES_DIR points to a missing directory) — pages drift gate not enforced"; \
+	  if [ -n "$$strict" ]; then \
+	    echo "FAIL: PAGES_DIR=$$dir does not exist and PAGES_STRICT is set — pages drift gate cannot run" >&2; \
+	    exit 2; \
+	  fi; \
+	  echo "⚠ SKIP — PAGES DRIFT GATE DID NOT RUN: PAGES_DIR=$$dir does not exist."; \
+	  echo "  This run did NOT check main against the deployed pages. Enforced in CI:"; \
+	  echo "  .github/workflows/pages-consistency.yml (missing checkout there is a hard failure, exit 2)."; \
+	  echo "  For a hard failure locally: make pages-check PAGES_STRICT=1"; \
 	  exit 0; \
 	fi; \
 	status=0; \
